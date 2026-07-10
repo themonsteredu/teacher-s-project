@@ -392,8 +392,7 @@ route(/^#\/program\/(\d+)$/, async (id) => {
         <div class="ph-t">${esc(p.title)} ${p.published ? '' : '<span class="badge gray">비공개</span>'}</div>
         <div class="desc">${p.category ? `📁 ${esc(p.category)} · ` : ''}업데이트 ${esc(p.updated_at)}</div>
       </div>
-      <div style="display:flex;gap:8px;flex-wrap:wrap">
-        ${data.links.length ? `<a class="btn btn-soft btn-sm" href="#/kids/${p.id}" style="white-space:nowrap">🧒 유아 화면</a>` : ''}
+      <div style="display:flex;gap:8px">
         ${isAdmin() ? `
           <button class="btn btn-ghost btn-sm" id="pub-toggle">${p.published ? `${icon('eyeOff')} 비공개로 전환` : `${icon('eye')} 공개하기`}</button>
           <a class="btn btn-ghost btn-sm" href="#/manage/${p.id}">${icon('edit')} 편집</a>` : ''}
@@ -421,56 +420,6 @@ route(/^#\/program\/(\d+)$/, async (id) => {
     toast(p.published ? '비공개로 전환되었습니다. 교사에게 즉시 숨겨집니다.' : '공개되었습니다.');
     navigate();
   };
-});
-
-/* ---------------- 유아 모드 (#/kids/:id) ----------------
- * 아이들 눈높이 전체화면: 큰 그림 타일 + 최소 글자 + 원클릭 실행.
- * 링크/웹앱은 새 탭, 영상은 화면 가득 재생. 첨부자료는 교사용이라 제외. */
-const KIDS_EMOJI = { link: '🎈', aiapp: '🎮', video: '🎬' };
-const KIDS_KIND_LABEL = { link: '놀이터 가기', aiapp: '게임 하기', video: '영상 보기' };
-
-route(/^#\/kids\/(\d+)$/, async (id) => {
-  let data;
-  try { data = await api('GET', `/api/programs/${id}`); }
-  catch (e) { if (state.me) { toast(e.message, true); location.hash = '#/'; } return; }
-  const p = data.program;
-
-  const tile = (l, i) => `
-    ${l.kind === 'video'
-      ? `<button class="kids-tile kc-${i % 6}" data-kvid="${esc(l.url)}">`
-      : `<a class="kids-tile kc-${i % 6}" href="${esc(l.url)}" target="_blank" rel="noopener noreferrer">`}
-      <span class="ke">${KIDS_EMOJI[l.kind] || '⭐'}</span>
-      <span class="kl">${esc(l.label || KIDS_KIND_LABEL[l.kind] || '열기')}</span>
-      <span class="kk">${KIDS_KIND_LABEL[l.kind] || ''} ${l.kind === 'video' ? '' : '↗'}</span>
-    ${l.kind === 'video' ? '</button>' : '</a>'}`;
-
-  $app.innerHTML = `
-    <div class="kids-wrap">
-      <div class="kids-top">
-        <button class="kids-exit" id="kids-exit">← 선생님 화면</button>
-      </div>
-      <div class="kids-title"><span class="em">🌈</span>${esc(p.title)}</div>
-      ${data.links.length
-        ? `<div class="kids-grid">${data.links.map(tile).join('')}</div>`
-        : '<div class="kids-empty">아직 준비된 놀이가 없어요 🐣</div>'}
-    </div>`;
-
-  document.getElementById('kids-exit').onclick = () => { location.hash = `#/program/${p.id}`; };
-  document.querySelectorAll('[data-kvid]').forEach((b) => {
-    b.onclick = () => {
-      const overlay = document.createElement('div');
-      overlay.className = 'kids-player';
-      overlay.innerHTML = `
-        <div class="kp-box">${videoEmbed(b.dataset.kvid)}</div>
-        <button class="kp-close" aria-label="닫기">✕</button>`;
-      // videoEmbed의 .video-box 래퍼 대신 플레이어가 꽉 차도록 스타일 재사용
-      const box = overlay.querySelector('.video-box');
-      if (box) { box.style.cssText = 'width:100%;height:100%;padding:0;margin:0'; const f = box.firstElementChild; if (f) f.style.cssText = 'width:100%;height:100%'; }
-      overlay.querySelector('.kp-close').onclick = () => overlay.remove();
-      overlay.addEventListener('mousedown', (e) => { if (e.target === overlay) overlay.remove(); });
-      document.body.appendChild(overlay);
-    };
-  });
 });
 
 /* ---------------- 프로그램 관리 (#/manage, admin) ---------------- */
