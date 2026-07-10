@@ -1,0 +1,70 @@
+# 수업프로그램 허브
+
+같은 학교 선생님들을 위한 수업프로그램 모음 사이트.
+프레임워크 없는 Node HTTP 서버 + 바닐라 JS SPA + Supabase Postgres/Storage + Vercel, 의존성은 `pg` 하나.
+
+## 무엇을 담나
+
+프로그램 하나에 4종 콘텐츠를 담습니다.
+
+- 🔗 **수업 링크** — 젭·패들렛·AI도구 등 외부 링크 (프로그램당 여러 개)
+- 🖥️ **웹앱** — 기존에 배포된 웹앱 링크
+- ▶ **영상** — 유튜브 임베드 (상세 화면에서 바로 재생)
+- 📎 **첨부자료** — PPT/PDF/한글/zip/이미지 (100MB 이하, 관리자의 Supabase 비공개 버킷에만 저장)
+
+## 회수권 (핵심 설계)
+
+만든 사람(관리자)이 언제든 즉시 회수할 수 있습니다.
+
+| 스위치 | 위치 | 효과 |
+|---|---|---|
+| ① 프로그램별 비공개 | 프로그램 관리 → 공개 토글 | 교사 목록·상세·다운로드가 즉시 차단 |
+| ② 계정 정지 (강퇴) | 교사 계정 → 정지 | 세션 즉시 삭제 — 다음 클릭부터 로그아웃, 재로그인 불가 |
+| ③ 사이트 킬스위치 | 사이트 설정 → 잠금 토글 | 관리자 제외 전원 차단 + 안내 문구 표시 |
+| ④ 첨부 원본 소멸 | 파일/프로그램 삭제 | Supabase 버킷 객체까지 삭제 — 원본이 사라짐 |
+
+다운로드 링크는 10분 유효 서명 URL이라 회수 후 기존 링크도 곧 만료됩니다.
+
+## 계정 체계
+
+- `admin` (관리자): 프로그램/계정/사이트 관리
+- `teacher` (교사): 공개된 프로그램 열람·다운로드만 가능
+- 공유 코드 없음 — 교사별 개별 계정이므로 개별 회수가 가능
+
+## 환경변수
+
+| 변수 | 필수 | 설명 |
+|---|---|---|
+| `DATABASE_URL` | ✅ | Supabase → Connect → **Transaction pooler URI (포트 6543)** |
+| `ADMIN_PASSWORD` | 권장 | 최초 admin 비밀번호 (미설정 시 `ChangeMe123!`) |
+| `SUPABASE_URL` | 첨부 사용 시 | Settings → API의 프로젝트 URL |
+| `SUPABASE_SERVICE_KEY` | 첨부 사용 시 | service_role 키 |
+| `SUPABASE_BUCKET` | 선택 | 기본 `files` (비공개 버킷, 첫 업로드 시 자동 생성) |
+
+## 실행
+
+```bash
+# 로컬
+npm install
+DATABASE_URL='postgres://...' node --no-warnings server.js
+```
+
+**Vercel 배포**: 레포 연결 → 위 환경변수 입력 → 배포. 빌드 스텝 없음 (`vercel.json`이 라우팅 처리).
+
+첫 로그인: `admin` / `ADMIN_PASSWORD` 값 → 즉시 비밀번호 변경 요구 → 교사 계정 생성.
+
+## 구조
+
+```
+server.js          # 로컬/일반 서버 진입점 (정적 파일 + /api)
+api/index.js       # Vercel 서버리스 진입점
+lib/db.js          # 스키마·시드·설정 (Postgres)
+lib/api.js         # API ~18 라우트 + 킬스위치 게이트
+lib/auth.js        # 세션 (매 요청 active 확인 → 즉시 강퇴)
+lib/password.js    # scrypt 해시
+lib/storage.js     # Supabase Storage 서명 업로드/다운로드
+public/            # SPA (index.html + app.js + style.css)
+```
+
+파일 업로드는 Vercel 4.5MB 한도를 우회하는 서명 업로드 3단계를 사용합니다:
+서버가 서명 URL 발급 → 브라우저가 Supabase에 직접 PUT → 서버에 완료 확인.
