@@ -802,3 +802,54 @@ table.matrix { width: 100%; border-collapse: separate; border-spacing: 5px; min-
 }
 .cal-ev .ce-t { font-size: 11.5px; font-weight: 800; color: var(--text); line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .cal-ev .ce-m { font-size: 10px; color: var(--text-2); margin-top: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* ============ 유아 모드 (아이들 눈높이 전체화면) ============ */
+.kids-wrap {
+  position: fixed; inset: 0; z-index: 50; overflow-y: auto;
+  background: linear-gradient(160deg, #fef6e4 0%, #e8f4fd 55%, #eefbe7 100%);
+  padding: 22px clamp(16px, 4vw, 56px) 48px;
+}
+.kids-top { display: flex; align-items: center; gap: 14px; margin-bottom: 10px; }
+.kids-exit {
+  border: none; cursor: pointer; background: rgba(255,255,255,.85);
+  border-radius: 999px; padding: 10px 20px; font-size: 15px; font-weight: 800;
+  color: #475569; box-shadow: 0 2px 10px rgba(15,23,42,.08);
+}
+.kids-exit:hover { background: #fff; }
+.kids-title {
+  text-align: center; font-size: clamp(30px, 5vw, 46px); font-weight: 900;
+  color: #1e293b; margin: 6px 0 30px; letter-spacing: -.5px;
+}
+.kids-title .em { font-size: 1.2em; margin-right: 12px; }
+.kids-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(min(280px, 100%), 1fr));
+  gap: clamp(14px, 2.5vw, 26px); max-width: 1100px; margin: 0 auto;
+}
+.kids-tile {
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px;
+  min-height: 210px; border: none; cursor: pointer; text-decoration: none;
+  border-radius: 30px; padding: 26px 20px;
+  box-shadow: 0 6px 20px rgba(15,23,42,.10), inset 0 -5px 0 rgba(15,23,42,.06);
+  transition: transform .12s ease, box-shadow .12s ease;
+}
+.kids-tile:active, .kids-tile:hover { transform: scale(1.035); box-shadow: 0 10px 26px rgba(15,23,42,.16); }
+.kids-tile .ke { font-size: clamp(52px, 7vw, 72px); line-height: 1; }
+.kids-tile .kl {
+  font-size: clamp(20px, 2.6vw, 27px); font-weight: 900; color: #1e293b;
+  text-align: center; line-height: 1.3; word-break: keep-all;
+}
+.kids-tile .kk { font-size: 14px; font-weight: 800; color: rgba(30,41,59,.55); }
+.kc-0 { background: #ffe3ec; } .kc-1 { background: #dff1ff; } .kc-2 { background: #e6f9dc; }
+.kc-3 { background: #fff3c9; } .kc-4 { background: #eee5ff; } .kc-5 { background: #d9f6f0; }
+.kids-empty { text-align: center; font-size: 22px; font-weight: 800; color: #64748b; padding: 70px 0; }
+.kids-player {
+  position: fixed; inset: 0; z-index: 60; background: rgba(10, 14, 24, .96);
+  display: flex; align-items: center; justify-content: center; padding: clamp(12px, 4vw, 48px);
+}
+.kids-player .kp-box { width: min(1200px, 100%); aspect-ratio: 16/9; }
+.kids-player iframe, .kids-player video { width: 100%; height: 100%; border: none; border-radius: 18px; background: #000; }
+.kids-player .kp-close {
+  position: absolute; top: 18px; right: 22px; border: none; cursor: pointer;
+  background: #fff; border-radius: 999px; width: 58px; height: 58px;
+  font-size: 26px; font-weight: 900; color: #1e293b; box-shadow: 0 4px 14px rgba(0,0,0,.35);
+}
