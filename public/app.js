@@ -156,68 +156,50 @@ async function navigate() {
 }
 window.addEventListener('hashchange', navigate);
 
-/* ---------------- 셸 (사이드바 + 헤더) ---------------- */
-function menuGroups() {
+/* ---------------- 셸 (상단 메뉴바) ---------------- */
+function menuItems() {
+  const items = [['#/', 'grid', '프로그램']];
   if (isAdmin()) {
-    return [
-      ['수업', [
-        ['#/', 'grid', '프로그램'],
-      ]],
-      ['운영', [
-        ['#/manage', 'layers', '프로그램 관리'],
-        ['#/users', 'users', '교사 계정'],
-        ['#/site', 'power', '사이트 설정'],
-        ['#/logs', 'fileText', '이용 기록'],
-      ]],
-      ['내 계정', [['#/settings', 'sliders', '설정']]],
-    ];
+    items.push(
+      ['#/manage', 'layers', '프로그램 관리'],
+      ['#/users', 'users', '교사 계정'],
+      ['#/site', 'power', '사이트 설정'],
+      ['#/logs', 'fileText', '이용 기록'],
+    );
   }
-  return [
-    ['수업', [['#/', 'grid', '프로그램']]],
-    ['내 계정', [['#/settings', 'sliders', '설정']]],
-  ];
+  items.push(['#/settings', 'sliders', '내 설정']);
+  return items;
 }
 
 function shell(title, contentHtml) {
   const u = state.me;
   const hash = (location.hash || '#/').split('/').slice(0, 2).join('/');
+  document.title = `${title} — 수업프로그램 허브`;
   $app.innerHTML = `
-    <div class="shell" id="shell">
-      <div class="side-overlay" id="side-overlay"></div>
-      <aside class="sidebar">
-        <div class="brand">
-          <div class="mark">수업</div>
-          <div><div class="bt">수업프로그램 허브</div><div class="bs">선생님용 수업자료 모음</div></div>
-        </div>
-        <nav>
-          ${menuGroups().map(([label, items]) => `
-            <div class="nav-label">${label}</div>
-            ${items.map(([href, ic, text]) =>
-              `<a href="${href}" class="${hash === href || (href === '#/' && (location.hash || '#/') === '#/') ? 'active' : ''}">${icon(ic)}${text}</a>`).join('')}
-          `).join('')}
+    <div class="site">
+      <header class="topbar" id="topbar">
+        <a class="tb-brand" href="#/">
+          <span class="tb-mark">수업</span>
+          <span class="tb-name">수업프로그램 허브</span>
+        </a>
+        <button class="tb-burger" id="btn-hamburger" aria-label="메뉴">${icon('menu')}</button>
+        <nav class="tb-nav" id="tb-nav">
+          ${menuItems().map(([href, ic, text]) =>
+            `<a href="${href}" class="${hash === href || (href === '#/' && (location.hash || '#/') === '#/') ? 'active' : ''}">${icon(ic)}${text}</a>`).join('')}
         </nav>
-        <div class="side-foot">
-          ${icon('clock')} ${esc(u.name)} (${esc(u.roleLabel)})<br>
-          <span class="tz">문의는 관리자 선생님에게 연락하세요</span>
+        <div class="tb-spacer"></div>
+        <div class="search-box">
+          ${icon('search')}
+          <input id="global-search" placeholder="프로그램 검색" autocomplete="off" value="${esc(state.search)}">
         </div>
-      </aside>
-      <div class="main">
-        <header class="header">
-          <button class="hamburger" id="btn-hamburger" aria-label="메뉴">${icon('menu')}</button>
-          <div class="page-title">${esc(title)}</div>
-          <div class="search-box">
-            ${icon('search')}
-            <input id="global-search" placeholder="프로그램 검색" autocomplete="off" value="${esc(state.search)}">
-          </div>
-          <button class="icon-btn" id="btn-help" aria-label="도움말">${icon('help')}</button>
-          <div class="profile-chip">
-            <div class="who"><div class="nm">${esc(u.name)}</div><div class="rl">${esc(u.roleLabel)}</div></div>
-            <div class="avatar">${esc(u.name.slice(0, 1))}</div>
-            <button class="icon-btn" id="btn-logout" title="로그아웃">${icon('logout')}</button>
-          </div>
-        </header>
-        <div class="content">${contentHtml}</div>
-      </div>
+        <div class="tb-user">
+          <span class="tb-avatar">${esc(u.name.slice(0, 1))}</span>
+          <span class="tb-who">${esc(u.name)}<br><b>${esc(u.roleLabel)}</b></span>
+          <button class="icon-btn" id="btn-logout" title="로그아웃">${icon('logout')}</button>
+        </div>
+      </header>
+      <main class="page"><div class="page-inner">${contentHtml}</div></main>
+      <footer class="site-foot">궁금한 점은 관리자 선생님에게 문의하세요 🌱</footer>
     </div>`;
 
   document.getElementById('btn-logout').onclick = async () => {
@@ -225,27 +207,13 @@ function shell(title, contentHtml) {
     state.me = null;
     location.hash = '#/login';
   };
-  const shellEl = document.getElementById('shell');
-  document.getElementById('btn-hamburger').onclick = () => shellEl.classList.toggle('side-open');
-  document.getElementById('side-overlay').onclick = () => shellEl.classList.remove('side-open');
+  document.getElementById('btn-hamburger').onclick = () =>
+    document.getElementById('topbar').classList.toggle('nav-open');
   document.getElementById('global-search').onkeydown = (e) => {
     if (e.key === 'Enter') {
       state.search = e.target.value.trim();
       if ((location.hash || '#/') === '#/') navigate(); else location.hash = '#/';
     }
-  };
-  document.getElementById('btn-help').onclick = () => {
-    openModal(`
-      <h3>도움말</h3>
-      <div class="m-sub">수업프로그램 허브 사용 안내</div>
-      <div style="font-size:13px;line-height:2">
-        · <b>프로그램</b> 목록에서 수업에 쓸 프로그램을 골라 여세요.<br>
-        · 프로그램 안에는 <b>수업 링크</b>(젭·패들렛 등), <b>웹앱</b>, <b>영상</b>, <b>첨부자료</b>가 있습니다.<br>
-        · 첨부자료는 다운로드 버튼으로 받습니다.<br>
-        ${isAdmin() ? '· <b>프로그램 관리</b>에서 만들기·공개/비공개·수정·삭제를 할 수 있습니다.<br>· <b>사이트 설정</b>에서 사이트 전체를 잠글 수 있습니다.' : '· 목록에 없는 자료는 관리자 선생님에게 문의하세요.'}
-      </div>
-      <div class="m-actions"><button class="btn btn-primary" id="m-close">확인</button></div>`)
-      .querySelector('#m-close').onclick = (e) => e.target.closest('.modal-back').remove();
   };
 }
 
