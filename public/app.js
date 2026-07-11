@@ -61,13 +61,16 @@ async function api(method, url, body) {
   const data = await res.json().catch(() => ({}));
   if (res.status === 401 && !url.endsWith('/api/login')) {
     state.me = null;
-    location.hash = '#/login';
+    // 학생 보드는 로그인 없이 쓰므로, 보드 화면에서는 로그인으로 보내지 않는다
+    if (!(location.hash || '').startsWith('#/board/')) location.hash = '#/login';
     throw new Error(data.error || '로그인이 필요합니다.');
   }
-  // 사이트 킬스위치: 폐쇄 중이면 교사에게 폐쇄 안내 화면
+  // 사이트 킬스위치: 폐쇄 중이면 폐쇄 안내 화면 (학생 보드 접근 포함)
   if (res.status === 403 && data.error === 'site_closed') {
     renderClosed(data.notice);
-    throw new Error('사이트가 일시 중단되었습니다.');
+    const err = new Error('사이트가 일시 중단되었습니다.');
+    err.handled = true; // 라우트 catch에서 재렌더 방지
+    throw err;
   }
   if (!res.ok) {
     const err = new Error(data.error || '요청에 실패했습니다.');
@@ -139,7 +142,8 @@ function route(pattern, fn) { routes.push({ pattern, fn }); }
 
 async function navigate() {
   const hash = location.hash || '#/';
-  if (!state.me && hash !== '#/login') { location.hash = '#/login'; return; }
+  // 학생 활동 보드(#/board/코드)는 로그인 없이 접근 가능
+  if (!state.me && hash !== '#/login' && !hash.startsWith('#/board/')) { location.hash = '#/login'; return; }
   if (state.me && state.me.mustChangePassword && hash !== '#/password' && hash !== '#/login') {
     location.hash = '#/password';
     return;
@@ -219,24 +223,45 @@ function shell(title, contentHtml) {
 
 /* ---------------- 로그인 ---------------- */
 route(/^#\/login$/, () => {
+  let tab = 'join'; // 'join'(학생 참여 코드) | 'account'(교사 로그인)
   const render = (errMsg = '') => {
     $app.innerHTML = `
       <div class="login-wrap">
         <form class="login-card" id="login-form">
           <div class="lmark">수업</div>
           <div class="logo">수업프로그램 허브</div>
-          <div class="sub">선생님용 수업자료 · 프로그램 모음</div>
-          <label>아이디</label>
-          <input class="input" name="username" autocomplete="username" required>
-          <label>비밀번호</label>
-          <input class="input" name="password" type="password" autocomplete="current-password" required>
-          <button class="btn btn-primary" type="submit">로그인</button>
+          <div class="sub">선생님용 수업자료 · 학생 활동 보드</div>
+          <div class="tabs" style="margin-bottom:4px">
+            <button type="button" data-ltab="join" class="${tab === 'join' ? 'active' : ''}">학생 참여</button>
+            <button type="button" data-ltab="account" class="${tab === 'account' ? 'active' : ''}">교사 로그인</button>
+          </div>
+          ${tab === 'join' ? `
+            <label>참여 코드 (6자리)</label>
+            <input class="input" name="code" inputmode="numeric" maxlength="6" placeholder="000000" required
+              style="font-size:22px;letter-spacing:8px;text-align:center;font-weight:800">
+            <div class="small muted" style="margin-top:10px;line-height:1.6">선생님이 화면에 보여주는 6자리 코드를 입력하면<br>활동 결과물을 올릴 수 있어요. 계정은 필요 없습니다.</div>
+          ` : `
+            <label>아이디</label>
+            <input class="input" name="username" autocomplete="username" required>
+            <label>비밀번호</label>
+            <input class="input" name="password" type="password" autocomplete="current-password" required>
+          `}
+          <button class="btn btn-primary" type="submit">${tab === 'join' ? '보드 입장하기' : '로그인'}</button>
           <div class="login-error">${esc(errMsg)}</div>
         </form>
       </div>`;
+    document.querySelectorAll('[data-ltab]').forEach((b) => {
+      b.onclick = () => { tab = b.dataset.ltab; render(); };
+    });
     document.getElementById('login-form').onsubmit = async (e) => {
       e.preventDefault();
       const f = new FormData(e.target);
+      if (tab === 'join') {
+        const code = String(f.get('code') || '').trim();
+        if (!/^\d{6}$/.test(code)) return render('6자리 숫자 코드를 입력하세요.');
+        location.hash = `#/board/${code}`;
+        return;
+      }
       try {
         const data = await api('POST', '/api/login', { username: f.get('username'), password: f.get('password') });
         state.me = data.user;
@@ -248,16 +273,19 @@ route(/^#\/login$/, () => {
   render();
 });
 
-/* ---------------- 사이트 폐쇄 화면 (교사) ---------------- */
+/* ---------------- 사이트 폐쇄 화면 ---------------- */
 function renderClosed(notice) {
-  shell('안내', `
+  const inner = `
     <div class="blocked-wrap">
       <div class="blocked-hero">${icon('lock')}</div>
       <h2>사이트 이용이 일시 중단되었습니다</h2>
       <p>${esc(notice || '관리자가 사이트를 잠시 닫아 두었습니다. 안내가 있을 때까지 기다려 주세요.')}</p>
       <p class="mt small muted">이 화면은 30초마다 자동으로 다시 확인합니다.</p>
-    </div>`);
-  setTimeout(() => { if (state.me) navigate(); }, 30000);
+    </div>`;
+  // 로그인 없는 학생(보드 접근)도 이 화면을 볼 수 있음 — 셸 없이 렌더
+  if (state.me) shell('안내', inner);
+  else $app.innerHTML = `<div class="login-wrap"><div style="max-width:520px;width:100%">${inner}</div></div>`;
+  setTimeout(() => navigate(), 30000);
 }
 
 /* ---------------- 카탈로그 (#/) ---------------- */
@@ -340,18 +368,36 @@ route(/^#\/program\/(\d+)$/, async (id) => {
         ${icon(ic)} <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(l.label || l.url)}</span> <span class="small ${l.kind === 'aiapp' ? '' : 'muted'}" style="margin-left:auto;white-space:nowrap;flex-shrink:0;opacity:.75">${label} ↗</span>
       </a>`;
   };
-  const fileRow = (f) => `
+  const fileRow = (f) => {
+    const viewable = f.mime === 'application/pdf' || /^image\//.test(f.mime || '');
+    const canDl = f.downloadable || isAdmin();
+    return `
     <div class="deck-line">
       <div class="dl-left">
         <span class="dl-ico">📎</span>
         <div class="dl-body">
-          <div class="dl-title">${esc(f.name)}</div>
+          <div class="dl-title">${esc(f.name)} ${f.downloadable ? '' : '<span class="badge amber plain">보기 전용</span>'}</div>
           <div class="dl-meta small muted">${(f.size / 1024 / 1024).toFixed(1)}MB · ${esc(f.created_at)}</div>
         </div>
       </div>
       <div class="dl-actions">
-        <a class="btn btn-primary btn-sm" href="/api/files/${f.id}/download" target="_blank" rel="noopener">${icon('download')} 다운로드</a>
+        ${viewable ? `<button class="btn btn-soft btn-sm" data-view="${f.id}">${icon('eye')} 열람</button>` : ''}
+        ${canDl
+          ? `<a class="btn btn-primary btn-sm" href="/api/files/${f.id}/download" target="_blank" rel="noopener">${icon('download')} 다운로드</a>`
+          : (!viewable ? '<span class="small muted">화면 열람용 PDF 변환 필요</span>' : '')}
       </div>
+    </div>`;
+  };
+  const boardRow = (b) => `
+    <div class="deck-line">
+      <div class="dl-left">
+        <span class="dl-ico">${b.is_open ? '🟢' : '⚪'}</span>
+        <div class="dl-body">
+          <div class="dl-title">${esc(b.title)}</div>
+          <div class="dl-meta small muted">참여 코드 <b>${esc(b.code)}</b> · 게시물 ${b.post_count}개 · ${b.is_open ? '진행 중' : '마감됨'}</div>
+        </div>
+      </div>
+      <div class="dl-actions"><a class="btn btn-soft btn-sm" href="#/boardview/${b.id}">열기</a></div>
     </div>`;
 
   shell(p.title, `
@@ -378,9 +424,27 @@ route(/^#\/program\/(\d+)$/, async (id) => {
         ${links.length ? `<div class="card"><h2>수업 링크 · 웹앱</h2>
           <div style="display:flex;flex-direction:column;gap:8px">${links.map(linkRow).join('')}</div></div>` : ''}
         ${data.files.length ? `<div class="card"><h2>첨부자료</h2>${data.files.map(fileRow).join('')}</div>` : ''}
+        <div class="card">
+          <h2>학생 활동 보드 <span class="sub">학생들이 코드로 들어와 결과물을 올립니다</span></h2>
+          <div class="deck-list">${(data.boards || []).map(boardRow).join('') || '<p class="empty-note">아직 보드가 없습니다. 수업을 시작할 때 만들어 보세요.</p>'}</div>
+          <div class="mt"><button class="btn btn-soft btn-sm" id="new-board">${icon('plus')} 새 보드 만들기</button></div>
+        </div>
         ${!links.length && !data.files.length && !videos.length && !p.description ? '<div class="card"><p class="empty-note">아직 등록된 내용이 없습니다.</p></div>' : ''}
       </div>
     </div>`);
+
+  document.querySelectorAll('[data-view]').forEach((b) => {
+    b.onclick = () => openFileViewer(Number(b.dataset.view));
+  });
+  document.getElementById('new-board').onclick = async () => {
+    const title = prompt('보드 제목을 입력하세요. (예: 1반 진로탐색 결과물)');
+    if (!title || !title.trim()) return;
+    try {
+      const r = await api('POST', `/api/programs/${p.id}/boards`, { title: title.trim() });
+      toast(`보드가 열렸습니다. 참여 코드: ${r.code}`);
+      location.hash = `#/boardview/${r.id}`;
+    } catch (err) { if (!err.handled) toast(err.message, true); }
+  };
 
   const pubBtn = document.getElementById('pub-toggle');
   if (pubBtn) pubBtn.onclick = async () => {
@@ -388,6 +452,204 @@ route(/^#\/program\/(\d+)$/, async (id) => {
     toast(p.published ? '비공개로 전환되었습니다. 교사에게 즉시 숨겨집니다.' : '공개되었습니다.');
     navigate();
   };
+});
+
+/* ---------------- 보기 전용 파일 뷰어 (워터마크 + 우클릭 차단) ---------------- */
+async function openFileViewer(fileId) {
+  let v;
+  try { v = await api('GET', `/api/files/${fileId}/view`); }
+  catch (e) { if (!e.handled) toast(e.message, true); return; }
+  const isImg = /^image\//.test(v.mime || '');
+  const wm = `${state.me.name} (${state.me.username}) · ${new Date().toLocaleString('ko-KR')}`;
+  const overlay = document.createElement('div');
+  overlay.className = 'file-viewer';
+  overlay.innerHTML = `
+    <div class="fv-bar">
+      <span class="fv-name">📎 ${esc(v.name)} <span class="badge amber plain">보기 전용</span></span>
+      <button class="fv-close" type="button">✕ 닫기</button>
+    </div>
+    <div class="fv-body">
+      ${isImg
+        ? `<img src="${esc(v.url)}" alt="${esc(v.name)}" draggable="false">`
+        : `<iframe src="${esc(v.url)}#toolbar=0&navpanes=0" title="${esc(v.name)}"></iframe>`}
+      <div class="fv-wm" aria-hidden="true">${Array.from({ length: 12 }, () => `<span>${esc(wm)}</span>`).join('')}</div>
+    </div>`;
+  overlay.addEventListener('contextmenu', (e) => e.preventDefault());
+  overlay.addEventListener('dragstart', (e) => e.preventDefault());
+  overlay.querySelector('.fv-close').onclick = () => overlay.remove();
+  document.body.appendChild(overlay);
+}
+
+/* ---------------- 학생 활동 보드 (#/board/:code — 로그인 불필요) ---------------- */
+function postCardHtml(p, { forTeacher = false, manageable = false } = {}) {
+  const fileChip = p.file_name && !p.previewUrl
+    ? `<div class="pc-file">📄 ${esc(p.file_name)}</div>` : '';
+  return `
+    <div class="post-card ${p.hidden ? 'is-hidden' : ''}">
+      <div class="pc-head"><span class="pc-name">${esc(p.student_name)}</span><span class="pc-time">${esc(String(p.created_at).slice(5, 16))}</span></div>
+      ${p.previewUrl ? `<img class="pc-img" src="${esc(p.previewUrl)}" alt="" loading="lazy">` : ''}
+      ${p.content ? `<div class="pc-body">${esc(p.content)}</div>` : ''}
+      ${fileChip}
+      ${forTeacher ? `
+        <div class="pc-actions">
+          ${p.hidden ? '<span class="badge red plain">숨김</span>' : ''}
+          ${p.file_name ? `<a class="btn btn-primary btn-sm" href="/api/posts/${p.id}/download" target="_blank" rel="noopener">${icon('download')} 받기</a>` : ''}
+          ${manageable ? `
+            <button class="btn btn-ghost btn-sm" data-phide="${p.id}" data-val="${p.hidden ? 0 : 1}">${p.hidden ? '보이기' : '숨김'}</button>
+            <button class="btn btn-danger btn-sm" data-pdel="${p.id}">${icon('trash')}</button>` : ''}
+        </div>` : ''}
+    </div>`;
+}
+
+route(/^#\/board\/(\d{6})$/, async (code) => {
+  let data;
+  try { data = await api('GET', `/api/join-board/${code}`); }
+  catch (e) {
+    if (e.handled) return; // site_closed → 폐쇄 화면이 이미 렌더됨
+    $app.innerHTML = `
+      <div class="login-wrap"><div class="login-card" style="text-align:center">
+        <div class="lmark">수업</div>
+        <div class="logo">참여할 수 없어요</div>
+        <div class="sub" style="margin-bottom:16px">${esc(e.message)}<br>선생님께 코드를 다시 확인해 보세요.</div>
+        <a class="btn btn-primary" href="#/login" style="justify-content:center">처음으로</a>
+      </div></div>`;
+    return;
+  }
+  document.title = `${data.board.title} — 수업프로그램 허브`;
+  const savedName = (() => { try { return localStorage.getItem('studentName') || ''; } catch { return ''; } })();
+  $app.innerHTML = `
+    <div class="sboard">
+      <header class="sb-head">
+        <div>
+          <div class="sb-title">📌 ${esc(data.board.title)}</div>
+          <div class="sb-sub">${esc(data.programTitle)} · 참여 코드 ${esc(code)}</div>
+        </div>
+        <a class="btn btn-ghost btn-sm" href="#/login">나가기</a>
+      </header>
+      <div class="card sb-form">
+        <div class="form-grid" style="grid-template-columns:150px 1fr">
+          <div><label>이름</label><input id="sb-name" maxlength="20" value="${esc(savedName)}" placeholder="이름"></div>
+          <div><label>활동 내용</label><textarea id="sb-content" rows="2" class="input" maxlength="2000" placeholder="활동한 내용을 적어보세요"></textarea></div>
+        </div>
+        <div class="mt" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+          <button class="btn btn-ghost btn-sm" id="sb-file-btn" type="button">📎 사진/활동지 첨부</button>
+          <span class="small muted" id="sb-file-label">첨부 없음</span>
+          <span style="flex:1"></span>
+          <button class="btn btn-primary" id="sb-submit" type="button">올리기</button>
+        </div>
+        <input type="file" id="sb-file" accept=".pdf,.ppt,.pptx,.doc,.docx,.xls,.xlsx,.hwp,.hwpx,.png,.jpg,.jpeg,.webp,.gif" style="display:none">
+        <div class="msg" id="sb-msg"></div>
+      </div>
+      <div class="sb-grid" id="sb-grid">
+        ${data.posts.map((p) => postCardHtml(p)).join('') || '<p class="empty-note" style="grid-column:1/-1">아직 올라온 결과물이 없어요. 첫 번째로 올려보세요!</p>'}
+      </div>
+    </div>`;
+
+  const refresh = async () => {
+    if (!location.hash.endsWith(`/board/${code}`)) return;
+    try {
+      const d = await api('GET', `/api/join-board/${code}`);
+      const grid = document.getElementById('sb-grid');
+      if (grid) grid.innerHTML = d.posts.map((p) => postCardHtml(p)).join('') || '<p class="empty-note" style="grid-column:1/-1">아직 올라온 결과물이 없어요. 첫 번째로 올려보세요!</p>';
+    } catch (e) { if (!e.handled) navigate(); } // 마감되면 안내 화면으로
+  };
+  // 수업 중 실시간처럼 보이도록 15초마다 갱신
+  const timer = setInterval(() => {
+    if (!location.hash.endsWith(`/board/${code}`)) { clearInterval(timer); return; }
+    refresh();
+  }, 15000);
+
+  document.getElementById('sb-file-btn').onclick = () => document.getElementById('sb-file').click();
+  document.getElementById('sb-file').onchange = (e) => {
+    const f = e.target.files[0];
+    document.getElementById('sb-file-label').textContent = f ? `${f.name} (${(f.size / 1024 / 1024).toFixed(1)}MB)` : '첨부 없음';
+  };
+  document.getElementById('sb-submit').onclick = async () => {
+    const name = document.getElementById('sb-name').value.trim();
+    const content = document.getElementById('sb-content').value.trim();
+    const file = document.getElementById('sb-file').files[0] || null;
+    const msg = document.getElementById('sb-msg');
+    if (!name) { msg.textContent = '이름을 입력하세요.'; msg.className = 'msg err'; return; }
+    if (!content && !file) { msg.textContent = '내용을 쓰거나 파일을 첨부하세요.'; msg.className = 'msg err'; return; }
+    if (file && file.size > 20 * 1024 * 1024) { msg.textContent = '파일은 20MB 이하여야 합니다.'; msg.className = 'msg err'; return; }
+    msg.textContent = '올리는 중…'; msg.className = 'msg';
+    try {
+      let filePart = {};
+      if (file) {
+        const sign = await api('POST', `/api/join-board/${code}/file-sign`, { name: file.name, size: file.size });
+        const put = await fetch(sign.uploadUrl, { method: 'PUT', headers: { 'Content-Type': file.type || 'application/octet-stream', 'x-upsert': 'true' }, body: file });
+        if (!put.ok) throw new Error('파일 업로드에 실패했습니다.');
+        filePart = { path: sign.path, file_name: file.name, mime: file.type || 'application/octet-stream', size: file.size };
+      }
+      await api('POST', `/api/join-board/${code}/posts`, { student_name: name, content, ...filePart });
+      try { localStorage.setItem('studentName', name); } catch {}
+      document.getElementById('sb-content').value = '';
+      document.getElementById('sb-file').value = '';
+      document.getElementById('sb-file-label').textContent = '첨부 없음';
+      msg.textContent = '올라갔어요! 🎉'; msg.className = 'msg ok';
+      refresh();
+    } catch (err) { if (!err.handled) { msg.textContent = err.message; msg.className = 'msg err'; } }
+  };
+});
+
+/* ---------------- 보드 관리 (#/boardview/:id — 교사·관리자) ---------------- */
+route(/^#\/boardview\/(\d+)$/, async (id) => {
+  let data;
+  try { data = await api('GET', `/api/boards/${id}/posts`); }
+  catch (e) { if (!e.handled && state.me) { toast(e.message, true); location.hash = '#/'; } return; }
+  const b = data.board;
+  shell(b.title, `
+    <div class="page-head">
+      <div>
+        <div class="ph-t">${esc(b.title)} ${b.isOpen ? '<span class="badge green">진행 중</span>' : '<span class="badge gray">마감됨</span>'}</div>
+        <div class="desc">${esc(data.program.title)} · 게시물 ${data.posts.length}개 ${b.isOpen ? '· 마감하면 학생 제출·열람이 즉시 중단됩니다' : '· 결과물은 계속 보관됩니다'}</div>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        ${data.manageable ? `<button class="btn ${b.isOpen ? 'btn-danger' : 'btn-primary'} btn-sm" id="board-toggle">${b.isOpen ? '마감하기' : '다시 열기'}</button>` : ''}
+        ${isAdmin() ? `<button class="btn btn-danger btn-sm" id="board-del">${icon('trash')} 보드 삭제</button>` : ''}
+        <a class="btn btn-ghost btn-sm" href="#/program/${data.program.id}">← 프로그램</a>
+      </div>
+    </div>
+    ${b.isOpen ? `
+    <div class="card sb-code-card">
+      <div>
+        <div class="small muted" style="font-weight:700">학생 참여 코드 — 칠판에 띄워 주세요</div>
+        <div class="sb-code">${esc(b.code)}</div>
+      </div>
+      <div class="small muted" style="line-height:1.8">학생은 사이트 첫 화면의 <b>[학생 참여]</b> 탭에서<br>이 코드를 입력하면 됩니다. (계정 불필요)</div>
+    </div>` : ''}
+    <div class="sb-grid">
+      ${data.posts.map((p) => postCardHtml(p, { forTeacher: true, manageable: data.manageable })).join('') || '<p class="empty-note" style="grid-column:1/-1">아직 게시물이 없습니다.</p>'}
+    </div>`);
+
+  const toggleBtn = document.getElementById('board-toggle');
+  if (toggleBtn) toggleBtn.onclick = async () => {
+    if (b.isOpen && !confirm('보드를 마감할까요? 학생 제출과 열람이 즉시 중단됩니다. (결과물은 보관됩니다)')) return;
+    await api('PATCH', `/api/boards/${id}`, { is_open: !b.isOpen });
+    toast(b.isOpen ? '마감되었습니다. 결과물은 이 화면에서 계속 볼 수 있습니다.' : '보드를 다시 열었습니다.');
+    navigate();
+  };
+  const delBtn = document.getElementById('board-del');
+  if (delBtn) delBtn.onclick = async () => {
+    if (!confirm('보드를 삭제할까요? 모든 게시물과 첨부 원본이 함께 삭제되며 되돌릴 수 없습니다.')) return;
+    await api('DELETE', `/api/boards/${id}`);
+    toast('보드가 삭제되었습니다.');
+    location.hash = `#/program/${data.program.id}`;
+  };
+  document.querySelectorAll('[data-phide]').forEach((btn) => {
+    btn.onclick = async () => {
+      await api('PATCH', `/api/posts/${btn.dataset.phide}`, { hidden: btn.dataset.val === '1' });
+      navigate();
+    };
+  });
+  document.querySelectorAll('[data-pdel]').forEach((btn) => {
+    btn.onclick = async () => {
+      if (!confirm('이 게시물을 삭제할까요? 첨부 원본도 함께 삭제됩니다.')) return;
+      await api('DELETE', `/api/posts/${btn.dataset.pdel}`);
+      toast('삭제되었습니다.');
+      navigate();
+    };
+  });
 });
 
 /* ---------------- 프로그램 관리 (#/manage, admin) ---------------- */
@@ -497,11 +759,14 @@ route(/^#\/manage\/(\d+)$/, async (id) => {
       <div class="dl-left">
         <span class="dl-ico">📎</span>
         <div class="dl-body">
-          <div class="dl-title">${esc(f.name)}</div>
+          <div class="dl-title">${esc(f.name)} ${f.downloadable ? '' : '<span class="badge amber plain">보기 전용</span>'}</div>
           <div class="dl-meta small muted">${(f.size / 1024 / 1024).toFixed(1)}MB</div>
         </div>
       </div>
       <div class="dl-actions">
+        <label class="ir-toggle" title="끄면 교사는 화면 열람만 가능합니다">
+          <input type="checkbox" data-fdl="${f.id}" ${f.downloadable ? 'checked' : ''}> 다운로드 허용
+        </label>
         <a class="btn btn-ghost btn-sm" href="/api/files/${f.id}/download" target="_blank" rel="noopener">${icon('download')}</a>
         <button class="btn btn-danger btn-sm" data-fdel="${f.id}">${icon('trash')}</button>
       </div>
@@ -539,7 +804,7 @@ route(/^#\/manage\/(\d+)$/, async (id) => {
       <div class="msg" id="link-msg"></div>
     </div>
     <div class="card">
-      <h2>첨부자료 <span class="sub">PDF·PPT·한글·zip·이미지, 100MB 이하 — 파일은 관리자의 Supabase 비공개 버킷에만 저장됩니다</span></h2>
+      <h2>첨부자료 <span class="sub">PDF·PPT·한글·zip·이미지, 100MB 이하 — 새 파일은 기본 <b>보기 전용</b>(교사 다운로드 차단)이며, 화면 열람은 PDF·이미지만 가능합니다</span></h2>
       <div id="file-rows" class="deck-list">${data.files.map(fileRowHtml).join('') || '<p class="empty-note">첨부자료가 없습니다.</p>'}</div>
       <div class="mt">
         <button class="btn btn-soft btn-sm" id="up-btn">${icon('plus')} 파일 업로드</button>
@@ -635,6 +900,15 @@ route(/^#\/manage\/(\d+)$/, async (id) => {
       await api('DELETE', `/api/files/${b.dataset.fdel}`);
       toast('삭제되었습니다.');
       navigate();
+    };
+  });
+  document.querySelectorAll('[data-fdl]').forEach((el) => {
+    el.onchange = async () => {
+      try {
+        await api('PATCH', `/api/files/${el.dataset.fdl}`, { downloadable: el.checked });
+        toast(el.checked ? '교사 다운로드가 허용되었습니다.' : '보기 전용으로 전환되었습니다. 교사 다운로드가 즉시 차단됩니다.');
+        navigate();
+      } catch (err) { toast(err.message, true); el.checked = !el.checked; }
     };
   });
 });

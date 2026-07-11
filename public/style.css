@@ -920,3 +920,74 @@ body { background: var(--bg); }
   background: linear-gradient(135deg, #0f766e, #14a396);
   box-shadow: 0 10px 24px -8px rgba(15, 118, 110, .55);
 }
+
+/* ============ 보기 전용 파일 뷰어 (워터마크) ============ */
+.file-viewer {
+  position: fixed; inset: 0; z-index: 90; background: rgba(20, 18, 12, .95);
+  display: flex; flex-direction: column;
+}
+.file-viewer .fv-bar {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 12px clamp(14px, 3vw, 28px); color: #f5f0e5;
+}
+.file-viewer .fv-name { font-weight: 800; font-size: 14px; display: flex; align-items: center; gap: 8px; }
+.file-viewer .fv-close {
+  border: none; cursor: pointer; background: rgba(255,255,255,.14); color: #fff;
+  border-radius: 999px; padding: 8px 16px; font-weight: 800; font-size: 13px;
+}
+.file-viewer .fv-close:hover { background: rgba(255,255,255,.24); }
+.file-viewer .fv-body { position: relative; flex: 1; margin: 0 clamp(10px, 3vw, 28px) 20px; }
+.file-viewer .fv-body iframe, .file-viewer .fv-body img {
+  width: 100%; height: 100%; object-fit: contain; border: none; border-radius: 12px; background: #fff;
+  user-select: none; -webkit-user-drag: none;
+}
+.file-viewer .fv-wm {
+  position: absolute; inset: 0; pointer-events: none; overflow: hidden;
+  display: grid; grid-template-columns: repeat(3, 1fr); align-content: space-around;
+  transform: rotate(-18deg) scale(1.25);
+}
+.file-viewer .fv-wm span {
+  text-align: center; font-size: 13px; font-weight: 700; white-space: nowrap;
+  color: rgba(90, 80, 60, .18); padding: 26px 0;
+}
+
+/* ============ 학생 활동 보드 ============ */
+.sboard {
+  min-height: 100vh; background: var(--bg);
+  padding: 20px clamp(14px, 4vw, 44px) 60px; max-width: 1160px; margin: 0 auto;
+}
+.sb-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 16px; }
+.sb-title { font-size: clamp(20px, 3.4vw, 27px); font-weight: 900; letter-spacing: -.4px; }
+.sb-sub { font-size: 13px; color: var(--text-3); font-weight: 600; margin-top: 3px; }
+.sb-form { margin-bottom: 20px; }
+.sb-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(min(250px, 100%), 1fr));
+  gap: 14px; align-items: start;
+}
+.post-card {
+  background: #fff; border: 1px solid var(--line); border-radius: 16px;
+  padding: 13px 15px; box-shadow: var(--shadow-sm);
+  display: flex; flex-direction: column; gap: 9px;
+}
+.post-card.is-hidden { opacity: .55; border-style: dashed; }
+.post-card .pc-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.post-card .pc-name { font-weight: 800; font-size: 13.5px; }
+.post-card .pc-time { font-size: 11px; color: var(--text-3); white-space: nowrap; }
+.post-card .pc-img { width: 100%; border-radius: 10px; max-height: 300px; object-fit: cover; }
+.post-card .pc-body { font-size: 13.5px; line-height: 1.7; white-space: pre-wrap; word-break: break-word; }
+.post-card .pc-file {
+  font-size: 12.5px; font-weight: 700; color: var(--text-2);
+  background: var(--bg); border: 1px solid var(--line); border-radius: 9px; padding: 8px 11px;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.post-card .pc-actions { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; margin-top: 2px; }
+
+/* 참여 코드 표시 (칠판 투영용) */
+.sb-code-card {
+  display: flex; align-items: center; justify-content: space-between; gap: 18px;
+  flex-wrap: wrap; margin-bottom: 20px;
+}
+.sb-code {
+  font-size: clamp(38px, 7vw, 58px); font-weight: 900; letter-spacing: 14px;
+  color: var(--blue-600); font-variant-numeric: tabular-nums; margin-top: 4px;
+}
