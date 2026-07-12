@@ -360,6 +360,15 @@ route(/^#\/program\/(\d+)$/, async (id) => {
   const p = data.program;
   const links = data.links.filter((l) => l.kind !== 'video');
   const videos = data.links.filter((l) => l.kind === 'video');
+  // HTML 파일 = 실행형 웹앱 (수업용 PPT를 HTML로 만든 경우 등) — 링크·웹앱 카드에 실행 버튼으로 표시
+  const isHtmlFile = (f) => /\.(html?|htm)$/i.test(f.name) || f.mime === 'text/html';
+  const htmlApps = data.files.filter(isHtmlFile);
+  const docFiles = data.files.filter((f) => !isHtmlFile(f));
+  const htmlAppRow = (f) => `
+    <a class="btn btn-primary" style="justify-content:flex-start;gap:8px;padding-right:14px" href="/api/files/${f.id}/open" target="_blank" rel="noopener">
+      ${icon('play')} <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(f.name.replace(/\.(html?|htm)$/i, ''))}</span>
+      <span class="small" style="margin-left:auto;white-space:nowrap;flex-shrink:0;opacity:.75">수업 실행 ↗</span>
+    </a>`;
 
   const linkRow = (l) => {
     const [ic, label] = KIND_META[l.kind] || KIND_META.link;
@@ -421,15 +430,15 @@ route(/^#\/program\/(\d+)$/, async (id) => {
           ${videoEmbed(v.url)}`).join('')}</div>` : ''}
       </div>
       <div class="col-stack">
-        ${links.length ? `<div class="card"><h2>수업 링크 · 웹앱</h2>
-          <div style="display:flex;flex-direction:column;gap:8px">${links.map(linkRow).join('')}</div></div>` : ''}
-        ${data.files.length ? `<div class="card"><h2>첨부자료</h2>${data.files.map(fileRow).join('')}</div>` : ''}
+        ${(links.length || htmlApps.length) ? `<div class="card"><h2>수업 링크 · 웹앱</h2>
+          <div style="display:flex;flex-direction:column;gap:8px">${htmlApps.map(htmlAppRow).join('')}${links.map(linkRow).join('')}</div></div>` : ''}
+        ${docFiles.length ? `<div class="card"><h2>첨부자료</h2>${docFiles.map(fileRow).join('')}</div>` : ''}
         <div class="card">
           <h2>학생 활동 보드 <span class="sub">학생들이 코드로 들어와 결과물을 올립니다</span></h2>
           <div class="deck-list">${(data.boards || []).map(boardRow).join('') || '<p class="empty-note">아직 보드가 없습니다. 수업을 시작할 때 만들어 보세요.</p>'}</div>
           <div class="mt"><button class="btn btn-soft btn-sm" id="new-board">${icon('plus')} 새 보드 만들기</button></div>
         </div>
-        ${!links.length && !data.files.length && !videos.length && !p.description ? '<div class="card"><p class="empty-note">아직 등록된 내용이 없습니다.</p></div>' : ''}
+        ${!links.length && !htmlApps.length && !data.files.length && !videos.length && !p.description ? '<div class="card"><p class="empty-note">아직 등록된 내용이 없습니다.</p></div>' : ''}
       </div>
     </div>`);
 
@@ -754,23 +763,27 @@ route(/^#\/manage\/(\d+)$/, async (id) => {
       </div>
     </div>`;
 
-  const fileRowHtml = (f) => `
+  const fileRowHtml = (f) => {
+    const isHtml = /\.(html?|htm)$/i.test(f.name) || f.mime === 'text/html';
+    return `
     <div class="deck-line">
       <div class="dl-left">
-        <span class="dl-ico">📎</span>
+        <span class="dl-ico">${isHtml ? '🖥️' : '📎'}</span>
         <div class="dl-body">
-          <div class="dl-title">${esc(f.name)} ${f.downloadable ? '' : '<span class="badge amber plain">보기 전용</span>'}</div>
+          <div class="dl-title">${esc(f.name)} ${isHtml ? '<span class="badge blue plain">HTML 웹앱</span>' : (f.downloadable ? '' : '<span class="badge amber plain">보기 전용</span>')}</div>
           <div class="dl-meta small muted">${(f.size / 1024 / 1024).toFixed(1)}MB</div>
         </div>
       </div>
       <div class="dl-actions">
+        ${isHtml ? `<a class="btn btn-soft btn-sm" href="/api/files/${f.id}/open" target="_blank" rel="noopener">${icon('play')} 실행</a>` : `
         <label class="ir-toggle" title="끄면 교사는 화면 열람만 가능합니다">
           <input type="checkbox" data-fdl="${f.id}" ${f.downloadable ? 'checked' : ''}> 다운로드 허용
-        </label>
+        </label>`}
         <a class="btn btn-ghost btn-sm" href="/api/files/${f.id}/download" target="_blank" rel="noopener">${icon('download')}</a>
         <button class="btn btn-danger btn-sm" data-fdel="${f.id}">${icon('trash')}</button>
       </div>
     </div>`;
+  };
 
   shell(`편집 — ${p.title}`, `
     <div class="page-head">
@@ -804,11 +817,11 @@ route(/^#\/manage\/(\d+)$/, async (id) => {
       <div class="msg" id="link-msg"></div>
     </div>
     <div class="card">
-      <h2>첨부자료 <span class="sub">PDF·PPT·한글·zip·이미지, 100MB 이하 — 새 파일은 기본 <b>보기 전용</b>(교사 다운로드 차단)이며, 화면 열람은 PDF·이미지만 가능합니다</span></h2>
+      <h2>첨부자료 · HTML 웹앱 <span class="sub">PDF·PPT·한글·zip·이미지·<b>HTML</b>, 100MB 이하 — HTML 파일은 교사 화면에서 <b>수업 웹앱으로 바로 실행</b>됩니다. 새 파일은 기본 보기 전용(교사 다운로드 차단)</span></h2>
       <div id="file-rows" class="deck-list">${data.files.map(fileRowHtml).join('') || '<p class="empty-note">첨부자료가 없습니다.</p>'}</div>
       <div class="mt">
         <button class="btn btn-soft btn-sm" id="up-btn">${icon('plus')} 파일 업로드</button>
-        <input type="file" id="up-file" accept=".pdf,.ppt,.pptx,.doc,.docx,.xls,.xlsx,.hwp,.hwpx,.zip,.png,.jpg,.jpeg,.webp,.gif" style="display:none">
+        <input type="file" id="up-file" accept=".pdf,.ppt,.pptx,.doc,.docx,.xls,.xlsx,.hwp,.hwpx,.zip,.png,.jpg,.jpeg,.webp,.gif,.html,.htm" style="display:none">
       </div>
       <div class="msg" id="file-msg"></div>
     </div>`);
