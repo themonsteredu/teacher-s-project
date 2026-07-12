@@ -60,7 +60,7 @@ DATABASE_URL='postgres://...' node --no-warnings server.js
 
 **Vercel 배포**: 레포 연결 → 위 환경변수 입력 → 배포. 빌드 스텝 없음 (`vercel.json`이 라우팅 처리).
 
-첫 로그인: `admin` / `ADMIN_PASSWORD` 값 → 즉시 비밀번호 변경 요구 → 교사 계정 생성.
+첫 로그인: `superadmin` / `ADMIN_PASSWORD` 값 (미설정 시 `ChangeMe123!`) → 즉시 비밀번호 변경 요구 → 교사 계정 생성.
 
 ## 구조
 
