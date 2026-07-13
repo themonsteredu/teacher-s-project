@@ -80,6 +80,16 @@ async function api(method, url, body) {
   return data;
 }
 
+/* ---------------- 파일 mime 보정 (브라우저가 빈/틀린 타입을 주는 경우 대비) ---------------- */
+const MIME_BY_EXT = {
+  html: 'text/html', htm: 'text/html', pdf: 'application/pdf',
+  png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', webp: 'image/webp', gif: 'image/gif',
+};
+function guessMime(name, browserType) {
+  const ext = (String(name).split('.').pop() || '').toLowerCase();
+  return MIME_BY_EXT[ext] || browserType || 'application/octet-stream';
+}
+
 /* ---------------- 토스트 / 모달 ---------------- */
 function toast(message, warn = false) {
   let zone = document.getElementById('toast-zone');
@@ -585,10 +595,11 @@ route(/^#\/board\/(\d{6})$/, async (code) => {
     try {
       let filePart = {};
       if (file) {
+        const mime = guessMime(file.name, file.type);
         const sign = await api('POST', `/api/join-board/${code}/file-sign`, { name: file.name, size: file.size });
-        const put = await fetch(sign.uploadUrl, { method: 'PUT', headers: { 'Content-Type': file.type || 'application/octet-stream', 'x-upsert': 'true' }, body: file });
+        const put = await fetch(sign.uploadUrl, { method: 'PUT', headers: { 'Content-Type': mime, 'x-upsert': 'true' }, body: file });
         if (!put.ok) throw new Error('파일 업로드에 실패했습니다.');
-        filePart = { path: sign.path, file_name: file.name, mime: file.type || 'application/octet-stream', size: file.size };
+        filePart = { path: sign.path, file_name: file.name, mime, size: file.size };
       }
       await api('POST', `/api/join-board/${code}/posts`, { student_name: name, content, ...filePart });
       try { localStorage.setItem('studentName', name); } catch {}
@@ -898,10 +909,11 @@ route(/^#\/manage\/(\d+)$/, async (id) => {
     if (file.size > 100 * 1024 * 1024) { msg.textContent = '파일은 100MB 이하여야 합니다.'; msg.className = 'msg err'; e.target.value = ''; return; }
     msg.textContent = '업로드 중…'; msg.className = 'msg';
     try {
+      const mime = guessMime(file.name, file.type);
       const sign = await api('POST', `/api/programs/${p.id}/file-sign`, { name: file.name, size: file.size });
-      const put = await fetch(sign.uploadUrl, { method: 'PUT', headers: { 'Content-Type': file.type || 'application/octet-stream', 'x-upsert': 'true' }, body: file });
+      const put = await fetch(sign.uploadUrl, { method: 'PUT', headers: { 'Content-Type': mime, 'x-upsert': 'true' }, body: file });
       if (!put.ok) throw new Error('저장소 업로드에 실패했습니다.');
-      await api('POST', `/api/programs/${p.id}/file-confirm`, { path: sign.path, name: file.name, mime: file.type || 'application/octet-stream', size: file.size });
+      await api('POST', `/api/programs/${p.id}/file-confirm`, { path: sign.path, name: file.name, mime, size: file.size });
       toast('업로드되었습니다.');
       navigate();
     } catch (err) { msg.textContent = err.message; msg.className = 'msg err'; }
