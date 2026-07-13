@@ -14,6 +14,8 @@ const state = {
 };
 
 const ROLE_LABELS = { admin: '관리자', teacher: '교사' };
+// 학년 목록 — 중·고 확장 시 여기에 '중1', '고1' 등을 추가하면 탭·선택지에 자동 반영됨
+const GRADES = ['초1', '초2', '초3', '초4', '초5', '초6'];
 
 function esc(s) {
   return String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -305,19 +307,23 @@ let catalogTab = 'all';
 route(/^#\/$/, async () => {
   const data = await api('GET', '/api/programs');
   const all = data.programs;
-  const categories = [...new Set(all.map((p) => p.category || ''))].filter(Boolean).sort();
-  const hasEtc = all.some((p) => !p.category);
+  // 학년 탭 (등록된 학년만 표시, GRADES 순서대로)
+  const grades = [...new Set(all.map((p) => p.grade || ''))].filter(Boolean)
+    .sort((a, b) => GRADES.indexOf(a) - GRADES.indexOf(b));
+  const hasEtc = all.some((p) => !p.grade);
   const tabs = [['all', `전체 (${all.length})`],
-    ...categories.map((c) => [c, `${c} (${all.filter((p) => p.category === c).length})`]),
-    ...(hasEtc && categories.length ? [['', `미분류 (${all.filter((p) => !p.category).length})`]] : [])];
+    ...grades.map((g) => [g, `${g} (${all.filter((p) => p.grade === g).length})`]),
+    ...(hasEtc && grades.length ? [['', `학년 미지정 (${all.filter((p) => !p.grade).length})`]] : [])];
   if (catalogTab !== 'all' && !tabs.some(([k]) => k === catalogTab)) catalogTab = 'all';
   const kw = state.search.toLowerCase();
   const list = all.filter((p) =>
-    (catalogTab === 'all' || (p.category || '') === catalogTab)
+    (catalogTab === 'all' || (p.grade || '') === catalogTab)
     && (!kw || p.title.toLowerCase().includes(kw) || String(p.description).toLowerCase().includes(kw)));
 
   const metaText = (p) => {
     const parts = [];
+    if (p.grade) parts.push(`🎓 ${p.grade}`);
+    if (p.category) parts.push(`📁 ${p.category}`);
     if (p.linkCount) parts.push(`🔗 링크 ${p.linkCount}`);
     if (p.aiappCount) parts.push(`🖥️ 웹앱 ${p.aiappCount}`);
     if (p.videoCount) parts.push(`▶ 영상 ${p.videoCount}`);
@@ -345,7 +351,7 @@ route(/^#\/$/, async () => {
       ${state.search ? '<button class="btn btn-ghost btn-sm" id="clear-search">검색 지우기</button>' : ''}
       ${isAdmin() ? `<a class="btn btn-primary" href="#/manage">${icon('edit')} 프로그램 관리</a>` : ''}
     </div>
-    ${tabs.length > 1 ? `<div class="tabs">${tabs.map(([k, label]) => `<button data-ctab="${esc(k)}" class="${catalogTab === k ? 'active' : ''}">${k === 'all' ? '' : '📁 '}${esc(label)}</button>`).join('')}</div>` : ''}
+    ${tabs.length > 1 ? `<div class="tabs">${tabs.map(([k, label]) => `<button data-ctab="${esc(k)}" class="${catalogTab === k ? 'active' : ''}">${esc(label)}</button>`).join('')}</div>` : ''}
     <div class="deck-cards">
       ${list.map(card).join('') || `<p class="empty-note">${state.search ? '검색 결과가 없습니다.' : '아직 공개된 프로그램이 없습니다.'}</p>`}
     </div>`);
@@ -363,17 +369,24 @@ const KIND_META = {
   video: ['play', '영상', '아래에서 바로 재생됩니다'],
 };
 
+const detailLessonSel = {}; // 프로그램별 선택된 차시 탭 기억
+
 route(/^#\/program\/(\d+)$/, async (id) => {
   let data;
   try { data = await api('GET', `/api/programs/${id}`); }
   catch (e) { if (state.me) { toast(e.message, true); location.hash = '#/'; } return; }
   const p = data.program;
-  const links = data.links.filter((l) => l.kind !== 'video');
-  const videos = data.links.filter((l) => l.kind === 'video');
+  const lessons = data.lessons || [];
+  // 차시 탭: 'all'(전체) | 0(공통) | 차시 id
+  let sel = detailLessonSel[p.id] ?? 'all';
+  if (sel !== 'all' && sel !== 0 && !lessons.some((l) => l.id === sel)) sel = 'all';
+  const inTab = (x) => sel === 'all' || (sel === 0 ? !x.lesson_id : x.lesson_id === sel);
+  const links = data.links.filter((l) => l.kind !== 'video' && inTab(l));
+  const videos = data.links.filter((l) => l.kind === 'video' && inTab(l));
   // HTML 파일 = 실행형 웹앱 (수업용 PPT를 HTML로 만든 경우 등) — 링크·웹앱 카드에 실행 버튼으로 표시
   const isHtmlFile = (f) => /\.(html?|htm)$/i.test(f.name) || f.mime === 'text/html';
-  const htmlApps = data.files.filter(isHtmlFile);
-  const docFiles = data.files.filter((f) => !isHtmlFile(f));
+  const htmlApps = data.files.filter((f) => isHtmlFile(f) && inTab(f));
+  const docFiles = data.files.filter((f) => !isHtmlFile(f) && inTab(f));
   const htmlAppRow = (f) => `
     <a class="btn btn-primary" style="justify-content:flex-start;gap:8px;padding-right:14px" href="/api/files/${f.id}/open" target="_blank" rel="noopener">
       ${icon('play')} <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(f.name.replace(/\.(html?|htm)$/i, ''))}</span>
@@ -423,7 +436,7 @@ route(/^#\/program\/(\d+)$/, async (id) => {
     <div class="page-head">
       <div>
         <div class="ph-t">${esc(p.title)} ${p.published ? '' : '<span class="badge gray">비공개</span>'}</div>
-        <div class="desc">${p.category ? `📁 ${esc(p.category)} · ` : ''}업데이트 ${esc(p.updated_at)}</div>
+        <div class="desc">${p.grade ? `🎓 ${esc(p.grade)} · ` : ''}${p.category ? `📁 ${esc(p.category)} · ` : ''}${lessons.length ? `${lessons.length}차시 · ` : ''}업데이트 ${esc(p.updated_at)}</div>
       </div>
       <div style="display:flex;gap:8px">
         ${isAdmin() ? `
@@ -432,9 +445,14 @@ route(/^#\/program\/(\d+)$/, async (id) => {
         <a class="btn btn-ghost btn-sm" href="#/">← 목록</a>
       </div>
     </div>
+    ${lessons.length ? `<div class="tabs">
+      <button data-lesson-tab="all" class="${sel === 'all' ? 'active' : ''}">전체</button>
+      <button data-lesson-tab="0" class="${sel === 0 ? 'active' : ''}">공통 자료</button>
+      ${lessons.map((l, i) => `<button data-lesson-tab="${l.id}" class="${sel === l.id ? 'active' : ''}">${i + 1}차시 · ${esc(l.title)}</button>`).join('')}
+    </div>` : ''}
     <div class="grid main-cols">
       <div class="col-stack">
-        ${p.description ? `<div class="card"><h2>소개</h2><div class="doc-body" style="line-height:1.9">${renderBodyMd(p.description)}</div></div>` : ''}
+        ${p.description && (sel === 'all' || sel === 0) ? `<div class="card"><h2>소개</h2><div class="doc-body" style="line-height:1.9">${renderBodyMd(p.description)}</div></div>` : ''}
         ${videos.length ? `<div class="card"><h2>영상</h2>${videos.map((v) => `
           ${v.label ? `<div class="field-label" style="margin:8px 0 6px">${esc(v.label)}</div>` : ''}
           ${videoEmbed(v.url)}`).join('')}</div>` : ''}
@@ -465,6 +483,13 @@ route(/^#\/program\/(\d+)$/, async (id) => {
     } catch (err) { if (!err.handled) toast(err.message, true); }
   };
 
+  document.querySelectorAll('[data-lesson-tab]').forEach((b) => {
+    b.onclick = () => {
+      const v = b.dataset.lessonTab;
+      detailLessonSel[p.id] = v === 'all' ? 'all' : Number(v);
+      navigate();
+    };
+  });
   const pubBtn = document.getElementById('pub-toggle');
   if (pubBtn) pubBtn.onclick = async () => {
     await api('PATCH', `/api/programs/${p.id}`, { published: !p.published });
@@ -682,7 +707,7 @@ route(/^#\/manage$/, async () => {
         <span class="dl-ico">${p.published ? '🟢' : '⚪'}</span>
         <div class="dl-body">
           <div class="dl-title">${esc(p.title)}</div>
-          <div class="dl-meta small muted">${p.category ? `📁 ${esc(p.category)} · ` : ''}${p.published ? '공개 중' : '비공개'} · 🔗${p.linkCount + p.aiappCount} ▶${p.videoCount} 📎${p.fileCount}</div>
+          <div class="dl-meta small muted">${p.grade ? `🎓 ${esc(p.grade)} · ` : ''}${p.category ? `📁 ${esc(p.category)} · ` : ''}${p.published ? '공개 중' : '비공개'} · 🔗${p.linkCount + p.aiappCount} ▶${p.videoCount} 📎${p.fileCount}</div>
         </div>
       </div>
       <div class="dl-actions">
@@ -705,10 +730,14 @@ route(/^#\/manage$/, async () => {
     const back = openModal(`
       <h3>새 프로그램</h3>
       <div class="m-sub">만든 뒤 편집 화면에서 링크·영상·첨부자료를 추가하세요. 처음에는 비공개 상태입니다.</div>
-      <div class="form-grid" style="grid-template-columns:1fr">
-        <div><label>제목</label><input id="np-title" placeholder="예: 진로탐색 젭 수업"></div>
+      <div class="form-grid" style="grid-template-columns:1fr 1fr">
+        <div style="grid-column:1/-1"><label>제목</label><input id="np-title" placeholder="예: 진로탐색 젭 수업"></div>
+        <div><label>학년</label><select id="np-grade">
+          <option value="">미지정</option>
+          ${GRADES.map((g) => `<option value="${g}">${g}</option>`).join('')}
+        </select></div>
         <div><label>카테고리 (폴더)</label><input id="np-cat" placeholder="예: 진로, 과학, 창체" maxlength="50"></div>
-        <div><label>설명</label><textarea id="np-desc" rows="4" class="input" placeholder="## 제목, - 목록, **강조** 문법을 쓸 수 있습니다"></textarea></div>
+        <div style="grid-column:1/-1"><label>설명</label><textarea id="np-desc" rows="4" class="input" placeholder="## 제목, - 목록, **강조** 문법을 쓸 수 있습니다"></textarea></div>
       </div>
       <div class="m-actions">
         <button class="btn btn-ghost" id="np-cancel">취소</button>
@@ -720,6 +749,7 @@ route(/^#\/manage$/, async () => {
       try {
         const r = await api('POST', '/api/programs', {
           title: back.querySelector('#np-title').value,
+          grade: back.querySelector('#np-grade').value,
           category: back.querySelector('#np-cat').value,
           description: back.querySelector('#np-desc').value,
         });
@@ -758,13 +788,18 @@ route(/^#\/manage\/(\d+)$/, async (id) => {
   try { data = await api('GET', `/api/programs/${id}`); }
   catch { location.hash = '#/manage'; return; }
   const p = data.program;
-  let links = data.links.map((l) => ({ kind: l.kind, label: l.label, url: l.url }));
+  const lessons = data.lessons || [];
+  let links = data.links.map((l) => ({ kind: l.kind, label: l.label, url: l.url, lesson_id: l.lesson_id }));
+
+  const lessonOptions = (selected) => `<option value="">공통</option>${lessons.map((ls, i) =>
+    `<option value="${ls.id}" ${Number(selected) === ls.id ? 'selected' : ''}>${i + 1}차시 ${esc(ls.title)}</option>`).join('')}`;
 
   const linkRowHtml = (l, i) => `
     <div class="deck-line" data-row="${i}">
-      <div class="dl-left" style="flex:1;gap:8px">
-        <select data-lk="${i}" style="width:150px">${KIND_OPTIONS.map(([k, label]) => `<option value="${k}" ${l.kind === k ? 'selected' : ''}>${label}</option>`).join('')}</select>
-        <input data-ll="${i}" placeholder="이름표 (예: 젭 교실)" value="${esc(l.label)}" style="width:180px">
+      <div class="dl-left" style="flex:1;gap:8px;flex-wrap:wrap">
+        <select data-lk="${i}" style="width:140px">${KIND_OPTIONS.map(([k, label]) => `<option value="${k}" ${l.kind === k ? 'selected' : ''}>${label}</option>`).join('')}</select>
+        ${lessons.length ? `<select data-lls="${i}" style="width:130px" title="소속 차시">${lessonOptions(l.lesson_id)}</select>` : ''}
+        <input data-ll="${i}" placeholder="이름표 (예: 젭 교실)" value="${esc(l.label)}" style="width:170px">
         <input data-lu="${i}" placeholder="https:// 주소" value="${esc(l.url)}" style="flex:1;min-width:200px">
       </div>
       <div class="dl-actions">
@@ -786,6 +821,7 @@ route(/^#\/manage\/(\d+)$/, async (id) => {
         </div>
       </div>
       <div class="dl-actions">
+        ${lessons.length ? `<select data-fls="${f.id}" style="width:130px" title="소속 차시">${lessonOptions(f.lesson_id)}</select>` : ''}
         ${isHtml ? `<a class="btn btn-soft btn-sm" href="/api/files/${f.id}/open" target="_blank" rel="noopener">${icon('play')} 실행</a>` : `
         <label class="ir-toggle" title="끄면 교사는 화면 열람만 가능합니다">
           <input type="checkbox" data-fdl="${f.id}" ${f.downloadable ? 'checked' : ''}> 다운로드 허용
@@ -807,8 +843,12 @@ route(/^#\/manage\/(\d+)$/, async (id) => {
     </div>
     <div class="card" style="margin-bottom:18px">
       <h2>기본 정보</h2>
-      <div class="form-grid" style="grid-template-columns:2fr 1fr">
+      <div class="form-grid" style="grid-template-columns:2fr 1fr 1fr">
         <div><label>제목</label><input id="ed-title" value="${esc(p.title)}"></div>
+        <div><label>학년</label><select id="ed-grade">
+          <option value="">미지정</option>
+          ${GRADES.map((g) => `<option value="${g}" ${p.grade === g ? 'selected' : ''}>${g}</option>`).join('')}
+        </select></div>
         <div><label>카테고리 (폴더)</label><input id="ed-cat" value="${esc(p.category)}" maxlength="50"></div>
       </div>
       <div class="form-grid mt" style="grid-template-columns:1fr">
@@ -817,6 +857,23 @@ route(/^#\/manage\/(\d+)$/, async (id) => {
       </div>
       <div class="mt"><button class="btn btn-primary btn-sm" id="save-info">기본 정보 저장</button></div>
       <div class="msg" id="info-msg"></div>
+    </div>
+    <div class="card" style="margin-bottom:18px">
+      <h2>차시 <span class="sub">차시를 만들면 링크·파일을 차시별로 묶고, 교사 화면에 차시 탭이 생깁니다</span></h2>
+      <div class="deck-list" id="lesson-rows">
+        ${lessons.map((l, i) => `
+          <div class="deck-line">
+            <div class="dl-left"><span class="dl-ico">${i + 1}</span>
+              <div class="dl-body"><div class="dl-title">${i + 1}차시 · ${esc(l.title)}</div></div></div>
+            <div class="dl-actions">
+              <button class="btn btn-ghost btn-sm" data-lmv2="${l.id}" data-dir="-1" title="위로">${icon('up')}</button>
+              <button class="btn btn-ghost btn-sm" data-lmv2="${l.id}" data-dir="1" title="아래로">${icon('down')}</button>
+              <button class="btn btn-ghost btn-sm" data-lrename="${l.id}">이름 변경</button>
+              <button class="btn btn-danger btn-sm" data-ldel2="${l.id}" title="차시 삭제 (자료는 공통으로 이동)">${icon('trash')}</button>
+            </div>
+          </div>`).join('') || '<p class="empty-note">차시가 없습니다. 차시 없이 공통 자료만 써도 됩니다.</p>'}
+      </div>
+      <div class="mt"><button class="btn btn-soft btn-sm" id="add-lesson">${icon('plus')} 차시 추가</button></div>
     </div>
     <div class="card" style="margin-bottom:18px">
       <h2>링크 · 웹앱 · 영상 <span class="sub">순서대로 보여집니다. 저장을 눌러야 반영됩니다.</span></h2>
@@ -830,8 +887,10 @@ route(/^#\/manage\/(\d+)$/, async (id) => {
     <div class="card">
       <h2>첨부자료 · HTML 웹앱 <span class="sub">PDF·PPT·한글·zip·이미지·<b>HTML</b>, 100MB 이하 — HTML 파일은 교사 화면에서 <b>수업 웹앱으로 바로 실행</b>됩니다. 새 파일은 기본 보기 전용(교사 다운로드 차단)</span></h2>
       <div id="file-rows" class="deck-list">${data.files.map(fileRowHtml).join('') || '<p class="empty-note">첨부자료가 없습니다.</p>'}</div>
-      <div class="mt">
+      <div class="mt" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
         <button class="btn btn-soft btn-sm" id="up-btn">${icon('plus')} 파일 업로드</button>
+        ${lessons.length ? `<label class="small muted" style="display:flex;gap:6px;align-items:center">올릴 차시:
+          <select id="up-lesson" style="width:140px">${lessonOptions(null)}</select></label>` : ''}
         <input type="file" id="up-file" accept=".pdf,.ppt,.pptx,.doc,.docx,.xls,.xlsx,.hwp,.hwpx,.zip,.png,.jpg,.jpeg,.webp,.gif,.html,.htm" style="display:none">
       </div>
       <div class="msg" id="file-msg"></div>
@@ -843,6 +902,7 @@ route(/^#\/manage\/(\d+)$/, async (id) => {
     try {
       await api('PATCH', `/api/programs/${p.id}`, {
         title: document.getElementById('ed-title').value,
+        grade: document.getElementById('ed-grade').value,
         category: document.getElementById('ed-cat').value,
         description: document.getElementById('ed-desc').value,
       });
@@ -856,12 +916,53 @@ route(/^#\/manage\/(\d+)$/, async (id) => {
     navigate();
   };
 
+  // 차시 관리
+  const bindLessonRows = () => {
+    document.getElementById('add-lesson').onclick = async () => {
+      const title = prompt('차시 이름을 입력하세요. (예: 나를 알아보기)');
+      if (!title || !title.trim()) return;
+      await api('POST', `/api/programs/${p.id}/lessons`, { title: title.trim() });
+      toast('차시가 추가되었습니다.');
+      navigate();
+    };
+    document.querySelectorAll('[data-lrename]').forEach((b) => {
+      b.onclick = async () => {
+        const cur = lessons.find((l) => l.id === Number(b.dataset.lrename));
+        const title = prompt('새 차시 이름', cur ? cur.title : '');
+        if (!title || !title.trim()) return;
+        await api('PATCH', `/api/lessons/${b.dataset.lrename}`, { title: title.trim() });
+        navigate();
+      };
+    });
+    document.querySelectorAll('[data-ldel2]').forEach((b) => {
+      b.onclick = async () => {
+        if (!confirm('이 차시를 삭제할까요? 소속된 링크·파일은 삭제되지 않고 공통 자료로 이동합니다.')) return;
+        await api('DELETE', `/api/lessons/${b.dataset.ldel2}`);
+        toast('차시가 삭제되었습니다. 자료는 공통으로 이동했습니다.');
+        navigate();
+      };
+    });
+    document.querySelectorAll('[data-lmv2]').forEach((b) => {
+      b.onclick = async () => {
+        const ids = lessons.map((l) => l.id);
+        const i = ids.indexOf(Number(b.dataset.lmv2));
+        const j = i + Number(b.dataset.dir);
+        if (j < 0 || j >= ids.length) return;
+        [ids[i], ids[j]] = [ids[j], ids[i]];
+        await api('PUT', `/api/programs/${p.id}/lessons-order`, { ids });
+        navigate();
+      };
+    });
+  };
+  bindLessonRows();
+
   // 링크 편집
   const collectLinks = () => {
     links = links.map((_, i) => ({
       kind: document.querySelector(`[data-lk="${i}"]`).value,
       label: document.querySelector(`[data-ll="${i}"]`).value,
       url: document.querySelector(`[data-lu="${i}"]`).value,
+      lesson_id: (document.querySelector(`[data-lls="${i}"]`)?.value || null) && Number(document.querySelector(`[data-lls="${i}"]`).value) || null,
     }));
   };
   const redrawLinks = () => {
@@ -913,7 +1014,11 @@ route(/^#\/manage\/(\d+)$/, async (id) => {
       const sign = await api('POST', `/api/programs/${p.id}/file-sign`, { name: file.name, size: file.size });
       const put = await fetch(sign.uploadUrl, { method: 'PUT', headers: { 'Content-Type': mime, 'x-upsert': 'true' }, body: file });
       if (!put.ok) throw new Error('저장소 업로드에 실패했습니다.');
-      await api('POST', `/api/programs/${p.id}/file-confirm`, { path: sign.path, name: file.name, mime, size: file.size });
+      const lessonSel = document.getElementById('up-lesson');
+      await api('POST', `/api/programs/${p.id}/file-confirm`, {
+        path: sign.path, name: file.name, mime, size: file.size,
+        lesson_id: lessonSel && lessonSel.value ? Number(lessonSel.value) : null,
+      });
       toast('업로드되었습니다.');
       navigate();
     } catch (err) { msg.textContent = err.message; msg.className = 'msg err'; }
@@ -934,6 +1039,14 @@ route(/^#\/manage\/(\d+)$/, async (id) => {
         toast(el.checked ? '교사 다운로드가 허용되었습니다.' : '보기 전용으로 전환되었습니다. 교사 다운로드가 즉시 차단됩니다.');
         navigate();
       } catch (err) { toast(err.message, true); el.checked = !el.checked; }
+    };
+  });
+  document.querySelectorAll('[data-fls]').forEach((el) => {
+    el.onchange = async () => {
+      try {
+        await api('PATCH', `/api/files/${el.dataset.fls}`, { lesson_id: el.value ? Number(el.value) : null });
+        toast('차시가 변경되었습니다.');
+      } catch (err) { toast(err.message, true); }
     };
   });
 });
