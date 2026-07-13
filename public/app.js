@@ -116,6 +116,20 @@ function openModal(html) {
   return back;
 }
 
+// 작품 미리보기 확대 (패들렛식 그리드의 이미지 클릭)
+function openImageLightbox(src) {
+  const box = document.createElement('div');
+  box.className = 'img-lightbox';
+  box.innerHTML = `<button class="il-close" aria-label="닫기">✕</button><img src="${esc(src)}" alt="작품">`;
+  box.addEventListener('click', () => box.remove());
+  document.body.appendChild(box);
+}
+// 보드 그리드가 다시 그려져도 동작하도록 위임 처리 (한 번만 등록)
+document.addEventListener('click', (e) => {
+  const img = e.target.closest && e.target.closest('.pc-img');
+  if (img && img.src) openImageLightbox(img.src);
+});
+
 /* ---------------- 본문 렌더링 (마크다운 최소 문법 + 영상 임베드) ---------------- */
 function videoEmbed(url) {
   const yt = /(?:youtube\.com\/(?:watch\?v=|shorts\/|embed\/)|youtu\.be\/)([\w-]{6,20})/.exec(url);
@@ -464,7 +478,7 @@ route(/^#\/program\/(\d+)$/, async (id) => {
           <div style="display:flex;flex-direction:column;gap:8px">${htmlApps.map(htmlAppRow).join('')}${links.map(linkRow).join('')}</div></div>` : ''}
         ${docFiles.length ? `<div class="card"><h2>첨부자료</h2>${docFiles.map(fileRow).join('')}</div>` : ''}
         <div class="card">
-          <h2>학생 활동 보드 <span class="sub">학생들이 코드로 들어와 결과물을 올립니다</span></h2>
+          <h2>학생 활동 보드 <span class="sub">${isAdmin() ? '전체 반 보드' : '내가 만든 우리 반 보드'} — 학생들이 코드로 들어와 결과물을 올립니다</span></h2>
           <div class="deck-list">${(data.boards || []).map(boardRow).join('') || '<p class="empty-note">아직 보드가 없습니다. 수업을 시작할 때 만들어 보세요.</p>'}</div>
           <div class="mt"><button class="btn btn-soft btn-sm" id="new-board">${icon('plus')} 새 보드 만들기</button></div>
         </div>

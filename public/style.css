@@ -960,20 +960,32 @@ body { background: var(--bg); }
 .sb-title { font-size: clamp(20px, 3.4vw, 27px); font-weight: 900; letter-spacing: -.4px; }
 .sb-sub { font-size: 13px; color: var(--text-3); font-weight: 600; margin-top: 3px; }
 .sb-form { margin-bottom: 20px; }
-.sb-grid {
-  display: grid; grid-template-columns: repeat(auto-fill, minmax(min(250px, 100%), 1fr));
-  gap: 14px; align-items: start;
-}
+/* 패들렛식 벽돌쌓기(masonry) — 카드가 내용 높이에 맞춰 흐르듯 쌓임 */
+.sb-grid { columns: 250px; column-gap: 14px; }
+.sb-grid > .empty-note { column-span: all; }
 .post-card {
   background: #fff; border: 1px solid var(--line); border-radius: 16px;
   padding: 13px 15px; box-shadow: var(--shadow-sm);
   display: flex; flex-direction: column; gap: 9px;
+  break-inside: avoid; margin-bottom: 14px; /* masonry: 카드 중간 잘림 방지 */
 }
 .post-card.is-hidden { opacity: .55; border-style: dashed; }
 .post-card .pc-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
 .post-card .pc-name { font-weight: 800; font-size: 13.5px; }
 .post-card .pc-time { font-size: 11px; color: var(--text-3); white-space: nowrap; }
-.post-card .pc-img { width: 100%; border-radius: 10px; max-height: 300px; object-fit: cover; }
+/* 작품 미리보기: 원본 비율 그대로 표시(크롭 없음), 클릭하면 확대 */
+.post-card .pc-img { width: 100%; border-radius: 10px; display: block; cursor: zoom-in; }
+
+/* 작품 확대 라이트박스 */
+.img-lightbox {
+  position: fixed; inset: 0; z-index: 95; background: rgba(10, 14, 24, .92);
+  display: flex; align-items: center; justify-content: center; padding: clamp(12px, 4vw, 48px); cursor: zoom-out;
+}
+.img-lightbox img { max-width: 100%; max-height: 100%; border-radius: 12px; box-shadow: 0 20px 60px rgba(0,0,0,.5); }
+.img-lightbox .il-close {
+  position: absolute; top: 18px; right: 22px; border: none; cursor: pointer;
+  background: #fff; border-radius: 999px; width: 52px; height: 52px; font-size: 24px; font-weight: 900; color: #1e293b;
+}
 .post-card .pc-body { font-size: 13.5px; line-height: 1.7; white-space: pre-wrap; word-break: break-word; }
 .post-card .pc-file {
   font-size: 12.5px; font-weight: 700; color: var(--text-2);
