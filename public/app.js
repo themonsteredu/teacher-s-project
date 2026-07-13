@@ -248,10 +248,10 @@ route(/^#\/login$/, () => {
             <button type="button" data-ltab="account" class="${tab === 'account' ? 'active' : ''}">교사 로그인</button>
           </div>
           ${tab === 'join' ? `
-            <label>참여 코드 (6자리)</label>
-            <input class="input" name="code" inputmode="numeric" maxlength="6" placeholder="000000" required
-              style="font-size:22px;letter-spacing:8px;text-align:center;font-weight:800">
-            <div class="small muted" style="margin-top:10px;line-height:1.6">선생님이 화면에 보여주는 6자리 코드를 입력하면<br>활동 결과물을 올릴 수 있어요. 계정은 필요 없습니다.</div>
+            <label>참여 코드</label>
+            <input class="input" name="code" maxlength="10" placeholder="예: BS2622" required autocomplete="off"
+              style="font-size:22px;letter-spacing:6px;text-align:center;font-weight:800;text-transform:uppercase">
+            <div class="small muted" style="margin-top:10px;line-height:1.6">선생님이 화면에 보여주는 코드를 입력하면<br>활동 결과물을 올릴 수 있어요. 계정은 필요 없습니다.</div>
           ` : `
             <label>아이디</label>
             <input class="input" name="username" autocomplete="username" required>
@@ -269,8 +269,8 @@ route(/^#\/login$/, () => {
       e.preventDefault();
       const f = new FormData(e.target);
       if (tab === 'join') {
-        const code = String(f.get('code') || '').trim();
-        if (!/^\d{6}$/.test(code)) return render('6자리 숫자 코드를 입력하세요.');
+        const code = String(f.get('code') || '').trim().toLowerCase();
+        if (!/^[a-z0-9]{4,10}$/.test(code)) return render('참여 코드는 영문·숫자 4~10자입니다.');
         location.hash = `#/board/${code}`;
         return;
       }
@@ -428,7 +428,7 @@ route(/^#\/program\/(\d+)$/, async (id) => {
         <span class="dl-ico">${b.is_open ? '🟢' : '⚪'}</span>
         <div class="dl-body">
           <div class="dl-title">${esc(b.title)}</div>
-          <div class="dl-meta small muted">참여 코드 <b>${esc(b.code)}</b> · 게시물 ${b.post_count}개 · ${b.is_open ? '진행 중' : '마감됨'}</div>
+          <div class="dl-meta small muted">참여 코드 <b>${esc(String(b.code).toUpperCase())}</b> · 게시물 ${b.post_count}개 · ${b.is_open ? '진행 중' : '마감됨'}</div>
         </div>
       </div>
       <div class="dl-actions"><a class="btn btn-soft btn-sm" href="#/boardview/${b.id}">열기</a></div>
@@ -475,14 +475,35 @@ route(/^#\/program\/(\d+)$/, async (id) => {
   document.querySelectorAll('[data-view]').forEach((b) => {
     b.onclick = () => openFileViewer(Number(b.dataset.view));
   });
-  document.getElementById('new-board').onclick = async () => {
-    const title = prompt('보드 제목을 입력하세요. (예: 1반 진로탐색 결과물)');
-    if (!title || !title.trim()) return;
-    try {
-      const r = await api('POST', `/api/programs/${p.id}/boards`, { title: title.trim() });
-      toast(`보드가 열렸습니다. 참여 코드: ${r.code}`);
-      location.hash = `#/boardview/${r.id}`;
-    } catch (err) { if (!err.handled) toast(err.message, true); }
+  document.getElementById('new-board').onclick = () => {
+    const back = openModal(`
+      <h3>새 활동 보드</h3>
+      <div class="m-sub">학년·반마다 하나씩 만들어 쓰면 좋아요. 참여 코드는 학생이 입력하는 값입니다.</div>
+      <div class="form-grid" style="grid-template-columns:1fr">
+        <div><label>보드 이름 (반)</label><input id="nb-title" placeholder="예: 2학년 2반"></div>
+        <div><label>참여 코드 (영문·숫자 4~10자)</label>
+          <input id="nb-code" maxlength="10" placeholder="예: bs2622" autocomplete="off" style="text-transform:uppercase;letter-spacing:2px;font-weight:700">
+          <div class="small muted" style="margin-top:5px;line-height:1.6">학교+연도+학년+반으로 정하면 겹치지 않아요.<br>예: <b>보</b>성초 <b>26</b>년 <b>2</b>학년 <b>2</b>반 → <code>bs2622</code> · 비워두면 6자리 숫자로 자동 생성</div></div>
+      </div>
+      <div class="m-actions">
+        <button class="btn btn-ghost" id="nb-cancel">취소</button>
+        <button class="btn btn-primary" id="nb-save">보드 만들기</button>
+      </div>
+      <div class="msg" id="nb-msg"></div>`);
+    back.querySelector('#nb-cancel').onclick = () => back.remove();
+    back.querySelector('#nb-save').onclick = async () => {
+      const title = back.querySelector('#nb-title').value.trim();
+      const code = back.querySelector('#nb-code').value.trim().toLowerCase();
+      const msg = back.querySelector('#nb-msg');
+      if (!title) { msg.textContent = '보드 이름을 입력하세요.'; msg.className = 'msg err'; return; }
+      if (code && !/^[a-z0-9]{4,10}$/.test(code)) { msg.textContent = '참여 코드는 영문·숫자 4~10자여야 합니다.'; msg.className = 'msg err'; return; }
+      try {
+        const r = await api('POST', `/api/programs/${p.id}/boards`, { title, code: code || undefined });
+        back.remove();
+        toast(`보드가 열렸습니다. 참여 코드: ${r.code.toUpperCase()}`);
+        location.hash = `#/boardview/${r.id}`;
+      } catch (err) { if (!err.handled) { msg.textContent = err.message; msg.className = 'msg err'; } }
+    };
   };
 
   document.querySelectorAll('[data-lesson-tab]').forEach((b) => {
@@ -547,7 +568,8 @@ function postCardHtml(p, { forTeacher = false, manageable = false } = {}) {
     </div>`;
 }
 
-route(/^#\/board\/(\d{6})$/, async (code) => {
+route(/^#\/board\/([A-Za-z0-9]{4,10})$/, async (code) => {
+  code = String(code).toLowerCase();
   let data;
   try { data = await api('GET', `/api/join-board/${code}`); }
   catch (e) {
@@ -568,7 +590,7 @@ route(/^#\/board\/(\d{6})$/, async (code) => {
       <header class="sb-head">
         <div>
           <div class="sb-title">📌 ${esc(data.board.title)}</div>
-          <div class="sb-sub">${esc(data.programTitle)} · 참여 코드 ${esc(code)}</div>
+          <div class="sb-sub">${esc(data.programTitle)} · 참여 코드 ${esc(code.toUpperCase())}</div>
         </div>
         <a class="btn btn-ghost btn-sm" href="#/login">나가기</a>
       </header>
@@ -591,8 +613,9 @@ route(/^#\/board\/(\d{6})$/, async (code) => {
       </div>
     </div>`;
 
+  const onThisBoard = () => location.hash.toLowerCase().endsWith(`/board/${code}`);
   const refresh = async () => {
-    if (!location.hash.endsWith(`/board/${code}`)) return;
+    if (!onThisBoard()) return;
     try {
       const d = await api('GET', `/api/join-board/${code}`);
       const grid = document.getElementById('sb-grid');
@@ -601,7 +624,7 @@ route(/^#\/board\/(\d{6})$/, async (code) => {
   };
   // 수업 중 실시간처럼 보이도록 15초마다 갱신
   const timer = setInterval(() => {
-    if (!location.hash.endsWith(`/board/${code}`)) { clearInterval(timer); return; }
+    if (!onThisBoard()) { clearInterval(timer); return; }
     refresh();
   }, 15000);
 
@@ -661,7 +684,7 @@ route(/^#\/boardview\/(\d+)$/, async (id) => {
     <div class="card sb-code-card">
       <div>
         <div class="small muted" style="font-weight:700">학생 참여 코드 — 칠판에 띄워 주세요</div>
-        <div class="sb-code">${esc(b.code)}</div>
+        <div class="sb-code">${esc(String(b.code).toUpperCase())}</div>
       </div>
       <div class="small muted" style="line-height:1.8">학생은 사이트 첫 화면의 <b>[학생 참여]</b> 탭에서<br>이 코드를 입력하면 됩니다. (계정 불필요)</div>
     </div>` : ''}
