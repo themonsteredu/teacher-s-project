@@ -370,6 +370,8 @@ const KIND_META = {
 };
 
 const detailLessonSel = {}; // 프로그램별 선택된 차시 탭 기억
+// 차시 표시 이름: 제목에 이미 "차시"가 들어 있으면 그대로, 아니면 "n차시 · 제목"
+const lessonLabel = (l, i) => /차시/.test(l.title) ? esc(l.title) : `${i + 1}차시 · ${esc(l.title)}`;
 
 route(/^#\/program\/(\d+)$/, async (id) => {
   let data;
@@ -448,7 +450,7 @@ route(/^#\/program\/(\d+)$/, async (id) => {
     ${lessons.length ? `<div class="tabs">
       <button data-lesson-tab="all" class="${sel === 'all' ? 'active' : ''}">전체</button>
       <button data-lesson-tab="0" class="${sel === 0 ? 'active' : ''}">공통 자료</button>
-      ${lessons.map((l, i) => `<button data-lesson-tab="${l.id}" class="${sel === l.id ? 'active' : ''}">${i + 1}차시 · ${esc(l.title)}</button>`).join('')}
+      ${lessons.map((l, i) => `<button data-lesson-tab="${l.id}" class="${sel === l.id ? 'active' : ''}">${lessonLabel(l, i)}</button>`).join('')}
     </div>` : ''}
     <div class="grid main-cols">
       <div class="col-stack">
@@ -792,7 +794,7 @@ route(/^#\/manage\/(\d+)$/, async (id) => {
   let links = data.links.map((l) => ({ kind: l.kind, label: l.label, url: l.url, lesson_id: l.lesson_id }));
 
   const lessonOptions = (selected) => `<option value="">공통</option>${lessons.map((ls, i) =>
-    `<option value="${ls.id}" ${Number(selected) === ls.id ? 'selected' : ''}>${i + 1}차시 ${esc(ls.title)}</option>`).join('')}`;
+    `<option value="${ls.id}" ${Number(selected) === ls.id ? 'selected' : ''}>${lessonLabel(ls, i)}</option>`).join('')}`;
 
   const linkRowHtml = (l, i) => `
     <div class="deck-line" data-row="${i}">
@@ -864,7 +866,7 @@ route(/^#\/manage\/(\d+)$/, async (id) => {
         ${lessons.map((l, i) => `
           <div class="deck-line">
             <div class="dl-left"><span class="dl-ico">${i + 1}</span>
-              <div class="dl-body"><div class="dl-title">${i + 1}차시 · ${esc(l.title)}</div></div></div>
+              <div class="dl-body"><div class="dl-title">${lessonLabel(l, i)}</div></div></div>
             <div class="dl-actions">
               <button class="btn btn-ghost btn-sm" data-lmv2="${l.id}" data-dir="-1" title="위로">${icon('up')}</button>
               <button class="btn btn-ghost btn-sm" data-lmv2="${l.id}" data-dir="1" title="아래로">${icon('down')}</button>
@@ -873,7 +875,10 @@ route(/^#\/manage\/(\d+)$/, async (id) => {
             </div>
           </div>`).join('') || '<p class="empty-note">차시가 없습니다. 차시 없이 공통 자료만 써도 됩니다.</p>'}
       </div>
-      <div class="mt"><button class="btn btn-soft btn-sm" id="add-lesson">${icon('plus')} 차시 추가</button></div>
+      <div class="mt" style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn btn-soft btn-sm" id="add-lesson">${icon('plus')} 차시 추가</button>
+        <button class="btn btn-ghost btn-sm" id="auto-lessons" title='파일·링크 이름의 "1차시_" 같은 표기를 인식해 자동으로 차시를 만들고 배정합니다'>✨ 파일명으로 차시 자동 구성</button>
+      </div>
     </div>
     <div class="card" style="margin-bottom:18px">
       <h2>링크 · 웹앱 · 영상 <span class="sub">순서대로 보여집니다. 저장을 눌러야 반영됩니다.</span></h2>
@@ -914,6 +919,40 @@ route(/^#\/manage\/(\d+)$/, async (id) => {
     await api('PATCH', `/api/programs/${p.id}`, { published: !p.published });
     toast(p.published ? '비공개로 전환되었습니다.' : '공개되었습니다.');
     navigate();
+  };
+
+  // 파일·링크 이름의 "n차시" 표기를 인식해 차시 생성 + 자동 배정
+  document.getElementById('auto-lessons').onclick = async () => {
+    const pat = /(\d+)\s*차시/;
+    const nums = new Set();
+    data.files.forEach((f) => { const m = pat.exec(f.name); if (m) nums.add(Number(m[1])); });
+    collectLinks();
+    links.forEach((l) => { const m = pat.exec(l.label || ''); if (m) nums.add(Number(m[1])); });
+    if (!nums.size) { toast('파일·링크 이름에서 "1차시" 같은 표기를 찾지 못했습니다.', true); return; }
+    const sorted = [...nums].sort((a, b) => a - b);
+    if (!confirm(`이름에서 ${sorted.map((n) => n + '차시').join(', ')}를 찾았습니다.\n차시를 만들고 파일·링크를 자동으로 배정할까요?`)) return;
+    try {
+      // 이미 있는 차시(제목이 "n차시"로 시작)는 재사용
+      const byNum = {};
+      lessons.forEach((l) => { const m = /^(\d+)\s*차시/.exec(l.title); if (m) byNum[Number(m[1])] = l.id; });
+      for (const n of sorted) {
+        if (!byNum[n]) {
+          const r = await api('POST', `/api/programs/${p.id}/lessons`, { title: `${n}차시` });
+          byNum[n] = r.id;
+        }
+      }
+      for (const f of data.files) {
+        const m = pat.exec(f.name);
+        if (m && f.lesson_id !== byNum[Number(m[1])]) {
+          await api('PATCH', `/api/files/${f.id}`, { lesson_id: byNum[Number(m[1])] });
+        }
+      }
+      let linkChanged = false;
+      links.forEach((l) => { const m = pat.exec(l.label || ''); if (m) { l.lesson_id = byNum[Number(m[1])]; linkChanged = true; } });
+      if (linkChanged) await api('PUT', `/api/programs/${p.id}/links`, { links: links.filter((l) => l.url && l.url.trim()) });
+      toast(`${sorted.length}개 차시로 자동 구성했습니다. 교사 화면에 차시 탭이 생깁니다.`);
+      navigate();
+    } catch (err) { toast(err.message, true); }
   };
 
   // 차시 관리
