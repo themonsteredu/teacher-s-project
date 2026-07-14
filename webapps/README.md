@@ -99,6 +99,17 @@ webapps/
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 ```
 
+**영상을 교안 안에서 자동 재생** — 파일을 안 고치고도 영상 교체:
+허브에서 교안을 열면 `window.__LESSON_VIDEO__` 에 **'프로그램 편집 → 영상 링크'** 에 등록한
+주소가 자동으로 들어옵니다. 교안은 이 값을 읽어 흐름 중간에서 재생하면 됩니다.
+```js
+const VIDEO_URL = (typeof window !== 'undefined' && window.__LESSON_VIDEO__) || '';
+// VIDEO_URL 이 있으면 <iframe>/<video>로 재생 (템플릿의 '영상 자동 재생' 블록 참고)
+```
+> 이렇게 만들면 영상을 바꿀 때 **파일을 고치거나 재업로드할 필요가 없습니다.**
+> 관리자 화면의 프로그램 편집에서 영상 링크만 바꾸면 교안에 즉시 반영됩니다.
+> 뼈대는 `_template.html`의 "영상 자동 재생" 블록에 이미 들어 있습니다.
+
 **입력값 임시 저장** — `localStorage` 사용 가능 (그 브라우저 안에서만 유지됨):
 ```js
 localStorage.setItem('점수', 100);
