@@ -497,11 +497,15 @@ route(/^#\/program\/(\d+)$/, async (id) => {
     const back = openModal(`
       <h3>새 활동 보드</h3>
       <div class="m-sub">학년·반마다 하나씩 만들어 쓰면 좋아요. 참여 코드는 학생이 입력하는 값입니다.</div>
-      <div class="form-grid" style="grid-template-columns:1fr">
-        <div><label>보드 이름 (반)</label><input id="nb-title" placeholder="예: 2학년 2반"></div>
+      <div class="form-grid" style="grid-template-columns:1fr 1fr">
+        <div style="grid-column:1/-1"><label>보드 이름 (반·주제)</label><input id="nb-title" placeholder="예: 2학년 2반 · 분수의 덧셈"></div>
+        <div><label>수업 날짜</label><input id="nb-date" type="date"><div class="small muted" style="margin-top:5px">날짜별로 정리돼요. 비워도 됩니다.</div></div>
         <div><label>참여 코드 (영문·숫자 4~10자)</label>
           <input id="nb-code" maxlength="10" placeholder="예: bs2622" autocomplete="off" style="text-transform:uppercase;letter-spacing:2px;font-weight:700">
-          <div class="small muted" style="margin-top:5px;line-height:1.6">학교+연도+학년+반으로 정하면 겹치지 않아요.<br>예: <b>보</b>성초 <b>26</b>년 <b>2</b>학년 <b>2</b>반 → <code>bs2622</code> · 비워두면 6자리 숫자로 자동 생성</div></div>
+          <div class="small muted" style="margin-top:5px;line-height:1.6">비워두면 자동 생성 · 예: <code>bs2622</code></div></div>
+        <div style="grid-column:1/-1"><label>학생 명단 (선택 — 한 줄에 한 명)</label>
+          <textarea id="nb-roster" rows="3" placeholder="김민준&#10;이서연&#10;박도윤" style="resize:vertical"></textarea>
+          <div class="small muted" style="margin-top:5px;line-height:1.6">명단을 넣으면 누가 냈고 안 냈는지 자동으로 대조해 줍니다. (아이디·비번 없이 이름만)</div></div>
       </div>
       <div class="m-actions">
         <button class="btn btn-ghost" id="nb-cancel">취소</button>
@@ -512,11 +516,13 @@ route(/^#\/program\/(\d+)$/, async (id) => {
     back.querySelector('#nb-save').onclick = async () => {
       const title = back.querySelector('#nb-title').value.trim();
       const code = back.querySelector('#nb-code').value.trim().toLowerCase();
+      const class_date = back.querySelector('#nb-date').value || undefined;
+      const roster = back.querySelector('#nb-roster').value;
       const msg = back.querySelector('#nb-msg');
       if (!title) { msg.textContent = '보드 이름을 입력하세요.'; msg.className = 'msg err'; return; }
       if (code && !/^[a-z0-9]{4,10}$/.test(code)) { msg.textContent = '참여 코드는 영문·숫자 4~10자여야 합니다.'; msg.className = 'msg err'; return; }
       try {
-        const r = await api('POST', `/api/programs/${p.id}/boards`, { title, code: code || undefined });
+        const r = await api('POST', `/api/programs/${p.id}/boards`, { title, code: code || undefined, class_date, roster });
         back.remove();
         toast(`보드가 열렸습니다. 참여 코드: ${r.code.toUpperCase()}`);
         location.hash = `#/boardview/${r.id}`;
@@ -757,6 +763,18 @@ route(/^#\/board\/([A-Za-z0-9]{4,10})$/, async (code) => {
 });
 
 /* ---------------- 내 수업 대시보드 (#/myclass — 교사·관리자) ---------------- */
+const WEEKDAY = ['일', '월', '화', '수', '목', '금', '토'];
+function dateLabel(iso) {
+  if (!iso) return '날짜 미정';
+  const [y, m, d] = iso.split('-').map(Number);
+  const wd = WEEKDAY[new Date(y, m - 1, d).getDay()];
+  return `${y}. ${m}. ${d} (${wd})`;
+}
+function rosterBadge(r) {
+  if (!r || !r.hasRoster) return '';
+  const done = r.missingCount === 0;
+  return `<span class="badge ${done ? 'green' : 'amber'}" title="명단 ${r.total}명 중 제출 ${r.submittedCount}명">제출 ${r.submittedCount}/${r.total}</span>`;
+}
 route(/^#\/myclass$/, async () => {
   const data = await api('GET', '/api/my-boards');
   const boards = data.boards;
@@ -768,23 +786,87 @@ route(/^#\/myclass$/, async () => {
       </div>
       <div class="cc-prog small muted">${esc(b.programTitle)}${b.programPublished ? '' : ' · <span style="color:#c0392b">프로그램 비공개</span>'}</div>
       ${b.isOpen ? `<div class="cc-code">참여 코드 <b>${esc(b.code)}</b></div>` : ''}
-      <div class="cc-stat small muted">🧑‍🎓 제출 ${b.postCount}개 · 📚 공유 자료 ${b.itemCount}개</div>
+      <div class="cc-stat small muted">🧑‍🎓 제출 ${b.postCount}개 · 📚 공유 자료 ${b.itemCount}개 ${rosterBadge(b.roster)}</div>
       <div class="cc-actions">
         <a class="btn btn-primary btn-sm" href="#/boardview/${b.id}">${icon('monitor')} 수업 열기</a>
         <a class="btn btn-ghost btn-sm" href="#/program/${b.programId}">프로그램</a>
       </div>
     </div>`;
+  // 날짜별 그룹 (최신 날짜 먼저, 날짜 미정은 맨 아래)
+  const groups = new Map();
+  for (const b of boards) {
+    const key = b.classDate || '';
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(b);
+  }
+  const keys = [...groups.keys()].sort((a, b) => {
+    if (!a) return 1; if (!b) return -1; return a < b ? 1 : -1;
+  });
+  const body = keys.map((k) => `
+    <div class="date-group">
+      <div class="date-head">${icon('clock')} ${esc(dateLabel(k))} <span class="small muted">· ${groups.get(k).length}개 수업</span></div>
+      <div class="class-grid">${groups.get(k).map(card).join('')}</div>
+    </div>`).join('');
   shell('내 수업', `
     <div class="page-head">
       <div>
         <div class="ph-t">내 수업</div>
-        <div class="desc">각 수업(반)마다 학생에게 보여줄 자료를 고르고, 학생 활동을 모읍니다. 새 수업은 프로그램 화면에서 '활동 보드 만들기'로 시작하세요.</div>
+        <div class="desc">날짜·주제별로 수업을 여러 개 열고, 반마다 자료를 고르고 학생 활동을 모읍니다.</div>
       </div>
+      <div><button class="btn btn-primary btn-sm" id="mc-new">${icon('plus')} 새 수업 열기</button></div>
     </div>
-    ${boards.length ? `<div class="class-grid">${boards.map(card).join('')}</div>`
-      : `<div class="empty-note">아직 만든 수업이 없습니다. <a href="#/">프로그램</a>에서 활동 보드를 만들면 여기에 나타납니다.</div>`}
+    ${boards.length ? body
+      : `<div class="empty-note">아직 만든 수업이 없습니다. 위 <b>[새 수업 열기]</b> 로 첫 수업을 만들어 보세요.</div>`}
   `);
+  document.getElementById('mc-new').onclick = () => openNewClassModal();
 });
+
+// 대시보드에서 바로 새 수업(보드) 열기 — 프로그램 선택 포함
+async function openNewClassModal() {
+  let programs = [];
+  try { programs = (await api('GET', '/api/programs')).programs; }
+  catch (e) { if (!e.handled) toast(e.message, true); return; }
+  if (!programs.length) {
+    toast('사용할 수 있는 공개 프로그램이 없습니다. 관리자에게 프로그램 공개를 요청하세요.', true);
+    return;
+  }
+  const opts = programs.map((p) => `<option value="${p.id}">${esc(p.title)}</option>`).join('');
+  const back = openModal(`
+    <h3>새 수업 열기</h3>
+    <div class="m-sub">프로그램을 고르고, 날짜·주제로 이름을 붙이면 날짜별로 정리됩니다.</div>
+    <div class="form-grid" style="grid-template-columns:1fr 1fr">
+      <div style="grid-column:1/-1"><label>프로그램</label><select id="nc-prog">${opts}</select></div>
+      <div style="grid-column:1/-1"><label>수업 이름 (반·주제)</label><input id="nc-title" placeholder="예: 2학년 2반 · 분수의 덧셈"></div>
+      <div><label>수업 날짜</label><input id="nc-date" type="date"></div>
+      <div><label>참여 코드 (영문·숫자 4~10자)</label>
+        <input id="nc-code" maxlength="10" placeholder="비워두면 자동" autocomplete="off" style="text-transform:uppercase;letter-spacing:2px;font-weight:700"></div>
+      <div style="grid-column:1/-1"><label>학생 명단 (선택 — 한 줄에 한 명)</label>
+        <textarea id="nc-roster" rows="3" placeholder="김민준&#10;이서연&#10;박도윤" style="resize:vertical"></textarea>
+        <div class="small muted" style="margin-top:5px">명단을 넣으면 누가 냈고 안 냈는지 자동 대조합니다.</div></div>
+    </div>
+    <div class="m-actions">
+      <button class="btn btn-ghost" id="nc-cancel">취소</button>
+      <button class="btn btn-primary" id="nc-save">수업 만들기</button>
+    </div>
+    <div class="msg" id="nc-msg"></div>`);
+  back.querySelector('#nc-cancel').onclick = () => back.remove();
+  back.querySelector('#nc-save').onclick = async () => {
+    const programId = back.querySelector('#nc-prog').value;
+    const title = back.querySelector('#nc-title').value.trim();
+    const code = back.querySelector('#nc-code').value.trim().toLowerCase();
+    const class_date = back.querySelector('#nc-date').value || undefined;
+    const roster = back.querySelector('#nc-roster').value;
+    const msg = back.querySelector('#nc-msg');
+    if (!title) { msg.textContent = '수업 이름을 입력하세요.'; msg.className = 'msg err'; return; }
+    if (code && !/^[a-z0-9]{4,10}$/.test(code)) { msg.textContent = '참여 코드는 영문·숫자 4~10자여야 합니다.'; msg.className = 'msg err'; return; }
+    try {
+      const r = await api('POST', `/api/programs/${programId}/boards`, { title, code: code || undefined, class_date, roster });
+      back.remove();
+      toast(`수업이 열렸습니다. 참여 코드: ${r.code.toUpperCase()}`);
+      location.hash = `#/boardview/${r.id}`;
+    } catch (err) { if (!err.handled) { msg.textContent = err.message; msg.className = 'msg err'; } }
+  };
+}
 
 /* ---------------- 보드 관리 (#/boardview/:id — 교사·관리자) ---------------- */
 route(/^#\/boardview\/(\d+)$/, async (id) => {
@@ -799,11 +881,13 @@ route(/^#\/boardview\/(\d+)$/, async (id) => {
         <div class="desc">${esc(data.program.title)} · 게시물 ${data.posts.length}개 ${b.isOpen ? '· 마감하면 학생 제출·열람이 즉시 중단됩니다' : '· 결과물은 계속 보관됩니다'}</div>
       </div>
       <div style="display:flex;gap:8px;flex-wrap:wrap">
+        ${data.manageable && data.hasFiles ? `<button class="btn btn-soft btn-sm" id="board-dlall">${icon('download')} 전체 다운로드</button>` : ''}
         ${data.manageable ? `<button class="btn ${b.isOpen ? 'btn-danger' : 'btn-primary'} btn-sm" id="board-toggle">${b.isOpen ? '마감하기' : '다시 열기'}</button>` : ''}
         ${isAdmin() ? `<button class="btn btn-danger btn-sm" id="board-del">${icon('trash')} 보드 삭제</button>` : ''}
         <a class="btn btn-ghost btn-sm" href="#/program/${data.program.id}">← 프로그램</a>
       </div>
     </div>
+    ${b.classDate ? `<div class="small muted" style="margin:-6px 0 12px">${icon('clock')} 수업 날짜 ${esc(dateLabel(b.classDate))}</div>` : ''}
     ${b.isOpen ? `
     <div class="card sb-code-card">
       <div>
@@ -812,6 +896,7 @@ route(/^#\/boardview\/(\d+)$/, async (id) => {
       </div>
       <div class="small muted" style="line-height:1.8">학생은 사이트 첫 화면의 <b>[학생 참여]</b> 탭에서<br>이 코드를 입력하면 됩니다. (계정 불필요)</div>
     </div>` : ''}
+    ${data.manageable ? rosterCardHtml(data.roster) : ''}
     ${data.manageable ? '<div class="card" id="share-card"><div class="small muted">수업자료 불러오는 중…</div></div>' : ''}
     <div class="sb-grid">
       ${data.posts.map((p) => postCardHtml(p, { forTeacher: true, manageable: data.manageable })).join('') || '<p class="empty-note" style="grid-column:1/-1">아직 게시물이 없습니다.</p>'}
@@ -831,6 +916,10 @@ route(/^#\/boardview\/(\d+)$/, async (id) => {
     toast('보드가 삭제되었습니다.');
     location.hash = `#/program/${data.program.id}`;
   };
+  const dlAllBtn = document.getElementById('board-dlall');
+  if (dlAllBtn) dlAllBtn.onclick = () => downloadAll(id, dlAllBtn);
+  const rosterEditBtn = document.getElementById('roster-edit');
+  if (rosterEditBtn) rosterEditBtn.onclick = () => openRosterModal(id, b.roster || '');
   document.querySelectorAll('[data-phide]').forEach((btn) => {
     btn.onclick = async () => {
       await api('PATCH', `/api/posts/${btn.dataset.phide}`, { hidden: btn.dataset.val === '1' });
@@ -897,6 +986,84 @@ async function loadShareCard(el, boardId) {
       msg.className = 'msg ok';
     } catch (e) { if (!e.handled) { msg.textContent = e.message; msg.className = 'msg err'; } }
   };
+}
+
+/* ---- 제출 현황(명단 대조) 카드 ---- */
+function rosterCardHtml(r) {
+  const editBtn = '<button class="btn btn-ghost btn-sm" id="roster-edit">명단 편집</button>';
+  if (!r || !r.hasRoster) {
+    return `<div class="card roster-card">
+      <div class="rc-head">
+        <div><h2 style="margin:0 0 2px">제출 현황</h2>
+          <div class="small muted">학생 명단을 넣으면 누가 냈고 안 냈는지 자동으로 대조해 줍니다. (계정 불필요)</div></div>
+        ${editBtn}
+      </div></div>`;
+  }
+  const chip = (name, done) => `<span class="name-chip ${done ? 'done' : 'miss'}">${done ? '✓' : '·'} ${esc(name)}</span>`;
+  const extras = (r.extras || []).length
+    ? `<div class="rc-extra small muted" style="margin-top:10px">명단 밖 제출: ${r.extras.map((n) => esc(n)).join(', ')}</div>` : '';
+  return `<div class="card roster-card">
+    <div class="rc-head">
+      <div><h2 style="margin:0 0 2px">제출 현황
+        <span class="badge ${r.missingCount === 0 ? 'green' : 'amber'}">${r.submittedCount}/${r.total} 제출</span></h2>
+        <div class="small muted">명단 ${r.total}명 · 제출 ${r.submittedCount}명 · 미제출 ${r.missingCount}명</div></div>
+      ${editBtn}
+    </div>
+    ${r.missing.length ? `<div class="rc-block"><div class="rc-label miss">아직 안 낸 학생 (${r.missingCount})</div>
+      <div class="name-wrap">${r.missing.map((n) => chip(n, false)).join('')}</div></div>` : '<div class="rc-block ok small">모두 제출했어요 🎉</div>'}
+    ${r.submitted.length ? `<div class="rc-block"><div class="rc-label done">제출한 학생 (${r.submittedCount})</div>
+      <div class="name-wrap">${r.submitted.map((n) => chip(n, true)).join('')}</div></div>` : ''}
+    ${extras}
+  </div>`;
+}
+
+// 명단 편집 모달 (날짜도 함께 수정)
+function openRosterModal(boardId, current) {
+  const back = openModal(`
+    <h3>학생 명단 편집</h3>
+    <div class="m-sub">한 줄에 한 명씩 이름을 적으세요. 제출자 이름과 자동으로 대조합니다.</div>
+    <div class="form-grid" style="grid-template-columns:1fr">
+      <div><label>학생 명단</label>
+        <textarea id="rm-roster" rows="8" style="resize:vertical" placeholder="김민준&#10;이서연&#10;박도윤">${esc(current)}</textarea></div>
+    </div>
+    <div class="m-actions">
+      <button class="btn btn-ghost" id="rm-cancel">취소</button>
+      <button class="btn btn-primary" id="rm-save">저장</button>
+    </div>
+    <div class="msg" id="rm-msg"></div>`);
+  back.querySelector('#rm-cancel').onclick = () => back.remove();
+  back.querySelector('#rm-save').onclick = async () => {
+    const roster = back.querySelector('#rm-roster').value;
+    try {
+      await api('PATCH', `/api/boards/${boardId}`, { roster });
+      back.remove();
+      toast('명단을 저장했어요.');
+      navigate();
+    } catch (e) { if (!e.handled) { const m = back.querySelector('#rm-msg'); m.textContent = e.message; m.className = 'msg err'; } }
+  };
+}
+
+// 학생 제출물 일괄 다운로드 — 서명 URL을 받아 순차 저장 (zip 의존성 없이)
+async function downloadAll(boardId, btn) {
+  const label = btn.innerHTML;
+  btn.disabled = true;
+  btn.innerHTML = '준비 중…';
+  let files;
+  try { ({ files } = await api('GET', `/api/boards/${boardId}/download-all`)); }
+  catch (e) { if (!e.handled) toast(e.message, true); btn.disabled = false; btn.innerHTML = label; return; }
+  if (!files.length) { toast('내려받을 제출 파일이 없습니다.', true); btn.disabled = false; btn.innerHTML = label; return; }
+  toast(`${files.length}개 파일을 내려받습니다. 브라우저가 여러 파일 저장을 물어보면 허용해 주세요.`);
+  for (let i = 0; i < files.length; i++) {
+    const f = files[i];
+    const a = document.createElement('a');
+    a.href = f.url; a.download = f.name || '';
+    document.body.appendChild(a); a.click(); a.remove();
+    btn.innerHTML = `${i + 1}/${files.length}`;
+    await new Promise((r) => setTimeout(r, 700)); // 브라우저 다중 다운로드 차단 완화
+  }
+  btn.disabled = false;
+  btn.innerHTML = label;
+  toast('전체 다운로드를 시작했습니다.');
 }
 
 /* ---------------- 프로그램 관리 (#/manage, admin) ---------------- */

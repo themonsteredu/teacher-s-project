@@ -1028,6 +1028,25 @@ body { background: var(--bg); }
 .cc-title { font-weight: 800; font-size: 16px; }
 .cc-code { font-size: 13px; } .cc-code b { font-size: 18px; letter-spacing: 3px; }
 .cc-actions { display: flex; gap: 8px; margin-top: 6px; flex-wrap: wrap; }
+.cc-stat { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+
+/* ===== 내 수업: 날짜별 그룹 ===== */
+.date-group { margin-bottom: 26px; }
+.date-head { display: flex; align-items: center; gap: 7px; font-weight: 800; font-size: 15px; margin: 0 0 12px; padding-bottom: 8px; border-bottom: 1px solid var(--line); }
+.date-head svg { width: 16px; height: 16px; color: var(--text-2); }
+
+/* ===== 교사: 제출 현황(명단 대조) ===== */
+.roster-card { margin-bottom: 14px; }
+.rc-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+.rc-block { margin-top: 12px; }
+.rc-block.ok { color: var(--green-600); font-weight: 700; }
+.rc-label { font-size: 12px; font-weight: 800; margin-bottom: 7px; }
+.rc-label.miss { color: var(--amber-600); }
+.rc-label.done { color: var(--green-600); }
+.name-wrap { display: flex; flex-wrap: wrap; gap: 6px; }
+.name-chip { font-size: 13px; font-weight: 600; padding: 4px 10px; border-radius: 999px; border: 1px solid var(--line-strong); }
+.name-chip.miss { background: var(--amber-50); color: var(--amber-600); border-color: transparent; }
+.name-chip.done { background: var(--green-50); color: var(--green-600); border-color: transparent; }
 
 /* ===== 교사: 학생 공유 자료 고르기 ===== */
 .share-list { display: flex; flex-direction: column; gap: 6px; }
