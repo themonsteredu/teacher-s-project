@@ -790,6 +790,7 @@ route(/^#\/myclass$/, async () => {
       <div class="cc-actions">
         <a class="btn btn-primary btn-sm" href="#/boardview/${b.id}">${icon('monitor')} 수업 열기</a>
         <a class="btn btn-ghost btn-sm" href="#/program/${b.programId}">프로그램</a>
+        <button class="btn btn-ghost btn-sm cc-del" data-del-board="${b.id}" data-title="${esc(b.title)}" title="수업 삭제">${icon('trash')}</button>
       </div>
     </div>`;
   // 날짜별 그룹 (최신 날짜 먼저, 날짜 미정은 맨 아래)
@@ -819,6 +820,17 @@ route(/^#\/myclass$/, async () => {
       : `<div class="empty-note">아직 만든 수업이 없습니다. 위 <b>[새 수업 열기]</b> 로 첫 수업을 만들어 보세요.</div>`}
   `);
   document.getElementById('mc-new').onclick = () => openNewClassModal();
+  document.querySelectorAll('[data-del-board]').forEach((btn) => {
+    btn.onclick = async () => {
+      const title = btn.dataset.title || '이 수업';
+      if (!confirm(`'${title}' 수업을 삭제할까요?\n제출된 결과물과 첨부 원본까지 모두 삭제되며 되돌릴 수 없습니다.`)) return;
+      try {
+        await api('DELETE', `/api/boards/${btn.dataset.delBoard}`);
+        toast('수업이 삭제되었습니다.');
+        navigate();
+      } catch (e) { if (!e.handled) toast(e.message, true); }
+    };
+  });
 });
 
 // 대시보드에서 바로 새 수업(보드) 열기 — 프로그램 선택 포함
@@ -883,7 +895,7 @@ route(/^#\/boardview\/(\d+)$/, async (id) => {
       <div style="display:flex;gap:8px;flex-wrap:wrap">
         ${data.manageable && data.hasFiles ? `<button class="btn btn-soft btn-sm" id="board-dlall">${icon('download')} 전체 다운로드</button>` : ''}
         ${data.manageable ? `<button class="btn ${b.isOpen ? 'btn-danger' : 'btn-primary'} btn-sm" id="board-toggle">${b.isOpen ? '마감하기' : '다시 열기'}</button>` : ''}
-        ${isAdmin() ? `<button class="btn btn-danger btn-sm" id="board-del">${icon('trash')} 보드 삭제</button>` : ''}
+        ${data.manageable ? `<button class="btn btn-danger btn-sm" id="board-del">${icon('trash')} 수업 삭제</button>` : ''}
         <a class="btn btn-ghost btn-sm" href="#/program/${data.program.id}">← 프로그램</a>
       </div>
     </div>
@@ -911,10 +923,12 @@ route(/^#\/boardview\/(\d+)$/, async (id) => {
   };
   const delBtn = document.getElementById('board-del');
   if (delBtn) delBtn.onclick = async () => {
-    if (!confirm('보드를 삭제할까요? 모든 게시물과 첨부 원본이 함께 삭제되며 되돌릴 수 없습니다.')) return;
-    await api('DELETE', `/api/boards/${id}`);
-    toast('보드가 삭제되었습니다.');
-    location.hash = `#/program/${data.program.id}`;
+    if (!confirm(`'${b.title}' 수업을 삭제할까요?\n제출된 결과물과 첨부 원본까지 모두 삭제되며 되돌릴 수 없습니다.`)) return;
+    try {
+      await api('DELETE', `/api/boards/${id}`);
+      toast('수업이 삭제되었습니다.');
+      location.hash = '#/myclass';
+    } catch (e) { if (!e.handled) toast(e.message, true); }
   };
   const dlAllBtn = document.getElementById('board-dlall');
   if (dlAllBtn) dlAllBtn.onclick = () => downloadAll(id, dlAllBtn);

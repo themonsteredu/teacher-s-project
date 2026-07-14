@@ -1027,7 +1027,9 @@ body { background: var(--bg); }
 .cc-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .cc-title { font-weight: 800; font-size: 16px; }
 .cc-code { font-size: 13px; } .cc-code b { font-size: 18px; letter-spacing: 3px; }
-.cc-actions { display: flex; gap: 8px; margin-top: 6px; flex-wrap: wrap; }
+.cc-actions { display: flex; gap: 8px; margin-top: 6px; flex-wrap: wrap; align-items: center; }
+.cc-del { margin-left: auto; color: var(--text-2); padding: 7px 9px; }
+.cc-del:hover { color: var(--red-600); border-color: var(--red-600); background: var(--red-50); }
 .cc-stat { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 
 /* ===== 내 수업: 날짜별 그룹 ===== */
