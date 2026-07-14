@@ -188,7 +188,7 @@ window.addEventListener('hashchange', navigate);
 
 /* ---------------- 셸 (상단 메뉴바) ---------------- */
 function menuItems() {
-  const items = [['#/', 'grid', '프로그램']];
+  const items = [['#/', 'grid', '프로그램'], ['#/myclass', 'monitor', '내 수업']];
   if (isAdmin()) {
     items.push(
       ['#/manage', 'layers', '프로그램 관리'],
@@ -608,6 +608,56 @@ function postCardHtml(p, { forTeacher = false, manageable = false } = {}) {
     </div>`;
 }
 
+// 학생 화면: 오늘의 수업자료 렌더 (교사가 공유한 링크·웹앱·영상·파일)
+function studentMaterialsHtml(materials, code) {
+  const links = (materials && materials.links) || [];
+  const files = (materials && materials.files) || [];
+  if (!links.length && !files.length) return '';
+  const linkItem = (l) => {
+    if (l.kind === 'video') {
+      return `<div class="mat-video">${videoEmbed(l.url)}<div class="mat-cap">${esc(l.label || '영상')}</div></div>`;
+    }
+    const tag = l.kind === 'aiapp' ? '🖥 웹앱' : '🔗 링크';
+    const label = l.label || (l.kind === 'aiapp' ? '웹앱 열기' : '링크 열기');
+    return `<a class="mat-link" href="${esc(l.url)}" target="_blank" rel="noopener">${tag} <b>${esc(label)}</b><span class="mat-go">열기 →</span></a>`;
+  };
+  const fileItem = (f) => {
+    const isHtml = /\.html?$/i.test(f.name) || f.mime === 'text/html';
+    if (isHtml) {
+      return `<a class="mat-link" href="/api/join-board/${code}/file/${f.id}/open" target="_blank" rel="noopener">🖥 <b>${esc(f.name)}</b><span class="mat-go">실행 →</span></a>`;
+    }
+    return `<button class="mat-link" data-matfile="${f.id}">📎 <b>${esc(f.name)}</b><span class="mat-go">열람 →</span></button>`;
+  };
+  return `
+    <div class="card mat-card">
+      <div class="mat-h">📚 오늘의 수업자료</div>
+      <div class="mat-list">${links.map(linkItem).join('')}${files.map(fileItem).join('')}</div>
+    </div>`;
+}
+
+// 학생: 공유된 파일 열람 (보기 전용 오버레이)
+async function openStudentFile(code, fileId) {
+  let v;
+  try { v = await api('GET', `/api/join-board/${code}/file/${fileId}/view`); }
+  catch (e) { if (!e.handled) toast(e.message, true); return; }
+  const isImg = /^image\//.test(v.mime || '');
+  const overlay = document.createElement('div');
+  overlay.className = 'file-viewer';
+  overlay.innerHTML = `
+    <div class="fv-bar">
+      <span class="fv-name">📎 ${esc(v.name)}</span>
+      <button class="fv-close" type="button">✕ 닫기</button>
+    </div>
+    <div class="fv-body">
+      ${isImg
+        ? `<img src="${esc(v.url)}" alt="${esc(v.name)}" draggable="false">`
+        : `<iframe src="${esc(v.url)}#toolbar=0&navpanes=0" title="${esc(v.name)}"></iframe>`}
+    </div>`;
+  overlay.addEventListener('contextmenu', (e) => e.preventDefault());
+  overlay.querySelector('.fv-close').onclick = () => overlay.remove();
+  document.body.appendChild(overlay);
+}
+
 route(/^#\/board\/([A-Za-z0-9]{4,10})$/, async (code) => {
   code = String(code).toLowerCase();
   let data;
@@ -634,6 +684,7 @@ route(/^#\/board\/([A-Za-z0-9]{4,10})$/, async (code) => {
         </div>
         <a class="btn btn-ghost btn-sm" href="#/login">나가기</a>
       </header>
+      ${studentMaterialsHtml(data.materials, code)}
       <div class="card sb-form">
         <div class="form-grid" style="grid-template-columns:150px 1fr">
           <div><label>이름</label><input id="sb-name" maxlength="20" value="${esc(savedName)}" placeholder="이름"></div>
@@ -668,6 +719,9 @@ route(/^#\/board\/([A-Za-z0-9]{4,10})$/, async (code) => {
     refresh();
   }, 15000);
 
+  document.querySelectorAll('[data-matfile]').forEach((btn) => {
+    btn.onclick = () => openStudentFile(code, btn.dataset.matfile);
+  });
   document.getElementById('sb-file-btn').onclick = () => document.getElementById('sb-file').click();
   document.getElementById('sb-file').onchange = (e) => {
     const f = e.target.files[0];
@@ -702,6 +756,36 @@ route(/^#\/board\/([A-Za-z0-9]{4,10})$/, async (code) => {
   };
 });
 
+/* ---------------- 내 수업 대시보드 (#/myclass — 교사·관리자) ---------------- */
+route(/^#\/myclass$/, async () => {
+  const data = await api('GET', '/api/my-boards');
+  const boards = data.boards;
+  const card = (b) => `
+    <div class="class-card ${b.isOpen ? '' : 'closed'}">
+      <div class="cc-top">
+        <div class="cc-title">${esc(b.title)}</div>
+        ${b.isOpen ? '<span class="badge green">진행 중</span>' : '<span class="badge gray">마감됨</span>'}
+      </div>
+      <div class="cc-prog small muted">${esc(b.programTitle)}${b.programPublished ? '' : ' · <span style="color:#c0392b">프로그램 비공개</span>'}</div>
+      ${b.isOpen ? `<div class="cc-code">참여 코드 <b>${esc(b.code)}</b></div>` : ''}
+      <div class="cc-stat small muted">🧑‍🎓 제출 ${b.postCount}개 · 📚 공유 자료 ${b.itemCount}개</div>
+      <div class="cc-actions">
+        <a class="btn btn-primary btn-sm" href="#/boardview/${b.id}">${icon('monitor')} 수업 열기</a>
+        <a class="btn btn-ghost btn-sm" href="#/program/${b.programId}">프로그램</a>
+      </div>
+    </div>`;
+  shell('내 수업', `
+    <div class="page-head">
+      <div>
+        <div class="ph-t">내 수업</div>
+        <div class="desc">각 수업(반)마다 학생에게 보여줄 자료를 고르고, 학생 활동을 모읍니다. 새 수업은 프로그램 화면에서 '활동 보드 만들기'로 시작하세요.</div>
+      </div>
+    </div>
+    ${boards.length ? `<div class="class-grid">${boards.map(card).join('')}</div>`
+      : `<div class="empty-note">아직 만든 수업이 없습니다. <a href="#/">프로그램</a>에서 활동 보드를 만들면 여기에 나타납니다.</div>`}
+  `);
+});
+
 /* ---------------- 보드 관리 (#/boardview/:id — 교사·관리자) ---------------- */
 route(/^#\/boardview\/(\d+)$/, async (id) => {
   let data;
@@ -728,6 +812,7 @@ route(/^#\/boardview\/(\d+)$/, async (id) => {
       </div>
       <div class="small muted" style="line-height:1.8">학생은 사이트 첫 화면의 <b>[학생 참여]</b> 탭에서<br>이 코드를 입력하면 됩니다. (계정 불필요)</div>
     </div>` : ''}
+    ${data.manageable ? '<div class="card" id="share-card"><div class="small muted">수업자료 불러오는 중…</div></div>' : ''}
     <div class="sb-grid">
       ${data.posts.map((p) => postCardHtml(p, { forTeacher: true, manageable: data.manageable })).join('') || '<p class="empty-note" style="grid-column:1/-1">아직 게시물이 없습니다.</p>'}
     </div>`);
@@ -760,7 +845,59 @@ route(/^#\/boardview\/(\d+)$/, async (id) => {
       navigate();
     };
   });
+
+  // 학생에게 보여줄 수업자료 고르기 (보드 관리자만)
+  const shareCard = document.getElementById('share-card');
+  if (shareCard) loadShareCard(shareCard, id);
 });
+
+const KIND_TAG = { link: '🔗 링크', aiapp: '🖥 웹앱', video: '▶ 영상' };
+async function loadShareCard(el, boardId) {
+  let d;
+  try { d = await api('GET', `/api/boards/${boardId}/items`); }
+  catch (e) { el.innerHTML = `<div class="small muted">${esc(e.message)}</div>`; return; }
+  const sharedL = new Set(d.sharedLinkIds);
+  const sharedF = new Set(d.sharedFileIds);
+  const total = d.links.length + d.files.length;
+  if (!total) {
+    el.innerHTML = `<h2 style="margin:0 0 6px">학생에게 보여줄 수업자료</h2>
+      <div class="small muted">이 프로그램에 등록된 링크·자료가 없습니다. 관리자가 <a href="#/program/${d.program.id}">프로그램</a>에 자료를 먼저 올려야 합니다.</div>`;
+    return;
+  }
+  const row = (checked, type, id, tag, label, sub) => `
+    <label class="share-row">
+      <input type="checkbox" data-share="${type}:${id}" ${checked ? 'checked' : ''}>
+      <span class="sr-tag">${tag}</span>
+      <span class="sr-label">${esc(label)}${sub ? ` <span class="small muted">${esc(sub)}</span>` : ''}</span>
+    </label>`;
+  el.innerHTML = `
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap">
+      <div>
+        <h2 style="margin:0 0 2px">학생에게 보여줄 수업자료</h2>
+        <div class="small muted">체크한 자료만 학생이 참여 코드로 들어와서 볼 수 있어요. 체크를 풀면 즉시 사라집니다.</div>
+      </div>
+      <button class="btn btn-primary btn-sm" id="share-save">저장</button>
+    </div>
+    <div class="share-list" style="margin-top:12px">
+      ${d.links.map((l) => row(sharedL.has(l.id), 'link', l.id, KIND_TAG[l.kind] || '🔗 링크', l.label || l.url, '')).join('')}
+      ${d.files.map((f) => row(sharedF.has(f.id), 'file', f.id, '📎 자료', f.name, (f.size / 1024 / 1024).toFixed(1) + 'MB')).join('')}
+    </div>
+    <div class="msg" id="share-msg" style="margin-top:8px"></div>`;
+  document.getElementById('share-save').onclick = async () => {
+    const link_ids = []; const file_ids = [];
+    el.querySelectorAll('[data-share]:checked').forEach((c) => {
+      const [t, i] = c.dataset.share.split(':');
+      (t === 'link' ? link_ids : file_ids).push(Number(i));
+    });
+    const msg = document.getElementById('share-msg');
+    msg.textContent = '저장 중…'; msg.className = 'msg';
+    try {
+      await api('PUT', `/api/boards/${boardId}/items`, { link_ids, file_ids });
+      msg.textContent = `저장됐어요 — 학생에게 ${link_ids.length + file_ids.length}개 자료가 보입니다.`;
+      msg.className = 'msg ok';
+    } catch (e) { if (!e.handled) { msg.textContent = e.message; msg.className = 'msg err'; } }
+  };
+}
 
 /* ---------------- 프로그램 관리 (#/manage, admin) ---------------- */
 route(/^#\/manage$/, async () => {
