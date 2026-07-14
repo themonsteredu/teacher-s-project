@@ -1,0 +1,146 @@
+<!doctype html>
+<!--
+  예시 웹앱: 랜덤 뽑기 · 모둠 나누기
+  - 이름 목록을 넣고 → 한 명 랜덤으로 뽑거나 → 모둠으로 나눔
+  - 자기완결(파일 하나) · 백엔드 없음 · 이름 목록은 localStorage에 저장
+  이 파일을 열어보며 "이렇게 만드는구나" 참고용으로 쓰세요.
+-->
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>랜덤 뽑기 · 모둠 나누기</title>
+  <style>
+    :root {
+      --brand: #7c3aed; --bg: #faf5ff; --card: #fff;
+      --text: #2e1065; --muted: #6b7280; --line: #e9d5ff;
+    }
+    * { box-sizing: border-box; }
+    body {
+      font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+      margin: 0; padding: 24px; background: var(--bg); color: var(--text); line-height: 1.6;
+    }
+    .wrap { max-width: 720px; margin: 0 auto; }
+    header { text-align: center; margin-bottom: 20px; }
+    h1 { color: var(--brand); margin: 0 0 4px; font-size: 1.8rem; }
+    .sub { color: var(--muted); margin: 0; }
+    .card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 20px; margin-bottom: 16px; }
+    label { font-weight: 600; display: block; margin-bottom: 6px; }
+    textarea {
+      width: 100%; min-height: 120px; font: inherit; padding: 10px;
+      border: 1px solid var(--line); border-radius: 10px; resize: vertical;
+    }
+    .row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-top: 12px; }
+    button {
+      font: inherit; cursor: pointer; background: var(--brand); color: #fff; border: none;
+      padding: 12px 20px; border-radius: 10px; font-weight: 600;
+    }
+    button.ghost { background: #fff; color: var(--brand); border: 1px solid var(--brand); }
+    button:hover { filter: brightness(1.05); }
+    button:active { transform: translateY(1px); }
+    input[type=number] { font: inherit; width: 70px; padding: 8px; border: 1px solid var(--line); border-radius: 8px; }
+    #pick {
+      text-align: center; font-size: 3rem; font-weight: 800; color: var(--brand);
+      min-height: 4rem; display: flex; align-items: center; justify-content: center;
+    }
+    .groups { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 12px; }
+    .group { border: 2px solid var(--line); border-radius: 12px; padding: 12px; }
+    .group h3 { margin: 0 0 8px; color: var(--brand); font-size: 1rem; }
+    .group ul { margin: 0; padding-left: 18px; }
+    .hint { color: var(--muted); font-size: .9rem; }
+    @media (max-width: 480px) { body { padding: 16px; } h1 { font-size: 1.5rem; } #pick { font-size: 2.2rem; } }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <h1>🎲 랜덤 뽑기 · 모둠 나누기</h1>
+      <p class="sub">이름을 넣고 버튼을 누르세요</p>
+    </header>
+
+    <div class="card">
+      <label for="names">이름 목록 <span class="hint">(한 줄에 한 명, 또는 쉼표로 구분)</span></label>
+      <textarea id="names" placeholder="김하나&#10;이두울&#10;박세엣&#10;최네엣"></textarea>
+      <div class="row">
+        <button id="save" class="ghost">목록 저장</button>
+        <span class="hint" id="count"></span>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="row">
+        <button id="pickBtn">한 명 뽑기</button>
+        <button id="resetPick" class="ghost">뽑기 초기화</button>
+        <span class="hint" id="pickHint"></span>
+      </div>
+      <div id="pick">?</div>
+    </div>
+
+    <div class="card">
+      <div class="row">
+        <label for="groupCount" style="margin:0">모둠 수</label>
+        <input type="number" id="groupCount" min="2" max="20" value="4">
+        <button id="groupBtn">모둠 나누기</button>
+      </div>
+      <div id="groups" class="groups" style="margin-top:14px"></div>
+    </div>
+  </div>
+
+  <script>
+    const $ = (id) => document.getElementById(id);
+    const KEY = 'moduem_names';
+
+    // 이름 파싱: 줄바꿈·쉼표 모두 허용, 공백 제거
+    function parseNames() {
+      return $('names').value.split(/[\n,]+/).map((s) => s.trim()).filter(Boolean);
+    }
+    function updateCount() {
+      const n = parseNames().length;
+      $('count').textContent = n ? `${n}명` : '';
+    }
+
+    // 저장·불러오기 (localStorage — 그 브라우저 안에서만 유지)
+    const saved = localStorage.getItem(KEY);
+    if (saved) $('names').value = saved;
+    updateCount();
+    $('names').addEventListener('input', updateCount);
+    $('save').addEventListener('click', () => {
+      localStorage.setItem(KEY, $('names').value);
+      $('save').textContent = '저장됨 ✓';
+      setTimeout(() => ($('save').textContent = '목록 저장'), 1200);
+    });
+
+    // 한 명 뽑기 — 뽑힌 사람은 다 뽑을 때까지 중복 제외
+    let pool = [];
+    $('pickBtn').addEventListener('click', () => {
+      const all = parseNames();
+      if (all.length === 0) { $('pick').textContent = '이름을 먼저 넣어주세요'; return; }
+      if (pool.length === 0) pool = [...all];
+      const i = Math.floor(Math.random() * pool.length);
+      const name = pool.splice(i, 1)[0];
+      $('pick').textContent = name;
+      $('pickHint').textContent = pool.length ? `남은 인원 ${pool.length}명` : '한 바퀴 다 돌았어요';
+    });
+    $('resetPick').addEventListener('click', () => {
+      pool = []; $('pick').textContent = '?'; $('pickHint').textContent = '';
+    });
+
+    // 모둠 나누기 — 섞은 뒤 순서대로 배분
+    $('groupBtn').addEventListener('click', () => {
+      const all = parseNames();
+      const g = Math.max(2, Math.min(20, Number($('groupCount').value) || 2));
+      if (all.length === 0) { $('groups').innerHTML = '<p class="hint">이름을 먼저 넣어주세요</p>'; return; }
+      const shuffled = [...all];
+      for (let i = shuffled.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+      }
+      const buckets = Array.from({ length: g }, () => []);
+      shuffled.forEach((name, i) => buckets[i % g].push(name));
+      $('groups').innerHTML = buckets.map((b, i) =>
+        `<div class="group"><h3>${i + 1}모둠 (${b.length}명)</h3><ul>${b.map((n) => `<li>${n}</li>`).join('')}</ul></div>`
+      ).join('');
+    });
+  </script>
+</body>
+</html>
