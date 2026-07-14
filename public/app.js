@@ -404,10 +404,10 @@ route(/^#\/program\/(\d+)$/, async (id) => {
   const htmlApps = data.files.filter((f) => isHtmlFile(f) && inTab(f));
   const docFiles = data.files.filter((f) => !isHtmlFile(f) && inTab(f));
   const htmlAppRow = (f) => `
-    <a class="btn btn-primary" style="justify-content:flex-start;gap:8px;padding-right:14px" href="/api/files/${f.id}/open" target="_blank" rel="noopener">
+    <button class="btn btn-primary" data-slide="${f.id}" data-slidename="${esc(f.name.replace(/\.(html?|htm)$/i, ''))}" style="justify-content:flex-start;gap:8px;padding-right:14px;width:100%;text-align:left">
       ${icon('play')} <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(f.name.replace(/\.(html?|htm)$/i, ''))}</span>
-      <span class="small" style="margin-left:auto;white-space:nowrap;flex-shrink:0;opacity:.75">수업 실행 ↗</span>
-    </a>`;
+      <span class="small" style="margin-left:auto;white-space:nowrap;flex-shrink:0;opacity:.85">수업 실행 ⛶</span>
+    </button>`;
 
   const linkRow = (l) => {
     const [ic, label] = KIND_META[l.kind] || KIND_META.link;
@@ -448,6 +448,23 @@ route(/^#\/program\/(\d+)$/, async (id) => {
       <div class="dl-actions"><a class="btn btn-soft btn-sm" href="#/boardview/${b.id}">열기</a></div>
     </div>`;
 
+  // 왼쪽(소개·영상) / 오른쪽(링크·자료·보드) 분리 — 왼쪽이 비면 한 단 전체폭으로
+  const leftHtml = `
+    ${p.description && (sel === 'all' || sel === 0) ? `<div class="card"><h2>소개</h2><div class="doc-body" style="line-height:1.9">${renderBodyMd(p.description)}</div></div>` : ''}
+    ${videos.length ? `<div class="card"><h2>영상</h2>${videos.map((v) => `
+      ${v.label ? `<div class="field-label" style="margin:8px 0 6px">${esc(v.label)}</div>` : ''}
+      ${videoEmbed(v.url)}`).join('')}</div>` : ''}`;
+  const rightHtml = `
+    ${(links.length || htmlApps.length) ? `<div class="card"><h2>수업 링크 · 웹앱</h2>
+      <div style="display:flex;flex-direction:column;gap:8px">${htmlApps.map(htmlAppRow).join('')}${links.map(linkRow).join('')}</div></div>` : ''}
+    ${docFiles.length ? `<div class="card"><h2>첨부자료</h2>${docFiles.map(fileRow).join('')}</div>` : ''}
+    <div class="card">
+      <h2>학생 활동 보드 <span class="sub">${isAdmin() ? '전체 반 보드' : '내가 만든 우리 반 보드'} — 학생들이 코드로 들어와 결과물을 올립니다</span></h2>
+      <div class="deck-list">${(data.boards || []).map(boardRow).join('') || '<p class="empty-note">아직 보드가 없습니다. 수업을 시작할 때 만들어 보세요.</p>'}</div>
+      <div class="mt"><button class="btn btn-soft btn-sm" id="new-board">${icon('plus')} 새 보드 만들기</button></div>
+    </div>`;
+  const hasLeft = (p.description && (sel === 'all' || sel === 0)) || videos.length;
+
   shell(p.title, `
     <div class="page-head">
       <div>
@@ -466,28 +483,15 @@ route(/^#\/program\/(\d+)$/, async (id) => {
       <button data-lesson-tab="0" class="${sel === 0 ? 'active' : ''}">공통 자료</button>
       ${lessons.map((l, i) => `<button data-lesson-tab="${l.id}" class="${sel === l.id ? 'active' : ''}">${lessonLabel(l, i)}</button>`).join('')}
     </div>` : ''}
-    <div class="grid main-cols">
-      <div class="col-stack">
-        ${p.description && (sel === 'all' || sel === 0) ? `<div class="card"><h2>소개</h2><div class="doc-body" style="line-height:1.9">${renderBodyMd(p.description)}</div></div>` : ''}
-        ${videos.length ? `<div class="card"><h2>영상</h2>${videos.map((v) => `
-          ${v.label ? `<div class="field-label" style="margin:8px 0 6px">${esc(v.label)}</div>` : ''}
-          ${videoEmbed(v.url)}`).join('')}</div>` : ''}
-      </div>
-      <div class="col-stack">
-        ${(links.length || htmlApps.length) ? `<div class="card"><h2>수업 링크 · 웹앱</h2>
-          <div style="display:flex;flex-direction:column;gap:8px">${htmlApps.map(htmlAppRow).join('')}${links.map(linkRow).join('')}</div></div>` : ''}
-        ${docFiles.length ? `<div class="card"><h2>첨부자료</h2>${docFiles.map(fileRow).join('')}</div>` : ''}
-        <div class="card">
-          <h2>학생 활동 보드 <span class="sub">${isAdmin() ? '전체 반 보드' : '내가 만든 우리 반 보드'} — 학생들이 코드로 들어와 결과물을 올립니다</span></h2>
-          <div class="deck-list">${(data.boards || []).map(boardRow).join('') || '<p class="empty-note">아직 보드가 없습니다. 수업을 시작할 때 만들어 보세요.</p>'}</div>
-          <div class="mt"><button class="btn btn-soft btn-sm" id="new-board">${icon('plus')} 새 보드 만들기</button></div>
-        </div>
-        ${!links.length && !htmlApps.length && !data.files.length && !videos.length && !p.description ? '<div class="card"><p class="empty-note">아직 등록된 내용이 없습니다.</p></div>' : ''}
-      </div>
-    </div>`);
+    ${hasLeft
+      ? `<div class="grid main-cols"><div class="col-stack">${leftHtml}</div><div class="col-stack">${rightHtml}</div></div>`
+      : `<div class="col-stack" style="max-width:760px">${rightHtml}</div>`}`);
 
   document.querySelectorAll('[data-view]').forEach((b) => {
     b.onclick = () => openFileViewer(Number(b.dataset.view));
+  });
+  document.querySelectorAll('[data-slide]').forEach((b) => {
+    b.onclick = () => openSlidePresent(Number(b.dataset.slide), b.dataset.slidename);
   });
   document.getElementById('new-board').onclick = () => {
     const back = openModal(`
@@ -558,6 +562,28 @@ async function openFileViewer(fileId) {
   overlay.addEventListener('contextmenu', (e) => e.preventDefault());
   overlay.addEventListener('dragstart', (e) => e.preventDefault());
   overlay.querySelector('.fv-close').onclick = () => overlay.remove();
+  document.body.appendChild(overlay);
+}
+
+/* ---------------- 수업 슬라이드 전체화면 발표 (HTML 웹앱) ---------------- */
+function openSlidePresent(fileId, name) {
+  const overlay = document.createElement('div');
+  overlay.className = 'slide-present';
+  overlay.innerHTML = `
+    <iframe src="/api/files/${fileId}/open" title="${esc(name || '수업 슬라이드')}" allow="fullscreen; autoplay"></iframe>
+    <div class="sp-ctrl">
+      <button class="sp-btn" data-sp-full title="모니터 전체화면 (F11 대신)">⛶ 전체화면</button>
+      <a class="sp-btn" href="/api/files/${fileId}/open" target="_blank" rel="noopener" title="새 탭에서 열기">↗ 새 탭</a>
+      <button class="sp-btn" data-sp-close title="닫기 (Esc)">✕</button>
+    </div>`;
+  overlay.querySelector('[data-sp-full]').onclick = () => {
+    if (document.fullscreenElement) document.exitFullscreen();
+    else overlay.requestFullscreen?.().catch(() => {});
+  };
+  const close = () => { if (document.fullscreenElement) document.exitFullscreen().catch(() => {}); overlay.remove(); document.removeEventListener('keydown', onKey); };
+  const onKey = (e) => { if (e.key === 'Escape' && !document.fullscreenElement) close(); };
+  overlay.querySelector('[data-sp-close]').onclick = close;
+  document.addEventListener('keydown', onKey);
   document.body.appendChild(overlay);
 }
 
