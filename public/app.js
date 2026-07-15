@@ -632,6 +632,41 @@ function openSlidePresent(fileIdOrUrl, name) {
   let natural = null;            // 교안의 고유 픽셀 크기 {w,h} — 반응형이면 null
   let fitMode = true;
 
+  // 전체화면 발표용 주입 CSS: 반응형 교안(선생님 슬라이드 .deck / 학생 앱 .wrap)을
+  // 화면 꽉 채우게 하고, 다음/이전 버튼(.foot)이 잘리지 않게 가운데만 스크롤한다.
+  // (교안 파일 자체는 안 건드림 → 학생 폰 화면·새 탭 보기는 그대로 예쁜 카드 유지)
+  const PRESENT_CSS = `
+    html{ height:100% !important; }
+    body{ margin:0 !important; padding:0 !important; min-height:0 !important; height:100% !important;
+          overflow:hidden !important; display:flex !important; align-items:center !important; justify-content:center !important; }
+    /* 선생님 슬라이드: 화면 꽉 채움 + 상·하단 고정, 본문만 스크롤 → 다음 버튼 항상 보임, 좌우 여백 제거 */
+    body > .deck{ width:100% !important; max-width:100% !important; height:100% !important; max-height:100% !important;
+                  align-self:stretch !important; margin:0 !important; border-radius:0 !important; box-shadow:none !important; overflow:hidden !important; }
+    body > .deck > .topbar, body > .deck > .foot{ flex:0 0 auto !important; }
+    body > .deck > .board{ flex:1 1 auto !important; min-height:0 !important; overflow:auto !important; }
+    /* 학생 앱: 배경(그라데이션)은 화면 전체, 카드는 가운데에 크게 — 잘리지 않고 넘치면 안에서만 스크롤 */
+    body > .wrap{ width:min(680px,92%) !important; max-height:100% !important; margin:auto !important;
+                  box-shadow:none !important; overflow:auto !important; }
+    /* 명시적으로 채움을 원하는 교안: <html data-present="fill"> */
+    html[data-present="fill"] > body > *{ width:100% !important; max-width:100% !important; height:100% !important;
+                  align-self:stretch !important; margin:0 !important; border-radius:0 !important; box-shadow:none !important; }`;
+
+  function injectPresentCSS() {
+    try {
+      const doc = frame.contentDocument;
+      if (!doc || !doc.head) return;
+      // 반응형 템플릿(.deck/.wrap) 또는 명시적 opt-in일 때만 주입 —
+      // 고정 픽셀 업로드 교안은 아래 scale(맞춤) 로직이 처리하므로 건드리지 않는다.
+      const optIn = doc.documentElement.getAttribute('data-present') === 'fill';
+      if (!optIn && !doc.querySelector('body > .deck, body > .wrap')) return;
+      if (doc.getElementById('__sp_present')) return;
+      const st = doc.createElement('style');
+      st.id = '__sp_present';
+      st.textContent = PRESENT_CSS;
+      doc.head.appendChild(st);
+    } catch { /* 교차 출처 등 — 무시 */ }
+  }
+
   function applyLayout() {
     if (fitMode && natural) {
       const OW = stage.clientWidth, OH = stage.clientHeight;
@@ -652,6 +687,7 @@ function openSlidePresent(fileIdOrUrl, name) {
   }
 
   function measureThenLayout() {
+    injectPresentCSS();            // 반응형 교안이면 화면 꽉 채움 CSS 주입(측정 전에)
     frame.classList.add('sp-measuring');
     frame.style.transform = 'none';
     frame.style.left = '0'; frame.style.top = '0';
