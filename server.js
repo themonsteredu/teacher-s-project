@@ -26,11 +26,13 @@ function serveStatic(res, pathname) {
     return res.end(fs.readFileSync(index));
   }
   const ext = path.extname(full).toLowerCase();
+  // 교안(/lessons/*)은 발표 iframe에 같은 출처로 임베드되므로 SAMEORIGIN, 그 외는 DENY
+  const frameOpt = pathname.startsWith('/lessons/') ? 'SAMEORIGIN' : 'DENY';
   res.writeHead(200, {
     'Content-Type': MIME[ext] || 'application/octet-stream',
     'Cache-Control': 'no-store',
     'X-Content-Type-Options': 'nosniff',
-    'X-Frame-Options': 'DENY',
+    'X-Frame-Options': frameOpt,
   });
   res.end(fs.readFileSync(full));
 }

@@ -1,0 +1,35 @@
+# 수업 교안 (lessons)
+
+차시별 수업 교안 HTML을 여기에 보관한다. **레포가 원본(source of truth)** 이고,
+푸시하면 재배포와 함께 사이트에 자동 반영된다. (재업로드 불필요)
+
+## 폴더 구조
+
+```
+public/lessons/
+  _shared/            공통 디자인 틀 — 한 번 고치면 전 교안 반영
+    base.css          색·타이포·레이아웃 (화면 꽉 채움: 고정폭 금지)
+    video.js          프로그램 주입 영상(window.__LESSON_VIDEO__)을 .videoframe에 삽입
+  <학년-과목>/         예: 초3-인공지능
+    1차시.html
+    2차시.html
+  샘플-데모/
+    1차시.html         작성 예시
+```
+
+## 새 교안 작성 규칙
+
+1. `<head>` 에 공통 틀을 링크한다:
+   ```html
+   <link rel="stylesheet" href="../_shared/base.css">
+   <script defer src="../_shared/video.js"></script>
+   ```
+2. **고정 폭(max-width:1020px 등) 금지.** `base.css`의 `clamp()`·`vw`가 어느 화면에서도
+   꽉 차게 해준다. (2/3만 차던 문제의 원인이 고정 폭이었음)
+3. 영상은 `<div class="videoframe" data-video></div>` 자리만 두면, 실제 영상은
+   관리자가 프로그램 편집에서 링크만 바꿔 교체한다.
+
+## 사이트 연동
+
+프로그램 링크의 주소를 `/lessons/<학년-과목>/<차시>.html` 로 넣으면,
+상세 화면에 **▶ 수업 실행(전체화면 발표)** + **⬇ 받기** 버튼으로 표시된다.

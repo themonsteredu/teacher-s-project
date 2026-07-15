@@ -397,8 +397,11 @@ route(/^#\/program\/(\d+)$/, async (id) => {
   let sel = detailLessonSel[p.id] ?? 'all';
   if (sel !== 'all' && sel !== 0 && !lessons.some((l) => l.id === sel)) sel = 'all';
   const inTab = (x) => sel === 'all' || (sel === 0 ? !x.lesson_id : x.lesson_id === sel);
-  const links = data.links.filter((l) => l.kind !== 'video' && inTab(l));
-  const videos = data.links.filter((l) => l.kind === 'video' && inTab(l));
+  const isLessonUrl = (u) => /^\/lessons\//.test(String(u || ''));
+  // 레포 교안(/lessons/…): 실행(발표)+다운로드로 표시. 그 외 링크는 기존대로 새 탭.
+  const lessonLinks = data.links.filter((l) => isLessonUrl(l.url) && inTab(l));
+  const links = data.links.filter((l) => l.kind !== 'video' && !isLessonUrl(l.url) && inTab(l));
+  const videos = data.links.filter((l) => l.kind === 'video' && !isLessonUrl(l.url) && inTab(l));
   // HTML 파일 = 실행형 웹앱 (수업용 PPT를 HTML로 만든 경우 등) — 링크·웹앱 카드에 실행 버튼으로 표시
   const isHtmlFile = (f) => /\.(html?|htm)$/i.test(f.name) || f.mime === 'text/html';
   const htmlApps = data.files.filter((f) => isHtmlFile(f) && inTab(f));
@@ -408,6 +411,15 @@ route(/^#\/program\/(\d+)$/, async (id) => {
       ${icon('play')} <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(f.name.replace(/\.(html?|htm)$/i, ''))}</span>
       <span class="small" style="margin-left:auto;white-space:nowrap;flex-shrink:0;opacity:.85">수업 실행 ⛶</span>
     </button>`;
+  // 레포 교안 행: 실행(발표) + 받기(HTML 다운로드)
+  const lessonRow = (l) => `
+    <div style="display:flex;gap:6px;align-items:stretch">
+      <button class="btn btn-primary" data-slideurl="${esc(l.url)}" data-slidename="${esc(l.label || '수업 교안')}" style="flex:1;justify-content:flex-start;gap:8px;padding-right:14px;text-align:left;min-width:0">
+        ${icon('play')} <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(l.label || '수업 교안')}</span>
+        <span class="small" style="margin-left:auto;white-space:nowrap;flex-shrink:0;opacity:.85">수업 실행 ⛶</span>
+      </button>
+      <a class="btn btn-soft" href="${esc(l.url)}" download title="교안 HTML 받기" style="flex-shrink:0">${icon('download')}</a>
+    </div>`;
 
   const linkRow = (l) => {
     const [ic, label] = KIND_META[l.kind] || KIND_META.link;
@@ -460,8 +472,8 @@ route(/^#\/program\/(\d+)$/, async (id) => {
       ${v.label ? `<div class="field-label" style="margin:8px 0 6px">${esc(v.label)}</div>` : ''}
       ${videoEmbed(v.url)}`).join('')}</div>` : ''}`;
   const rightHtml = `
-    ${(links.length || htmlApps.length) ? `<div class="card"><h2>수업 링크 · 웹앱</h2>
-      <div style="display:flex;flex-direction:column;gap:8px">${htmlApps.map(htmlAppRow).join('')}${links.map(linkRow).join('')}</div></div>` : ''}
+    ${(links.length || htmlApps.length || lessonLinks.length) ? `<div class="card"><h2>수업 링크 · 웹앱</h2>
+      <div style="display:flex;flex-direction:column;gap:8px">${lessonLinks.map(lessonRow).join('')}${htmlApps.map(htmlAppRow).join('')}${links.map(linkRow).join('')}</div></div>` : ''}
     ${docFiles.length ? `<div class="card"><h2>첨부자료${selLessonName ? ` <span class="sub">${esc(selLessonName)}</span>` : ''}</h2>
       ${dlAllFiles.length >= 2 ? `<div style="margin-bottom:10px"><button class="btn btn-soft btn-sm" id="dl-all">${icon('download')} ${sel === 'all' ? '보이는' : (sel === 0 ? '공통' : '이 차시')} 자료 전체 받기 (${dlAllFiles.length})</button></div>` : ''}
       ${docFiles.map(fileRow).join('')}</div>` : ''}
@@ -499,6 +511,9 @@ route(/^#\/program\/(\d+)$/, async (id) => {
   });
   document.querySelectorAll('[data-slide]').forEach((b) => {
     b.onclick = () => openSlidePresent(Number(b.dataset.slide), b.dataset.slidename);
+  });
+  document.querySelectorAll('[data-slideurl]').forEach((b) => {
+    b.onclick = () => openSlidePresent(b.dataset.slideurl, b.dataset.slidename);
   });
   const dlAllBtn = document.getElementById('dl-all');
   if (dlAllBtn) dlAllBtn.onclick = () => {
@@ -593,17 +608,19 @@ async function openFileViewer(fileId) {
 // 교안 HTML이 고정 픽셀(예: 1280×720)로 만들어져 화면 배율에 안 맞는 경우가 많다.
 // 자료를 우리 서버에서(동일 출처) 내려주므로 iframe 내용의 실제 크기를 재서
 // 화면에 꽉 차도록 비율 유지 스케일한다. 반응형 교안은 그대로 100% 채운다.
-function openSlidePresent(fileId, name) {
+function openSlidePresent(fileIdOrUrl, name) {
+  // 숫자면 업로드 교안(/api/files/:id/open), 문자열이면 레포 교안(/lessons/...) 직접
+  const src = typeof fileIdOrUrl === 'number' ? `/api/files/${fileIdOrUrl}/open` : fileIdOrUrl;
   const overlay = document.createElement('div');
   overlay.className = 'slide-present';
   overlay.innerHTML = `
     <div class="sp-stage">
-      <iframe class="sp-frame" src="/api/files/${fileId}/open" title="${esc(name || '수업 슬라이드')}" allow="fullscreen; autoplay" scrolling="no"></iframe>
+      <iframe class="sp-frame" src="${esc(src)}" title="${esc(name || '수업 슬라이드')}" allow="fullscreen; autoplay" scrolling="no"></iframe>
     </div>
     <div class="sp-ctrl">
       <button class="sp-btn" data-sp-fit title="화면 맞춤 / 실제 크기 전환">🖥 화면 맞춤</button>
       <button class="sp-btn" data-sp-full title="모니터 전체화면 (F11 대신)">⛶ 전체화면</button>
-      <a class="sp-btn" href="/api/files/${fileId}/open" target="_blank" rel="noopener" title="새 탭에서 열기">↗ 새 탭</a>
+      <a class="sp-btn" href="${esc(src)}" target="_blank" rel="noopener" title="새 탭에서 열기">↗ 새 탭</a>
       <button class="sp-btn" data-sp-close title="닫기 (Esc)">✕</button>
     </div>`;
   const stage = overlay.querySelector('.sp-stage');

@@ -1,0 +1,67 @@
+/* =====================================================
+ * 수업 교안 공통 디자인 틀 (_shared/base.css)
+ * 모든 차시 교안이 이 파일을 <link>로 불러 재사용한다.
+ * 한 번 고치면 전 학년·전 차시 교안에 함께 반영된다.
+ *
+ * 핵심: 화면을 항상 꽉 채운다 (고정폭 max-width 금지 → 2/3만 차는 문제 원천 차단).
+ *  - 크기는 clamp()·vw 로 화면 배율에 따라 자동. 어느 모니터에서도 가득 참.
+ * ===================================================== */
+:root{
+  --brand:#0f766e; --brand2:#0b5f58; --gold:#f4b740; --ink:#1e2a26;
+  --muted:#4a5d57; --paper:#ffffff; --line:#e6ede9; --tint:#e8f4f1;
+  --display:"Pretendard","Apple SD Gothic Neo","Noto Sans KR",system-ui,sans-serif;
+  --body:var(--display);
+}
+*{ box-sizing:border-box; }
+html,body{ height:100%; margin:0; }
+body{
+  font-family:var(--body); color:var(--ink);
+  background:linear-gradient(160deg,#0f766e 0%,#0b5f58 100%);
+  -webkit-text-size-adjust:100%; -webkit-font-smoothing:antialiased;
+}
+
+/* 슬라이드 무대: 항상 뷰포트 100%를 채운다 */
+.slide{
+  position:fixed; inset:0; display:flex; flex-direction:column;
+  padding:clamp(24px,4.5vw,68px);
+  color:#fff;
+}
+.slide.paper{ background:var(--paper); color:var(--ink); }
+
+/* 상단 라벨 */
+.eyebrow{
+  display:inline-flex; align-items:center; gap:10px;
+  font-size:clamp(.9rem,1.8vw,1.15rem); font-weight:800; letter-spacing:.02em;
+  color:var(--gold); text-transform:none;
+}
+.eyebrow::before{ content:""; width:clamp(9px,1.2vw,13px); height:clamp(9px,1.2vw,13px);
+  border-radius:50%; background:var(--gold); box-shadow:0 0 0 4px rgba(244,183,64,.22); }
+
+/* 제목 */
+.title{
+  font-family:var(--display); font-weight:900; line-height:1.12; margin:clamp(14px,2.4vw,26px) 0 0;
+  font-size:clamp(2rem,6.4vw,4.6rem); letter-spacing:-.01em;
+}
+.accent{ width:clamp(46px,7vw,84px); height:clamp(5px,.7vw,8px); background:var(--gold);
+  border-radius:4px; margin:clamp(16px,2.6vw,30px) 0; }
+.lead{ font-size:clamp(1.05rem,2.6vw,1.7rem); font-weight:600; line-height:1.55;
+  opacity:.94; max-width:34ch; }
+
+/* 본문 카드 그리드 */
+.cards{ display:grid; gap:clamp(14px,2.2vw,26px); margin-top:auto;
+  grid-template-columns:repeat(auto-fit,minmax(min(240px,100%),1fr)); }
+.card{ background:rgba(255,255,255,.12); border:1px solid rgba(255,255,255,.18);
+  border-radius:clamp(14px,1.8vw,22px); padding:clamp(18px,2.6vw,30px); }
+.slide.paper .card{ background:var(--tint); border-color:var(--line); }
+.card h3{ margin:0 0 .5em; font-size:clamp(1.15rem,2.6vw,1.6rem); font-weight:800; }
+.card p{ margin:0; font-size:clamp(.98rem,2vw,1.25rem); line-height:1.5; opacity:.92; }
+
+/* 하단 진행/네비 (선택) */
+.foot{ position:fixed; left:0; right:0; bottom:0; display:flex; align-items:center; gap:14px;
+  padding:clamp(10px,1.4vw,16px) clamp(24px,4.5vw,68px); }
+.foot .page{ font-size:clamp(.85rem,1.6vw,1.05rem); font-weight:800; opacity:.85; }
+
+/* 영상 자리 — 프로그램에서 주입한 영상(window.__LESSON_VIDEO__)이 있으면 여기로 */
+.videoframe{ position:relative; width:100%; aspect-ratio:16/9; border-radius:14px; overflow:hidden;
+  background:#000; }
+.videoframe iframe,.videoframe video{ position:absolute; inset:0; width:100%; height:100%; border:0; }
