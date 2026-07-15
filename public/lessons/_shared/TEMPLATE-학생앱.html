@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<title>학생 활동 템플릿</title>
+<style>
+  :root{
+    --brand:#0f766e; --brand2:#0b5c55; --gold:#f4b740; --ink:#243b34;
+    --muted:#5b6f68; --line:#e6ece5; --paper:#ffffff;
+    --body:system-ui,"Apple SD Gothic Neo","Malgun Gothic",sans-serif;
+  }
+  *{ box-sizing:border-box; word-break:keep-all; }
+  html,body{ height:100%; margin:0; }
+  /* 배경(그라데이션)은 body에 — 발표 때 화면 전체를 채움 */
+  body{
+    font-family:var(--body); color:var(--ink);
+    background:linear-gradient(160deg,#1f9d84 0%, var(--brand2) 100%);
+    display:flex; align-items:center; justify-content:center; padding:16px;
+  }
+  /* ===== 최상위 카드는 반드시 .wrap ===== (발표 때 가운데 크게, 안 잘림) */
+  .wrap{
+    width:min(560px,100%); background:var(--paper); border-radius:30px;
+    box-shadow:0 16px 40px rgba(0,0,0,.18); padding:clamp(22px,6vw,34px); text-align:center;
+  }
+  .mascot{ font-size:clamp(48px,16vw,72px); line-height:1; }
+  h1{ color:var(--brand); font-size:clamp(1.5rem,7vw,2rem); margin:.4rem 0 .2rem; }
+  .sub{ color:var(--muted); font-weight:700; }
+  .item{ font-size:clamp(1.1rem,5vw,1.4rem); font-weight:800; margin:1.2rem 0; }
+  .btns{ display:flex; flex-direction:column; gap:12px; margin-top:1rem; }
+  button{ font-family:inherit; font-weight:800; font-size:clamp(1.05rem,5vw,1.2rem);
+          border:0; border-radius:16px; padding:16px; cursor:pointer; }
+  .primary{ background:var(--brand); color:#fff; }
+  .ghost{ background:#eef4ee; color:var(--ink); }
+  .hide{ display:none; }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <!-- 시작 화면 -->
+    <section id="s-start">
+      <div class="mascot">🤖</div>
+      <h1 data-title>학생 활동</h1>
+      <p class="sub">문제를 풀어볼까요?</p>
+      <div class="btns"><button class="primary" onclick="go('s-q')">시작하기 ▶</button></div>
+    </section>
+
+    <!-- 문제 화면 -->
+    <section id="s-q" class="hide">
+      <div class="item">이것은 AI일까요?</div>
+      <div class="btns">
+        <button class="primary" onclick="go('s-end')">맞아요</button>
+        <button class="ghost" onclick="go('s-end')">아니에요</button>
+      </div>
+    </section>
+
+    <!-- 끝 화면 -->
+    <section id="s-end" class="hide">
+      <div class="mascot">🎉</div>
+      <h1>잘했어요!</h1>
+      <div class="btns"><button class="ghost" onclick="go('s-start')">다시 하기</button></div>
+    </section>
+  </div>
+<script>
+  // 화면 전환 — 한 번에 한 section만 보이기
+  function go(id){
+    document.querySelectorAll('.wrap > section').forEach(function(s){ s.classList.add('hide'); });
+    document.getElementById(id).classList.remove('hide');
+    document.querySelector('.wrap').scrollTop = 0;
+  }
+</script>
+</body>
+</html>
