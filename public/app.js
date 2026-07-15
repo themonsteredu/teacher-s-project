@@ -412,9 +412,11 @@ route(/^#\/program\/(\d+)$/, async (id) => {
       <span class="small" style="margin-left:auto;white-space:nowrap;flex-shrink:0;opacity:.85">수업 실행 ⛶</span>
     </button>`;
   // 레포 교안 행: 실행(발표) + 받기(HTML 다운로드)
+  // 라벨을 ?title= 로 넘겨 교안 제목([data-title])을 사이트 편집값으로 자동 교체
+  const lessonSrc = (l) => l.url + (l.url.includes('?') ? '&' : '?') + 'title=' + encodeURIComponent(l.label || '');
   const lessonRow = (l) => `
     <div style="display:flex;gap:6px;align-items:stretch">
-      <button class="btn btn-primary" data-slideurl="${esc(l.url)}" data-slidename="${esc(l.label || '수업 교안')}" style="flex:1;justify-content:flex-start;gap:8px;padding-right:14px;text-align:left;min-width:0">
+      <button class="btn btn-primary" data-slideurl="${esc(lessonSrc(l))}" data-slidename="${esc(l.label || '수업 교안')}" style="flex:1;justify-content:flex-start;gap:8px;padding-right:14px;text-align:left;min-width:0">
         ${icon('play')} <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(l.label || '수업 교안')}</span>
         <span class="small" style="margin-left:auto;white-space:nowrap;flex-shrink:0;opacity:.85">수업 실행 ⛶</span>
       </button>
