@@ -448,6 +448,11 @@ route(/^#\/program\/(\d+)$/, async (id) => {
       <div class="dl-actions"><a class="btn btn-soft btn-sm" href="#/boardview/${b.id}">열기</a></div>
     </div>`;
 
+  // 현재 차시 탭 이름 + 이 탭에서 다운로드 가능한 파일 (보기 전용 제외, 관리자는 전부)
+  const selLesson = typeof sel === 'number' && sel > 0 ? lessons.find((l) => l.id === sel) : null;
+  const selLessonName = selLesson ? lessonLabel(selLesson, lessons.indexOf(selLesson)) : '';
+  const dlAllFiles = docFiles.filter((f) => f.downloadable || isAdmin());
+
   // 왼쪽(소개·영상) / 오른쪽(링크·자료·보드) 분리 — 왼쪽이 비면 한 단 전체폭으로
   const leftHtml = `
     ${p.description && (sel === 'all' || sel === 0) ? `<div class="card"><h2>소개</h2><div class="doc-body" style="line-height:1.9">${renderBodyMd(p.description)}</div></div>` : ''}
@@ -457,7 +462,9 @@ route(/^#\/program\/(\d+)$/, async (id) => {
   const rightHtml = `
     ${(links.length || htmlApps.length) ? `<div class="card"><h2>수업 링크 · 웹앱</h2>
       <div style="display:flex;flex-direction:column;gap:8px">${htmlApps.map(htmlAppRow).join('')}${links.map(linkRow).join('')}</div></div>` : ''}
-    ${docFiles.length ? `<div class="card"><h2>첨부자료</h2>${docFiles.map(fileRow).join('')}</div>` : ''}
+    ${docFiles.length ? `<div class="card"><h2>첨부자료${selLessonName ? ` <span class="sub">${esc(selLessonName)}</span>` : ''}</h2>
+      ${dlAllFiles.length >= 2 ? `<div style="margin-bottom:10px"><button class="btn btn-soft btn-sm" id="dl-all">${icon('download')} ${sel === 'all' ? '보이는' : (sel === 0 ? '공통' : '이 차시')} 자료 전체 받기 (${dlAllFiles.length})</button></div>` : ''}
+      ${docFiles.map(fileRow).join('')}</div>` : ''}
     <div class="card">
       <h2>학생 활동 보드 <span class="sub">${isAdmin() ? '전체 반 보드' : '내가 만든 우리 반 보드'} — 학생들이 코드로 들어와 결과물을 올립니다</span></h2>
       <div class="deck-list">${(data.boards || []).map(boardRow).join('') || '<p class="empty-note">아직 보드가 없습니다. 수업을 시작할 때 만들어 보세요.</p>'}</div>
@@ -493,6 +500,17 @@ route(/^#\/program\/(\d+)$/, async (id) => {
   document.querySelectorAll('[data-slide]').forEach((b) => {
     b.onclick = () => openSlidePresent(Number(b.dataset.slide), b.dataset.slidename);
   });
+  const dlAllBtn = document.getElementById('dl-all');
+  if (dlAllBtn) dlAllBtn.onclick = () => {
+    // 팝업 차단 회피를 위해 파일마다 살짝 간격을 두고 순차 다운로드
+    dlAllFiles.forEach((f, i) => setTimeout(() => {
+      const a = document.createElement('a');
+      a.href = `/api/files/${f.id}/download`;
+      a.download = '';
+      document.body.appendChild(a); a.click(); a.remove();
+    }, i * 700));
+    toast(`${dlAllFiles.length}개 파일을 순서대로 내려받습니다.`);
+  };
   document.getElementById('new-board').onclick = () => {
     const back = openModal(`
       <h3>새 활동 보드</h3>
