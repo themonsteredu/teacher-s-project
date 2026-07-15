@@ -572,21 +572,90 @@ async function openFileViewer(fileId) {
 }
 
 /* ---------------- 수업 슬라이드 전체화면 발표 (HTML 웹앱) ---------------- */
+// 교안 HTML이 고정 픽셀(예: 1280×720)로 만들어져 화면 배율에 안 맞는 경우가 많다.
+// 자료를 우리 서버에서(동일 출처) 내려주므로 iframe 내용의 실제 크기를 재서
+// 화면에 꽉 차도록 비율 유지 스케일한다. 반응형 교안은 그대로 100% 채운다.
 function openSlidePresent(fileId, name) {
   const overlay = document.createElement('div');
   overlay.className = 'slide-present';
   overlay.innerHTML = `
-    <iframe src="/api/files/${fileId}/open" title="${esc(name || '수업 슬라이드')}" allow="fullscreen; autoplay"></iframe>
+    <div class="sp-stage">
+      <iframe class="sp-frame" src="/api/files/${fileId}/open" title="${esc(name || '수업 슬라이드')}" allow="fullscreen; autoplay" scrolling="no"></iframe>
+    </div>
     <div class="sp-ctrl">
+      <button class="sp-btn" data-sp-fit title="화면 맞춤 / 실제 크기 전환">🖥 화면 맞춤</button>
       <button class="sp-btn" data-sp-full title="모니터 전체화면 (F11 대신)">⛶ 전체화면</button>
       <a class="sp-btn" href="/api/files/${fileId}/open" target="_blank" rel="noopener" title="새 탭에서 열기">↗ 새 탭</a>
       <button class="sp-btn" data-sp-close title="닫기 (Esc)">✕</button>
     </div>`;
+  const stage = overlay.querySelector('.sp-stage');
+  const frame = overlay.querySelector('.sp-frame');
+  const fitBtn = overlay.querySelector('[data-sp-fit]');
+  const CANVAS = 4096;           // 측정용 대형 캔버스 (고정 크기 교안의 실제 크기를 드러냄)
+  let natural = null;            // 교안의 고유 픽셀 크기 {w,h} — 반응형이면 null
+  let fitMode = true;
+
+  function applyLayout() {
+    if (fitMode && natural) {
+      const OW = stage.clientWidth, OH = stage.clientHeight;
+      const k = Math.min(OW / natural.w, OH / natural.h);
+      frame.style.width = natural.w + 'px';
+      frame.style.height = natural.h + 'px';
+      frame.style.left = '50%';
+      frame.style.top = '50%';
+      frame.style.transform = `translate(-50%,-50%) scale(${k})`;
+    } else {
+      frame.style.width = '100%';
+      frame.style.height = '100%';
+      frame.style.left = '0';
+      frame.style.top = '0';
+      frame.style.transform = 'none';
+    }
+    fitBtn.textContent = natural ? (fitMode ? '🖥 화면 맞춤' : '↔ 실제 크기') : '🖥 화면 맞춤';
+  }
+
+  function measureThenLayout() {
+    frame.classList.add('sp-measuring');
+    frame.style.transform = 'none';
+    frame.style.left = '0'; frame.style.top = '0';
+    frame.style.width = CANVAS + 'px';
+    frame.style.height = CANVAS + 'px';
+    // 레이아웃이 안정된 뒤 실제 크기 측정
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      try {
+        const doc = frame.contentDocument;
+        const b = doc && doc.body;
+        if (b) {
+          const w = Math.max(b.offsetWidth, b.scrollWidth);
+          const h = Math.max(b.offsetHeight, b.scrollHeight);
+          // 대형 캔버스를 꽉 채우면(=반응형) 고정 크기가 없다고 보고 100% 채움
+          natural = (w && h && w < CANVAS * 0.98 && h < CANVAS * 0.98) ? { w, h } : null;
+        } else {
+          natural = null; // 교차 출처 등 측정 불가 — 기존처럼 100%
+        }
+      } catch { natural = null; }
+      frame.classList.remove('sp-measuring');
+      applyLayout();
+    }));
+  }
+
+  frame.addEventListener('load', measureThenLayout);
+  const onResize = () => applyLayout();
+  window.addEventListener('resize', onResize);
+  document.addEventListener('fullscreenchange', onResize);
+
+  fitBtn.onclick = () => { fitMode = !fitMode; applyLayout(); };
   overlay.querySelector('[data-sp-full]').onclick = () => {
     if (document.fullscreenElement) document.exitFullscreen();
     else overlay.requestFullscreen?.().catch(() => {});
   };
-  const close = () => { if (document.fullscreenElement) document.exitFullscreen().catch(() => {}); overlay.remove(); document.removeEventListener('keydown', onKey); };
+  const close = () => {
+    if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
+    window.removeEventListener('resize', onResize);
+    document.removeEventListener('fullscreenchange', onResize);
+    document.removeEventListener('keydown', onKey);
+    overlay.remove();
+  };
   const onKey = (e) => { if (e.key === 'Escape' && !document.fullscreenElement) close(); };
   overlay.querySelector('[data-sp-close]').onclick = close;
   document.addEventListener('keydown', onKey);
