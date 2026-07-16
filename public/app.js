@@ -48,6 +48,7 @@ const ICONS = {
   clock: '<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>',
   up: '<polyline points="18 15 12 9 6 15"/>',
   down: '<polyline points="6 9 12 15 18 9"/>',
+  box: '<path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/>',
 };
 function icon(name) {
   return `<svg class="ic" viewBox="0 0 24 24" aria-hidden="true">${ICONS[name] || ''}</svg>`;
@@ -192,6 +193,7 @@ function menuItems() {
   if (isAdmin()) {
     items.push(
       ['#/manage', 'layers', '프로그램 관리'],
+      ['#/tools', 'box', '내 도구함'],
       ['#/users', 'users', '교사 계정'],
       ['#/site', 'power', '사이트 설정'],
       ['#/logs', 'fileText', '이용 기록'],
@@ -398,9 +400,11 @@ route(/^#\/program\/(\d+)$/, async (id) => {
   if (sel !== 'all' && sel !== 0 && !lessons.some((l) => l.id === sel)) sel = 'all';
   const inTab = (x) => sel === 'all' || (sel === 0 ? !x.lesson_id : x.lesson_id === sel);
   const isLessonUrl = (u) => /^\/lessons\//.test(String(u || ''));
-  // 레포 교안(/lessons/…): 실행(발표)+다운로드로 표시. 그 외 링크는 기존대로 새 탭.
+  const isToolUrl = (u) => /^\/api\/tools\/\d+\/open/.test(String(u || '')); // 도구함 웹앱
+  // 레포 교안(/lessons/…)·도구함 웹앱: 실행(발표)로 표시. 그 외 링크는 기존대로 새 탭.
   const lessonLinks = data.links.filter((l) => isLessonUrl(l.url) && inTab(l));
-  const links = data.links.filter((l) => l.kind !== 'video' && !isLessonUrl(l.url) && inTab(l));
+  const toolLinks = data.links.filter((l) => isToolUrl(l.url) && inTab(l));
+  const links = data.links.filter((l) => l.kind !== 'video' && !isLessonUrl(l.url) && !isToolUrl(l.url) && inTab(l));
   const videos = data.links.filter((l) => l.kind === 'video' && !isLessonUrl(l.url) && inTab(l));
   // HTML 파일 = 실행형 웹앱 (수업용 PPT를 HTML로 만든 경우 등) — 링크·웹앱 카드에 실행 버튼으로 표시
   const isHtmlFile = (f) => /\.(html?|htm)$/i.test(f.name) || f.mime === 'text/html';
@@ -410,6 +414,12 @@ route(/^#\/program\/(\d+)$/, async (id) => {
     <button class="btn btn-primary" data-slide="${f.id}" data-slidename="${esc(f.name.replace(/\.(html?|htm)$/i, ''))}" style="justify-content:flex-start;gap:8px;padding-right:14px;width:100%;text-align:left">
       ${icon('play')} <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(f.name.replace(/\.(html?|htm)$/i, ''))}</span>
       <span class="small" style="margin-left:auto;white-space:nowrap;flex-shrink:0;opacity:.85">수업 실행 ⛶</span>
+    </button>`;
+  // 도구함 웹앱 행: 실행(발표). url은 /api/tools/:id/open (문자열) → openSlidePresent 문자열 분기 사용
+  const toolAppRow = (l) => `
+    <button class="btn btn-primary" data-slideurl="${esc(l.url)}" data-slidename="${esc(l.label || '웹앱')}" style="justify-content:flex-start;gap:8px;padding-right:14px;width:100%;text-align:left">
+      ${icon('box')} <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(l.label || '웹앱')}</span>
+      <span class="small" style="margin-left:auto;white-space:nowrap;flex-shrink:0;opacity:.85">도구함 · 실행 ⛶</span>
     </button>`;
   // 레포 교안 행: 실행(발표) + 받기(HTML 다운로드)
   // 라벨을 ?title= 로 넘겨 교안 제목([data-title])을 사이트 편집값으로 자동 교체
@@ -474,8 +484,8 @@ route(/^#\/program\/(\d+)$/, async (id) => {
       ${v.label ? `<div class="field-label" style="margin:8px 0 6px">${esc(v.label)}</div>` : ''}
       ${videoEmbed(v.url)}`).join('')}</div>` : ''}`;
   const rightHtml = `
-    ${(links.length || htmlApps.length || lessonLinks.length) ? `<div class="card"><h2>수업 링크 · 웹앱</h2>
-      <div style="display:flex;flex-direction:column;gap:8px">${lessonLinks.map(lessonRow).join('')}${htmlApps.map(htmlAppRow).join('')}${links.map(linkRow).join('')}</div></div>` : ''}
+    ${(links.length || htmlApps.length || lessonLinks.length || toolLinks.length) ? `<div class="card"><h2>수업 링크 · 웹앱</h2>
+      <div style="display:flex;flex-direction:column;gap:8px">${lessonLinks.map(lessonRow).join('')}${toolLinks.map(toolAppRow).join('')}${htmlApps.map(htmlAppRow).join('')}${links.map(linkRow).join('')}</div></div>` : ''}
     ${docFiles.length ? `<div class="card"><h2>첨부자료${selLessonName ? ` <span class="sub">${esc(selLessonName)}</span>` : ''}</h2>
       ${dlAllFiles.length >= 2 ? `<div style="margin-bottom:10px"><button class="btn btn-soft btn-sm" id="dl-all">${icon('download')} ${sel === 'all' ? '보이는' : (sel === 0 ? '공통' : '이 차시')} 자료 전체 받기 (${dlAllFiles.length})</button></div>` : ''}
       ${docFiles.map(fileRow).join('')}</div>` : ''}
@@ -731,6 +741,39 @@ function openSlidePresent(fileIdOrUrl, name) {
   };
   const onKey = (e) => { if (e.key === 'Escape' && !document.fullscreenElement) close(); };
   overlay.querySelector('[data-sp-close]').onclick = close;
+  document.addEventListener('keydown', onKey);
+  document.body.appendChild(overlay);
+}
+
+/* ---------------- 도구함 피커 (수업 편집에서 웹앱 골라 붙이기) ---------------- */
+function openToolPicker(tools, onPick) {
+  const overlay = document.createElement('div');
+  overlay.className = 'img-lightbox';
+  const rows = tools.length
+    ? tools.map((t) => `
+        <button class="deck-line pick-row" data-pick="${t.id}" style="width:100%;text-align:left;background:#fff;border:1px solid var(--line, #e3e9e2);cursor:pointer">
+          <div class="dl-left"><span class="dl-ico">🧩</span>
+            <div class="dl-body"><div class="dl-title">${esc(t.title)}</div>
+              <div class="dl-meta small muted">${(t.size / 1024 / 1024).toFixed(2)}MB</div></div></div>
+          <span class="btn btn-primary btn-sm" style="pointer-events:none">${icon('plus')} 붙이기</span>
+        </button>`).join('')
+    : `<p class="empty-note">도구함이 비어 있습니다. <b>내 도구함</b>에서 웹앱을 먼저 올리세요.</p>`;
+  overlay.innerHTML = `
+    <div class="modal-card" style="max-width:560px;width:92%;background:var(--paper,#fff);border-radius:16px;padding:18px;max-height:80vh;overflow:auto" role="dialog">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+        <h2 style="margin:0">도구함에서 추가</h2>
+        <button class="btn btn-ghost btn-sm" data-pick-close>${icon('x')} 닫기</button>
+      </div>
+      <div class="deck-list" style="display:flex;flex-direction:column;gap:8px">${rows}</div>
+      <div class="small muted" style="margin-top:12px">고른 웹앱은 링크 목록에 들어갑니다. 아래 <b>“링크 저장”</b>을 눌러야 반영돼요.</div>
+    </div>`;
+  const close = () => { overlay.remove(); document.removeEventListener('keydown', onKey); };
+  const onKey = (e) => { if (e.key === 'Escape') close(); };
+  overlay.addEventListener('click', (e) => { if (e.target === overlay) close(); });
+  overlay.querySelector('[data-pick-close]').onclick = close;
+  overlay.querySelectorAll('[data-pick]').forEach((b) => {
+    b.onclick = () => { const t = tools.find((x) => x.id === Number(b.dataset.pick)); if (t) onPick(t); close(); };
+  });
   document.addEventListener('keydown', onKey);
   document.body.appendChild(overlay);
 }
@@ -1406,8 +1449,9 @@ route(/^#\/manage\/(\d+)$/, async (id) => {
     <div class="card" style="margin-bottom:18px">
       <h2>링크 · 웹앱 · 영상 <span class="sub">순서대로 보여집니다. 저장을 눌러야 반영됩니다.</span></h2>
       <div id="link-rows" class="deck-list">${links.map(linkRowHtml).join('') || ''}</div>
-      <div class="mt" style="display:flex;gap:8px">
+      <div class="mt" style="display:flex;gap:8px;flex-wrap:wrap">
         <button class="btn btn-soft btn-sm" id="add-link">${icon('plus')} 항목 추가</button>
+        <button class="btn btn-soft btn-sm" id="pick-tool">${icon('box')} 도구함에서 추가</button>
         <button class="btn btn-primary btn-sm" id="save-links">링크 저장</button>
       </div>
       <div class="msg" id="link-msg"></div>
@@ -1552,6 +1596,19 @@ route(/^#\/manage\/(\d+)$/, async (id) => {
     links.push({ kind: 'link', label: '', url: '' });
     redrawLinks();
   };
+  // 도구함에서 웹앱 골라 링크로 붙이기 (현재 선택된 차시에 배정)
+  document.getElementById('pick-tool').onclick = async () => {
+    let tools;
+    try { tools = (await api('GET', '/api/tools')).tools || []; }
+    catch (err) { toast(err.message, true); return; }
+    const curLesson = document.getElementById('up-lesson')?.value; // 파일 업로드용 차시 선택값 재사용
+    openToolPicker(tools, (t) => {
+      collectLinks();
+      links.push({ kind: 'aiapp', label: t.title, url: `/api/tools/${t.id}/open`, lesson_id: curLesson ? Number(curLesson) : null });
+      redrawLinks();
+      toast(`"${t.title}" 추가됨 — 아래 “링크 저장”을 눌러 반영하세요.`);
+    });
+  };
   document.getElementById('save-links').onclick = async () => {
     collectLinks();
     const msg = document.getElementById('link-msg');
@@ -1609,6 +1666,86 @@ route(/^#\/manage\/(\d+)$/, async (id) => {
         await api('PATCH', `/api/files/${el.dataset.fls}`, { lesson_id: el.value ? Number(el.value) : null });
         toast('차시가 변경되었습니다.');
       } catch (err) { toast(err.message, true); }
+    };
+  });
+});
+
+/* ---------------- 내 도구함 (#/tools, admin) ---------------- */
+// 수업과 별개로 보관하는 재사용 웹앱. 여기서 올려두고, 수업 편집에서 골라 붙인다.
+route(/^#\/tools$/, async () => {
+  if (!isAdmin()) { location.hash = '#/'; return; }
+  const data = await api('GET', '/api/tools');
+  const tools = data.tools || [];
+  const row = (t) => `
+    <div class="deck-line">
+      <div class="dl-left">
+        <span class="dl-ico">🧩</span>
+        <div class="dl-body">
+          <div class="dl-title" data-ttitle="${t.id}">${esc(t.title)}</div>
+          <div class="dl-meta small muted">${(t.size / 1024 / 1024).toFixed(2)}MB · ${esc(String(t.created_at).slice(0, 10))}</div>
+        </div>
+      </div>
+      <div class="dl-actions">
+        <button class="btn btn-primary btn-sm" data-trun="${t.id}" data-tname="${esc(t.title)}">${icon('play')} 실행</button>
+        <button class="btn btn-ghost btn-sm" data-tren="${t.id}">이름 수정</button>
+        <button class="btn btn-danger btn-sm" data-tdel="${t.id}">${icon('trash')}</button>
+      </div>
+    </div>`;
+
+  shell('내 도구함', `
+    <div class="page-head">
+      <div><div class="ph-t">내 도구함</div><div class="desc">수업과 <b>별개로</b> 보관하는 재사용 웹앱입니다. 여기 올려두고, <b>수업(프로그램) 편집 → 링크</b>에서 <b>“도구함에서 추가”</b>로 골라 붙이세요.</div></div>
+    </div>
+    <div class="card" style="margin-bottom:18px">
+      <h2>웹앱 올리기 <span class="sub">HTML 웹앱(.html) · 100MB 이하 — 실행하면 교안 발표처럼 전체화면으로 열립니다</span></h2>
+      <div class="mt" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        <button class="btn btn-soft btn-sm" id="tup-btn">${icon('plus')} 웹앱 업로드</button>
+        <input type="file" id="tup-file" accept=".html,.htm" style="display:none">
+      </div>
+      <div class="msg" id="tool-msg"></div>
+    </div>
+    <div class="card">
+      <h2>보관된 웹앱 <span class="sub">${tools.length}개</span></h2>
+      <div id="tool-rows" class="deck-list">${tools.map(row).join('') || '<p class="empty-note">아직 올린 웹앱이 없습니다.</p>'}</div>
+    </div>`);
+
+  // 업로드 (sign → Supabase PUT → confirm)
+  document.getElementById('tup-btn').onclick = () => document.getElementById('tup-file').click();
+  document.getElementById('tup-file').onchange = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const msg = document.getElementById('tool-msg');
+    if (!/\.(html?|htm)$/i.test(file.name)) { msg.textContent = 'HTML 웹앱(.html) 파일만 올릴 수 있습니다.'; msg.className = 'msg err'; e.target.value = ''; return; }
+    if (file.size > 100 * 1024 * 1024) { msg.textContent = '파일은 100MB 이하여야 합니다.'; msg.className = 'msg err'; e.target.value = ''; return; }
+    msg.textContent = '업로드 중…'; msg.className = 'msg';
+    try {
+      const sign = await api('POST', '/api/tools/sign', { name: file.name, size: file.size });
+      const put = await fetch(sign.uploadUrl, { method: 'PUT', headers: { 'Content-Type': 'text/html', 'x-upsert': 'true' }, body: file });
+      if (!put.ok) throw new Error('저장소 업로드에 실패했습니다.');
+      await api('POST', '/api/tools/confirm', { path: sign.path, name: file.name, size: file.size });
+      toast('도구함에 추가되었습니다.');
+      navigate();
+    } catch (err) { msg.textContent = err.message; msg.className = 'msg err'; }
+    e.target.value = '';
+  };
+
+  document.querySelectorAll('[data-trun]').forEach((b) => {
+    b.onclick = () => openSlidePresent(`/api/tools/${b.dataset.trun}/open`, b.dataset.tname);
+  });
+  document.querySelectorAll('[data-tren]').forEach((b) => {
+    b.onclick = async () => {
+      const cur = tools.find((t) => t.id === Number(b.dataset.tren));
+      const title = prompt('웹앱 이름', cur ? cur.title : '');
+      if (!title || !title.trim()) return;
+      try { await api('PATCH', `/api/tools/${b.dataset.tren}`, { title: title.trim() }); toast('이름이 변경되었습니다.'); navigate(); }
+      catch (err) { toast(err.message, true); }
+    };
+  });
+  document.querySelectorAll('[data-tdel]').forEach((b) => {
+    b.onclick = async () => {
+      if (!confirm('이 웹앱을 도구함에서 삭제할까요?\n저장소 원본도 삭제되어, 수업에 붙여둔 링크도 즉시 열리지 않게 됩니다.')) return;
+      try { await api('DELETE', `/api/tools/${b.dataset.tdel}`); toast('삭제되었습니다.'); navigate(); }
+      catch (err) { toast(err.message, true); }
     };
   });
 });
