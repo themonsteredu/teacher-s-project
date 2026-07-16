@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<title>가르치는 기계</title>
+<style>
+  :root{
+    --brand:#0f766e; --brand2:#0b5c55; --gold:#f4b740; --ink:#243b34;
+    --muted:#5b6f68; --line:#e6ece5; --paper:#ffffff;
+    --apple:#e8524a; --banana:#f4b740;
+    --body:system-ui,"Apple SD Gothic Neo","Malgun Gothic",sans-serif;
+  }
+  *{ box-sizing:border-box; word-break:keep-all; }
+  html,body{ height:100%; margin:0; }
+  /* 배경(그라데이션)은 body에 — 발표 때 화면 전체를 채움 */
+  body{
+    font-family:var(--body); color:var(--ink);
+    background:linear-gradient(160deg,#1f9d84 0%, var(--brand2) 100%);
+    display:flex; align-items:center; justify-content:center; padding:16px;
+  }
+  /* ===== 최상위 카드는 반드시 .wrap ===== */
+  .wrap{
+    width:min(560px,100%); background:var(--paper); border-radius:30px;
+    box-shadow:0 16px 40px rgba(0,0,0,.18); padding:clamp(22px,6vw,34px); text-align:center;
+  }
+  .mascot{ font-size:clamp(48px,16vw,72px); line-height:1; }
+  h1{ color:var(--brand); font-size:clamp(1.5rem,7vw,2rem); margin:.4rem 0 .2rem; }
+  .sub{ color:var(--muted); font-weight:700; margin:.2rem 0; }
+  .item{ font-size:clamp(1.1rem,5vw,1.4rem); font-weight:800; margin:1.2rem 0; }
+  .btns{ display:flex; flex-direction:column; gap:12px; margin-top:1rem; }
+  button{ font-family:inherit; font-weight:800; font-size:clamp(1.05rem,5vw,1.2rem);
+          border:0; border-radius:16px; padding:16px; cursor:pointer;
+          transition:transform .06s ease, box-shadow .12s ease; -webkit-tap-highlight-color:transparent; }
+  button:active{ transform:scale(.94); }
+  button:disabled{ opacity:.45; cursor:default; transform:none; }
+  .primary{ background:var(--brand); color:#fff; box-shadow:0 6px 0 var(--brand2); }
+  .primary:active{ box-shadow:0 2px 0 var(--brand2); }
+  .gold{ background:var(--gold); color:#5a4300; box-shadow:0 6px 0 #cf9a1f; }
+  .gold:active{ box-shadow:0 2px 0 #cf9a1f; }
+  .ghost{ background:#eef4ee; color:var(--ink); }
+  .hide{ display:none; }
+
+  /* 과일 무대 */
+  .stage{
+    background:#f4faf7; border:3px dashed #cfe4dc; border-radius:24px;
+    padding:clamp(14px,5vw,26px); margin:.4rem 0 1rem;
+  }
+  .fruit{ font-size:clamp(72px,26vw,120px); line-height:1; display:inline-block;
+          animation:pop .35s ease; }
+  @keyframes pop{ 0%{ transform:scale(.2); opacity:0; } 70%{ transform:scale(1.12); } 100%{ transform:scale(1); opacity:1; } }
+  @keyframes shake{ 0%,100%{ transform:translateX(0); } 25%{ transform:translateX(-8px); } 75%{ transform:translateX(8px); } }
+  .shake{ animation:shake .3s ease; }
+
+  /* 라벨 버튼 두 개 가로 */
+  .row2{ display:flex; gap:12px; }
+  .row2 button{ flex:1; }
+
+  /* 모은 개수 칩 */
+  .counts{ display:flex; gap:12px; justify-content:center; margin:.6rem 0 .2rem; }
+  .chip{ flex:1; background:#f0f6f3; border-radius:16px; padding:12px 8px; font-weight:800; }
+  .chip .big{ display:block; font-size:clamp(1.6rem,8vw,2.2rem); color:var(--brand); }
+  .chip .lab{ font-size:.95rem; color:var(--muted); }
+
+  /* 진행 안내 */
+  .hint{ color:var(--muted); font-weight:700; font-size:.98rem; margin:.4rem 0; }
+
+  /* 막대그래프 */
+  .bars{ text-align:left; margin:1rem 0; }
+  .barrow{ margin:.7rem 0; }
+  .barrow .barlab{ font-weight:800; margin-bottom:6px; font-size:clamp(1rem,4.5vw,1.15rem); display:flex; justify-content:space-between; }
+  .bartrack{ background:#eef4ee; border-radius:999px; height:26px; overflow:hidden; }
+  .barfill{ height:100%; width:0; border-radius:999px; transition:width .8s cubic-bezier(.2,.8,.2,1); }
+  .fill-apple{ background:var(--apple); }
+  .fill-banana{ background:var(--gold); }
+
+  .verdict{ font-size:clamp(1.2rem,6vw,1.6rem); font-weight:900; margin:.6rem 0; }
+  .good{ color:var(--brand); }
+  .bad{ color:#c0453d; }
+
+  .summary{ background:#f0f6f3; border-radius:20px; padding:16px; margin:1rem 0; font-weight:800; }
+  .summary .line{ display:flex; justify-content:space-between; padding:6px 4px; border-bottom:1px solid var(--line); }
+  .summary .line:last-child{ border-bottom:0; }
+  .summary .v{ color:var(--brand); }
+
+  .board{ background:#fff7e6; border:2px solid var(--gold); border-radius:20px; padding:16px; font-weight:800; margin:1rem 0; }
+
+  /* 축하 색종이 */
+  .confetti{ position:fixed; top:-20px; font-size:22px; pointer-events:none; z-index:9; animation:fall linear forwards; }
+  @keyframes fall{ to{ transform:translateY(105vh) rotate(540deg); opacity:.9; } }
+</style>
+</head>
+<body>
+  <div class="wrap">
+
+    <!-- 홈 -->
+    <section id="s-home">
+      <div class="mascot">🤖</div>
+      <h1 data-title>가르치는 기계</h1>
+      <p class="sub">AI에게 사과🍎와 바나나🍌를 가르쳐요!</p>
+      <div class="btns"><button class="primary" onclick="startTeach()">시작하기 ▶</button></div>
+    </section>
+
+    <!-- ① 가르치기 -->
+    <section id="s-teach" class="hide">
+      <h1 data-title>① 가르치기</h1>
+      <p class="hint">과일이 나오면 무엇인지 알려주세요!</p>
+      <div class="stage"><span id="teachFruit" class="fruit">🍎</span></div>
+      <div class="row2">
+        <button class="primary" onclick="label('apple')">🍎 사과예요</button>
+        <button class="gold" onclick="label('banana')">🍌 바나나예요</button>
+      </div>
+      <div class="counts">
+        <div class="chip"><span class="big" id="cApple">0</span><span class="lab">🍎 사과 예시</span></div>
+        <div class="chip"><span class="big" id="cBanana">0</span><span class="lab">🍌 바나나 예시</span></div>
+      </div>
+      <p class="hint" id="teachHint">각 과일을 3개씩, 모두 6개 이상 모아요!</p>
+      <div class="btns">
+        <button class="gold" id="toQuizBtn" onclick="startQuiz()" disabled>AI 시험하기 ▶</button>
+      </div>
+    </section>
+
+    <!-- ② 맞히기(퀴즈) -->
+    <section id="s-quiz" class="hide">
+      <h1 data-title>② AI가 맞혀요</h1>
+      <p class="hint" id="quizProg">1번째 문제</p>
+      <div class="stage"><span id="quizFruit" class="fruit">🍌</span></div>
+
+      <div class="bars">
+        <p class="sub" style="text-align:center">🤖 AI의 자신감</p>
+        <div class="barrow">
+          <div class="barlab"><span>🍎 사과</span><span id="pApple">0%</span></div>
+          <div class="bartrack"><div class="barfill fill-apple" id="barApple"></div></div>
+        </div>
+        <div class="barrow">
+          <div class="barlab"><span>🍌 바나나</span><span id="pBanana">0%</span></div>
+          <div class="bartrack"><div class="barfill fill-banana" id="barBanana"></div></div>
+        </div>
+      </div>
+
+      <div id="verdict" class="verdict hide"></div>
+      <div class="btns">
+        <button class="primary" id="revealBtn" onclick="reveal()">정답 확인하기 👀</button>
+        <button class="gold hide" id="nextBtn" onclick="nextQuiz()">다음 문제 ▶</button>
+      </div>
+    </section>
+
+    <!-- ③ 실험/정리 -->
+    <section id="s-wrap" class="hide">
+      <div class="mascot">📊</div>
+      <h1 data-title>③ 알아낸 것</h1>
+      <p class="item">예시를 <span style="color:var(--brand)">많이</span>, <span style="color:var(--gold)">골고루</span> 줄수록<br>AI가 잘 맞혀요!</p>
+      <div class="summary">
+        <div class="line"><span>🍎 모은 사과 예시</span><span class="v" id="sApple">0개</span></div>
+        <div class="line"><span>🍌 모은 바나나 예시</span><span class="v" id="sBanana">0개</span></div>
+        <div class="line"><span>🤖 AI 정답률</span><span class="v" id="sRate">0%</span></div>
+      </div>
+      <p class="hint" id="wrapTip"></p>
+      <div class="btns"><button class="gold" onclick="go('s-end')">잘했어요! ▶</button></div>
+    </section>
+
+    <!-- 끝 -->
+    <section id="s-end" class="hide">
+      <div class="mascot">🎉</div>
+      <h1 data-title>내가 AI를 가르쳤어요!</h1>
+      <div class="board">📌 결과를 우리 반 활동보드에 올려보자!</div>
+      <div class="btns"><button class="primary" onclick="restart()">다시 하기 ↺</button></div>
+    </section>
+
+  </div>
+
+<script>
+  // ===== 화면 전환 — 한 번에 한 section만 =====
+  function go(id){
+    document.querySelectorAll('.wrap > section').forEach(function(s){ s.classList.add('hide'); });
+    document.getElementById(id).classList.remove('hide');
+    document.querySelector('.wrap').scrollTop = 0;
+    window.scrollTo(0,0);
+  }
+
+  // ===== 상태 =====
+  var examples = { apple:0, banana:0 };   // 모은 예시
+  var TOTAL_Q = 4;                        // 퀴즈 문제 수
+  var qIndex = 0;                         // 현재 문제(0부터)
+  var correct = 0;                        // 맞힌 수
+  var curAnswer = null;                   // 현재 정답
+  var curPred = null;                     // 현재 AI 예측(apple/banana)
+
+  function pick(){ return Math.random() < 0.5 ? 'apple' : 'banana'; }
+  function emoji(k){ return k === 'apple' ? '🍎' : '🍌'; }
+
+  // ===== ① 가르치기 =====
+  function startTeach(){
+    examples = { apple:0, banana:0 };
+    updateCounts();
+    document.getElementById('toQuizBtn').disabled = true;
+    document.getElementById('teachHint').textContent = '각 과일을 3개씩, 모두 6개 이상 모아요!';
+    showTeachFruit();
+    go('s-teach');
+  }
+  function showTeachFruit(){
+    var k = pick();
+    document.getElementById('teachFruit').dataset.kind = k;
+    var el = document.getElementById('teachFruit');
+    el.textContent = emoji(k);
+    el.style.animation = 'none'; void el.offsetWidth; el.style.animation = '';
+  }
+  function label(kind){
+    var shown = document.getElementById('teachFruit').dataset.kind;
+    // 올바른 라벨을 눌러야 그 종류가 +1 (틀리면 흔들며 무시)
+    if(kind !== shown){
+      var s = document.getElementById('teachFruit');
+      s.classList.remove('shake'); void s.offsetWidth; s.classList.add('shake');
+      return;
+    }
+    examples[kind]++;
+    updateCounts();
+    var total = examples.apple + examples.banana;
+    if(examples.apple >= 3 && examples.banana >= 3){
+      document.getElementById('toQuizBtn').disabled = false;
+      document.getElementById('teachHint').textContent = '충분해요! 이제 AI를 시험해볼까요? 🤖';
+    } else {
+      document.getElementById('teachHint').textContent =
+        '지금까지 ' + total + '개! 사과 ' + examples.apple + ' · 바나나 ' + examples.banana;
+    }
+    showTeachFruit();
+  }
+  function updateCounts(){
+    document.getElementById('cApple').textContent = examples.apple;
+    document.getElementById('cBanana').textContent = examples.banana;
+  }
+
+  // ===== ② 맞히기(퀴즈) =====
+  function startQuiz(){
+    qIndex = 0; correct = 0;
+    nextQuiz();
+    go('s-quiz');
+  }
+  function nextQuiz(){
+    if(qIndex >= TOTAL_Q){ finishQuiz(); return; }
+    qIndex++;
+    curAnswer = pick();
+    document.getElementById('quizProg').textContent = qIndex + '번째 문제 (전체 ' + TOTAL_Q + '개)';
+    var f = document.getElementById('quizFruit');
+    f.textContent = emoji(curAnswer);
+    f.style.animation='none'; void f.offsetWidth; f.style.animation='';
+
+    // --- AI 예측 계산 ---
+    // 각 종류 예시 수를 가중치로. 정답 종류 예시가 많을수록 확신도 UP.
+    var self = examples[curAnswer];              // 정답 종류로 모은 예시 수
+    var other = examples[curAnswer === 'apple' ? 'banana' : 'apple'];
+    var total = self + other;
+    // 기본 확신도: 정답 종류 예시 비율 기반 (예시 없으면 반반)
+    var base = total === 0 ? 0.5 : self / total;
+    // 예시가 적으면 자신감이 덜함(0.5 쪽으로 당김), 많을수록 또렷
+    var strength = Math.min(1, total / 8);       // 8개 모으면 최대
+    var conf = 0.5 + (base - 0.5) * (0.4 + 0.6 * strength);
+    // 약간의 무작위 흔들림
+    conf += (Math.random() - 0.5) * 0.18 * (1 - strength);
+    conf = Math.max(0.05, Math.min(0.95, conf));
+
+    // conf = 정답 종류를 향한 자신감. 확률적으로 예측 결정
+    curPred = Math.random() < conf ? curAnswer : (curAnswer === 'apple' ? 'banana' : 'apple');
+
+    // 막대 값: 예측한 쪽이 더 높게 보이도록 표시 확신도 구성
+    var predConf = curPred === curAnswer ? conf : (1 - conf);
+    predConf = Math.max(0.55, predConf);   // 예측한 쪽은 최소 55%로 보기 좋게
+    var appleP, bananaP;
+    if(curPred === 'apple'){ appleP = predConf; bananaP = 1 - predConf; }
+    else { bananaP = predConf; appleP = 1 - predConf; }
+
+    setBars(appleP, bananaP);
+
+    // 버튼/판정 초기화
+    document.getElementById('verdict').classList.add('hide');
+    document.getElementById('revealBtn').classList.remove('hide');
+    document.getElementById('nextBtn').classList.add('hide');
+  }
+  function setBars(a, b){
+    var ap = Math.round(a*100), bp = Math.round(b*100);
+    document.getElementById('pApple').textContent = ap + '%';
+    document.getElementById('pBanana').textContent = bp + '%';
+    // 애니메이션: 0에서 시작
+    var ba = document.getElementById('barApple'), bb = document.getElementById('barBanana');
+    ba.style.width = '0'; bb.style.width = '0';
+    setTimeout(function(){ ba.style.width = ap + '%'; bb.style.width = bp + '%'; }, 60);
+  }
+  function reveal(){
+    var ok = (curPred === curAnswer);
+    if(ok) correct++;
+    var v = document.getElementById('verdict');
+    v.className = 'verdict ' + (ok ? 'good' : 'bad');
+    var predTxt = emoji(curPred) + (curPred==='apple'?' 사과':' 바나나');
+    if(ok){
+      v.innerHTML = '정답! 🎉 AI가 <b>' + predTxt + '</b>로 잘 맞혔어요';
+      confetti();
+    } else {
+      v.innerHTML = '아쉬워요 😅 AI는 ' + predTxt + '라고 했지만<br>정답은 <b>' + emoji(curAnswer) + (curAnswer==='apple'?' 사과':' 바나나') + '</b>!';
+    }
+    v.classList.remove('hide');
+    document.getElementById('revealBtn').classList.add('hide');
+    var nb = document.getElementById('nextBtn');
+    nb.textContent = qIndex >= TOTAL_Q ? '결과 보기 ▶' : '다음 문제 ▶';
+    nb.classList.remove('hide');
+  }
+  function finishQuiz(){
+    var rate = TOTAL_Q === 0 ? 0 : Math.round(correct / TOTAL_Q * 100);
+    document.getElementById('sApple').textContent = examples.apple + '개';
+    document.getElementById('sBanana').textContent = examples.banana + '개';
+    document.getElementById('sRate').textContent = rate + '% (' + correct + '/' + TOTAL_Q + ')';
+    var tip;
+    if(rate >= 75) tip = '와! 예시를 잘 모아서 AI가 척척 맞혔어요! 👏';
+    else if(rate >= 50) tip = '좋아요! 예시를 더 골고루 모으면 더 잘 맞힐 거예요.';
+    else tip = '예시가 적거나 한쪽으로 치우쳤나 봐요. 많이·골고루 모아봐요!';
+    document.getElementById('wrapTip').textContent = tip;
+    go('s-wrap');
+  }
+
+  // ===== 끝 / 다시 =====
+  function restart(){ go('s-home'); }
+
+  // ===== 축하 색종이 =====
+  function confetti(){
+    var em = ['🎉','⭐','🍎','🍌','✨','🎊'];
+    for(var i=0;i<18;i++){
+      (function(){
+        var c = document.createElement('div');
+        c.className = 'confetti';
+        c.textContent = em[Math.floor(Math.random()*em.length)];
+        c.style.left = Math.random()*100 + 'vw';
+        c.style.animationDuration = (1.2 + Math.random()*1.1) + 's';
+        c.style.animationDelay = (Math.random()*0.3) + 's';
+        document.body.appendChild(c);
+        setTimeout(function(){ c.remove(); }, 2600);
+      })();
+    }
+  }
+</script>
+</body>
+</html>

@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="ko" data-present="fill">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>8차시 · AI와 함께하는 우리 하루</title>
+<style>
+  :root{
+    --brand:#0f766e; --brand2:#0b5c55; --gold:#f4b740; --ink:#243b34;
+    --muted:#5b6f68; --line:#e3e9e2; --paper:#ffffff;
+    --body:system-ui,"Apple SD Gothic Neo","Malgun Gothic",sans-serif;
+  }
+  *{ box-sizing:border-box; word-break:keep-all; overflow-wrap:break-word; }
+  html,body{ height:100%; margin:0; }
+  body{
+    font-family:var(--body); color:var(--ink);
+    background:linear-gradient(165deg,#E9EDE4 0%, #D7DFCE 100%);
+    display:flex; align-items:center; justify-content:center; padding:clamp(8px,3vw,24px);
+  }
+  /* ===== 발표 모드 3층 구조: .deck > (.topbar / .board / .foot) ===== */
+  .deck{
+    width:min(1680px,94vw); height:min(940px,92vh);
+    background:var(--paper); border-radius:clamp(14px,2.4vw,20px);
+    box-shadow:0 18px 50px rgba(30,50,40,.24); overflow:hidden;
+    display:flex; flex-direction:column;
+  }
+  .topbar{ flex:0 0 auto; display:flex; align-items:center; justify-content:space-between;
+           padding:clamp(11px,2vw,14px) clamp(16px,3.5vw,24px); border-bottom:1px solid var(--line); }
+  .course{ font-size:clamp(11.5px,2.3vw,13px); font-weight:700; color:var(--muted); }
+  .course b{ color:var(--brand); }
+  .counter{ font-size:clamp(11.5px,2.3vw,13px); font-weight:800; font-variant-numeric:tabular-nums; }
+
+  .board{ flex:1 1 auto; min-height:0; overflow:auto;
+          padding:clamp(28px,4.6vw,52px); }
+  .slide{ display:none; animation:fade .3s ease; }
+  .slide.on{ display:block; }
+  @keyframes fade{ from{ opacity:0; transform:translateY(8px); } to{ opacity:1; transform:none; } }
+
+  .eyebrow{ font-size:clamp(12px,2.5vw,14px); font-weight:800; color:var(--brand); letter-spacing:.02em; }
+  .h1{ font-size:clamp(1.6rem,5.4vw,2.5rem); font-weight:800; line-height:1.32; margin:.4rem 0 0; }
+  .lead{ font-size:clamp(1.02rem,2.8vw,1.3rem); font-weight:600; color:var(--muted); line-height:1.6; margin:.9rem 0 0; max-width:52ch; }
+  .bullets{ margin:1rem 0 0; padding-left:1.2em; }
+  .bullets li{ font-size:clamp(1.02rem,2.8vw,1.26rem); font-weight:600; line-height:1.6; margin-bottom:.7rem; }
+
+  /* ===== 표지 ===== */
+  .cover{ display:flex; flex-direction:column; align-items:center; justify-content:center;
+          text-align:center; min-height:100%; gap:clamp(14px,2.6vw,22px); }
+  .cover .emojis{ font-size:clamp(3.2rem,12vw,6rem); line-height:1; letter-spacing:.1em; }
+  .cover .title{ font-size:clamp(2rem,7vw,3.4rem); font-weight:800; line-height:1.2; margin:0;
+                 background:linear-gradient(120deg,var(--brand),var(--gold)); -webkit-background-clip:text;
+                 background-clip:text; -webkit-text-fill-color:transparent; }
+  .cover .sub{ font-size:clamp(1.05rem,3.2vw,1.5rem); font-weight:700; color:var(--muted); margin:0; max-width:34ch; }
+  .cover .badge{ margin-top:.4rem; font-size:clamp(12px,2.4vw,14px); font-weight:800; color:#fff;
+                 background:var(--brand); padding:.5em 1.1em; border-radius:999px; }
+
+  /* ===== 카드 그리드 ===== */
+  .grid{ display:grid; gap:clamp(12px,2vw,18px); margin-top:clamp(16px,2.6vw,24px); }
+  .g2{ grid-template-columns:repeat(2,1fr); }
+  .g3{ grid-template-columns:repeat(3,1fr); }
+  .g4{ grid-template-columns:repeat(4,1fr); }
+  @media (max-width:760px){ .g3,.g4{ grid-template-columns:1fr 1fr; } .g2{ grid-template-columns:1fr; } }
+
+  .card{ background:#f7faf8; border:1px solid var(--line); border-radius:16px;
+         padding:clamp(14px,2.4vw,22px); display:flex; flex-direction:column; gap:.5rem; }
+  .card .ico{ font-size:clamp(2rem,6vw,2.7rem); line-height:1; }
+  .card h3{ margin:0; font-size:clamp(1.05rem,2.8vw,1.28rem); font-weight:800; color:var(--brand2); }
+  .card p{ margin:0; font-size:clamp(.95rem,2.4vw,1.1rem); font-weight:600; color:var(--muted); line-height:1.5; }
+  .card .tag{ align-self:flex-start; font-size:clamp(11px,2vw,12.5px); font-weight:800; color:#fff;
+              background:var(--gold); color:#5a4300; padding:.25em .7em; border-radius:999px; }
+
+  /* ===== 타임라인 ===== */
+  .timeline{ display:flex; flex-direction:column; gap:clamp(10px,1.8vw,14px); margin-top:clamp(16px,2.6vw,24px); }
+  .tl-row{ display:flex; align-items:center; gap:clamp(12px,2.4vw,18px);
+           background:#f7faf8; border:1px solid var(--line); border-left:6px solid var(--brand);
+           border-radius:14px; padding:clamp(12px,2vw,18px); }
+  .tl-row .num{ flex:0 0 auto; width:clamp(38px,7vw,52px); height:clamp(38px,7vw,52px); border-radius:50%;
+                background:var(--brand); color:#fff; font-weight:800; display:flex; align-items:center;
+                justify-content:center; font-size:clamp(1rem,3vw,1.3rem); }
+  .tl-row .ico{ font-size:clamp(1.7rem,5vw,2.3rem); line-height:1; }
+  .tl-row .body h3{ margin:0; font-size:clamp(1rem,2.8vw,1.22rem); font-weight:800; }
+  .tl-row .body p{ margin:.2rem 0 0; font-size:clamp(.9rem,2.3vw,1.05rem); font-weight:600; color:var(--muted); }
+
+  /* ===== 되돌아보기 체크리스트 ===== */
+  .checks{ display:grid; grid-template-columns:repeat(2,1fr); gap:clamp(10px,1.8vw,14px); margin-top:clamp(16px,2.6vw,24px); }
+  @media (max-width:760px){ .checks{ grid-template-columns:1fr; } }
+  .check{ display:flex; align-items:center; gap:.7rem; background:#f7faf8; border:1px solid var(--line);
+          border-radius:12px; padding:clamp(11px,1.8vw,16px); }
+  .check .ck{ flex:0 0 auto; width:clamp(28px,5vw,34px); height:clamp(28px,5vw,34px); border-radius:9px;
+              background:var(--brand); color:#fff; display:flex; align-items:center; justify-content:center;
+              font-size:clamp(1rem,3vw,1.25rem); font-weight:800; }
+  .check .txt{ font-size:clamp(.95rem,2.5vw,1.12rem); font-weight:700; }
+  .check .txt b{ color:var(--brand2); }
+  .check .txt span{ display:block; font-size:clamp(.85rem,2.1vw,.98rem); font-weight:600; color:var(--muted); }
+
+  /* ===== 비교 2칸 ===== */
+  .versus{ display:grid; grid-template-columns:1fr auto 1fr; align-items:stretch; gap:clamp(10px,2vw,18px);
+           margin-top:clamp(16px,2.6vw,24px); }
+  @media (max-width:760px){ .versus{ grid-template-columns:1fr; } .versus .vs{ transform:rotate(90deg); } }
+  .col{ border-radius:18px; padding:clamp(16px,2.6vw,26px); }
+  .col.ai{ background:#e6f2f0; border:2px solid var(--brand); }
+  .col.human{ background:#fdf4de; border:2px solid var(--gold); }
+  .col .top{ display:flex; align-items:center; gap:.6rem; }
+  .col .top .ico{ font-size:clamp(2rem,6vw,2.6rem); }
+  .col .top h3{ margin:0; font-size:clamp(1.15rem,3.4vw,1.5rem); font-weight:800; }
+  .col.ai .top h3{ color:var(--brand2); }
+  .col.human .top h3{ color:#8a6400; }
+  .col ul{ margin:.9rem 0 0; padding-left:1.1em; }
+  .col li{ font-size:clamp(1rem,2.6vw,1.2rem); font-weight:700; line-height:1.55; margin-bottom:.55rem; }
+  .vs{ align-self:center; font-size:clamp(1.3rem,4vw,2rem); font-weight:800; color:var(--muted); }
+
+  /* ===== 활동 안내 배너 ===== */
+  .app-banner{ margin-top:clamp(16px,2.6vw,24px); display:flex; align-items:center; gap:clamp(14px,3vw,24px);
+               background:linear-gradient(120deg,var(--brand),var(--brand2)); color:#fff;
+               border-radius:20px; padding:clamp(20px,3.4vw,32px); }
+  .app-banner .big{ font-size:clamp(3rem,9vw,4.5rem); line-height:1; }
+  .app-banner h3{ margin:0; font-size:clamp(1.3rem,4vw,1.8rem); font-weight:800; }
+  .app-banner p{ margin:.4rem 0 0; font-size:clamp(1rem,2.6vw,1.2rem); font-weight:600; opacity:.95; line-height:1.55; }
+
+  .steps{ display:grid; grid-template-columns:repeat(3,1fr); gap:clamp(10px,2vw,16px); margin-top:clamp(14px,2.4vw,20px); }
+  @media (max-width:760px){ .steps{ grid-template-columns:1fr; } }
+  .step{ background:#f7faf8; border:1px solid var(--line); border-radius:14px; padding:clamp(13px,2.2vw,18px); }
+  .step .n{ font-size:clamp(11px,2vw,12.5px); font-weight:800; color:var(--gold); }
+  .step p{ margin:.3rem 0 0; font-size:clamp(.95rem,2.4vw,1.1rem); font-weight:700; line-height:1.5; }
+
+  /* ===== 마무리 ===== */
+  .closing{ display:flex; flex-direction:column; align-items:center; justify-content:center;
+            text-align:center; min-height:100%; gap:clamp(16px,3vw,26px); }
+  .closing .emojis{ font-size:clamp(2.8rem,10vw,5rem); letter-spacing:.08em; }
+  .closing .msg{ font-size:clamp(1.4rem,5vw,2.4rem); font-weight:800; line-height:1.4; max-width:22ch; color:var(--ink); }
+  .closing .msg b{ color:var(--brand); }
+  .closing .heart{ font-size:clamp(1rem,2.8vw,1.3rem); font-weight:700; color:var(--muted); }
+
+  .foot{ flex:0 0 auto; display:flex; align-items:center; gap:clamp(12px,3vw,16px);
+         padding:clamp(12px,2.2vw,16px) clamp(16px,3.5vw,24px); border-top:1px solid var(--line); }
+  .progress{ flex:1; height:7px; background:var(--line); border-radius:4px; overflow:hidden; }
+  .progress i{ display:block; height:100%; background:var(--gold); width:0; transition:width .35s ease; }
+  .nav{ border:1px solid var(--line); background:#fff; color:var(--ink); font-weight:800;
+        font-size:clamp(14px,2.6vw,15px); padding:12px clamp(18px,4vw,24px); border-radius:11px; cursor:pointer; }
+  .nav.primary{ background:var(--brand); color:#fff; border-color:var(--brand); }
+  .nav:disabled{ opacity:.34; cursor:default; }
+</style>
+</head>
+<body>
+  <div class="deck">
+    <div class="topbar">
+      <div class="course"><b data-title>초2 · AI 융합수업</b> · 8차시</div>
+      <div class="counter"><span id="cur">1</span> / <span id="total">8</span></div>
+    </div>
+
+    <div class="board">
+
+      <!-- 1. 표지 -->
+      <section class="slide on">
+        <div class="cover">
+          <div class="emojis">🌞🌙</div>
+          <h1 class="title" data-title>AI와 함께하는 우리 하루</h1>
+          <p class="sub">우리 곁의 AI를 찾아 미래를 상상해요</p>
+          <span class="badge">8차시 · 단원 마무리 · 표현과 발표</span>
+        </div>
+      </section>
+
+      <!-- 2. 하루 여행 타임라인 -->
+      <section class="slide">
+        <div class="eyebrow">● 하루 여행</div>
+        <h1 class="h1">우리 하루 속 AI를 찾아라!</h1>
+        <p class="lead">아침에 눈뜰 때부터 잠들 때까지, AI는 우리와 함께 있어요.</p>
+        <div class="timeline">
+          <div class="tl-row">
+            <div class="num">1</div><div class="ico">⏰</div>
+            <div class="body"><h3>아침</h3><p>알람이 깨워 주고, 오늘 날씨를 알려 줘요 ☀️</p></div>
+          </div>
+          <div class="tl-row">
+            <div class="num">2</div><div class="ico">🚦</div>
+            <div class="body"><h3>등굣길</h3><p>신호등이 척척 바뀌고, 다른 나라 말을 번역해 줘요 🗣️</p></div>
+          </div>
+          <div class="tl-row">
+            <div class="num">3</div><div class="ico">🏫</div>
+            <div class="body"><h3>학교</h3><p>사진을 분류하고, 궁금한 걸 검색해 답을 찾아 줘요 🔍</p></div>
+          </div>
+          <div class="tl-row">
+            <div class="num">4</div><div class="ico">🏠</div>
+            <div class="body"><h3>집</h3><p>보고 싶은 영상을 추천 📺, 청소로봇이 방을 치워 줘요 🤖</p></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 3. 되돌아보기 -->
+      <section class="slide">
+        <div class="eyebrow">● 되돌아보기</div>
+        <h1 class="h1">1~7차시, 우리가 배운 것</h1>
+        <p class="lead">한 걸음씩 걸어온 AI 여행을 되돌아봐요.</p>
+        <div class="checks">
+          <div class="check"><div class="ck">1</div><div class="txt"><b>AI 이해</b><span>AI와의 첫 만남 🤝</span></div></div>
+          <div class="check"><div class="ck">2</div><div class="txt"><b>소리</b><span>소리로 소통하는 나와 AI 🎤</span></div></div>
+          <div class="check"><div class="ck">3</div><div class="txt"><b>보는 AI</b><span>자연을 관찰하는 AI의 눈 👁️</span></div></div>
+          <div class="check"><div class="ck">4</div><div class="txt"><b>데이터</b><span>데이터가 뭐예요? 📦</span></div></div>
+          <div class="check"><div class="ck">5</div><div class="txt"><b>그래프</b><span>그래프 탐정 📊</span></div></div>
+          <div class="check"><div class="ck">6</div><div class="txt"><b>만들기</b><span>내가 AI를 만들어요 🛠️</span></div></div>
+          <div class="check"><div class="ck">7</div><div class="txt"><b>착한 AI</b><span>바르고 착하게 쓰는 AI 💚</span></div></div>
+          <div class="check"><div class="ck">8</div><div class="txt"><b>오늘</b><span>AI와 함께하는 우리 하루 🌞</span></div></div>
+        </div>
+      </section>
+
+      <!-- 4. 비교 -->
+      <section class="slide">
+        <div class="eyebrow">● 생각해 보기</div>
+        <h1 class="h1">AI가 잘하는 일 vs 사람이 더 잘하는 일</h1>
+        <p class="lead">AI는 참 똑똑하지만, 사람만이 할 수 있는 소중한 일도 있어요.</p>
+        <div class="versus">
+          <div class="col ai">
+            <div class="top"><span class="ico">🤖</span><h3>AI가 잘하는 일</h3></div>
+            <ul>
+              <li>⚡ 아주 빠른 계산</li>
+              <li>🧠 많은 것을 정확히 기억</li>
+              <li>🔁 지치지 않고 반복</li>
+            </ul>
+          </div>
+          <div class="vs">VS</div>
+          <div class="col human">
+            <div class="top"><span class="ico">🧑</span><h3>사람이 더 잘하는 일</h3></div>
+            <ul>
+              <li>💛 따뜻한 마음</li>
+              <li>🎨 새로운 생각(창의)</li>
+              <li>🤗 친구를 향한 배려</li>
+              <li>✨ 자유로운 상상</li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      <!-- 5. 상상하기 -->
+      <section class="slide">
+        <div class="eyebrow">● 상상하기</div>
+        <h1 class="h1">내가 만들고 싶은 AI는?</h1>
+        <p class="lead">세상을 더 좋게 만드는 나만의 AI를 상상해 봐요.</p>
+        <div class="grid g3">
+          <div class="card">
+            <span class="ico">🩹</span>
+            <span class="tag">돕는 AI</span>
+            <h3>아픈 친구 도우미 AI</h3>
+            <p>몸이 아픈 친구를 살펴 주고 필요한 걸 알려 줘요.</p>
+          </div>
+          <div class="card">
+            <span class="ico">♻️</span>
+            <span class="tag">지구 AI</span>
+            <h3>쓰레기 줄이기 AI</h3>
+            <p>쓰레기를 척척 분리하고 지구를 깨끗하게 지켜요.</p>
+          </div>
+          <div class="card">
+            <span class="ico">🐶</span>
+            <span class="tag">통역 AI</span>
+            <h3>강아지 말 통역 AI</h3>
+            <p>멍멍 소리를 알아듣고 강아지 마음을 알려 줘요.</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- 6. 활동 안내 -->
+      <section class="slide">
+        <div class="eyebrow">● 활동 안내</div>
+        <h1 class="h1">꿈의 AI 만들기</h1>
+        <p class="lead">학생 웹앱을 열어 나만의 AI를 직접 디자인해요.</p>
+        <div class="app-banner">
+          <div class="big">💡🤖</div>
+          <div>
+            <h3>학생 웹앱 · 「꿈의 AI 만들기」</h3>
+            <p>이름을 짓고, 하는 일을 정하고, 얼굴을 꾸며 나만의 AI를 완성해요!</p>
+          </div>
+        </div>
+        <div class="steps">
+          <div class="step"><div class="n">STEP 1</div><p>내 AI 이름 짓기 ✏️</p></div>
+          <div class="step"><div class="n">STEP 2</div><p>어떤 일을 할지 정하기 🎯</p></div>
+          <div class="step"><div class="n">STEP 3</div><p>얼굴과 색을 꾸미기 🎨</p></div>
+        </div>
+      </section>
+
+      <!-- 7. 발표 나눔 -->
+      <section class="slide">
+        <div class="eyebrow">● 발표와 나눔</div>
+        <h1 class="h1">친구들에게 내 AI를 소개해요</h1>
+        <p class="lead">내가 만든 AI를 자신 있게 발표하고, 친구의 아이디어도 응원해요.</p>
+        <div class="grid g3">
+          <div class="card">
+            <span class="ico">🎤</span>
+            <h3>소개하기</h3>
+            <p>"내 AI는 ○○예요. ○○한 일을 해요!"</p>
+          </div>
+          <div class="card">
+            <span class="ico">📌</span>
+            <h3>전시하기</h3>
+            <p>활동보드에 내 AI를 붙여 함께 나눠요.</p>
+          </div>
+          <div class="card">
+            <span class="ico">👏</span>
+            <h3>응원하기</h3>
+            <p>친구의 멋진 아이디어에 박수와 칭찬을!</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- 8. 정리 -->
+      <section class="slide">
+        <div class="closing">
+          <div class="emojis">🌞🤝🌙</div>
+          <p class="msg">AI는 <b>도구</b>예요.<br>잘 배우고, 바르게 쓰고,<br>함께 잘 살아가요!</p>
+          <p class="heart">💚 한 학기 동안 정말 수고했어요, 우리 친구들!</p>
+        </div>
+      </section>
+
+    </div>
+
+    <div class="foot">
+      <button class="nav" id="prev" disabled>이전</button>
+      <div class="progress"><i id="bar"></i></div>
+      <button class="nav primary" id="next">다음</button>
+    </div>
+  </div>
+
+<script>
+  // 슬라이드 넘김 — 템플릿 스크립트 재사용
+  (function(){
+    var slides = Array.prototype.slice.call(document.querySelectorAll('.slide'));
+    var i = 0, total = slides.length;
+    var cur = document.getElementById('cur'), tot = document.getElementById('total');
+    var bar = document.getElementById('bar'), prev = document.getElementById('prev'), next = document.getElementById('next');
+    tot.textContent = total;
+    function render(){
+      slides.forEach(function(s,n){ s.classList.toggle('on', n===i); });
+      cur.textContent = i+1;
+      bar.style.width = ((i+1)/total*100)+'%';
+      prev.disabled = i===0; next.disabled = i===total-1;
+      document.querySelector('.board').scrollTop = 0;
+    }
+    prev.onclick = function(){ if(i>0){ i--; render(); } };
+    next.onclick = function(){ if(i<total-1){ i++; render(); } };
+    document.addEventListener('keydown', function(e){
+      if(e.key==='ArrowRight'||e.key===' ') next.onclick();
+      if(e.key==='ArrowLeft') prev.onclick();
+    });
+    render();
+  })();
+</script>
+</body>
+</html>

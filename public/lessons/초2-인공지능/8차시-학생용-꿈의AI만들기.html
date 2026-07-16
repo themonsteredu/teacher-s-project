@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<title>꿈의 AI 만들기 · 초2 8차시</title>
+<style>
+  :root{
+    --brand:#0f766e; --brand2:#0b5c55; --gold:#f4b740; --ink:#243b34;
+    --muted:#5b6f68; --line:#e6ece5; --paper:#ffffff;
+    --body:system-ui,"Apple SD Gothic Neo","Malgun Gothic",sans-serif;
+  }
+  *{ box-sizing:border-box; word-break:keep-all; }
+  html,body{ height:100%; margin:0; }
+  /* 배경(그라데이션)은 body에 — 발표 때 화면 전체를 채움 */
+  body{
+    font-family:var(--body); color:var(--ink);
+    background:linear-gradient(160deg,#1f9d84 0%, var(--brand2) 100%);
+    display:flex; align-items:center; justify-content:center; padding:16px;
+  }
+  /* ===== 최상위 카드는 반드시 .wrap ===== */
+  .wrap{
+    width:min(560px,100%); background:var(--paper); border-radius:30px;
+    box-shadow:0 16px 40px rgba(0,0,0,.18); padding:clamp(22px,6vw,34px); text-align:center;
+  }
+  .mascot{ font-size:clamp(48px,16vw,72px); line-height:1; }
+  h1{ color:var(--brand); font-size:clamp(1.5rem,7vw,2rem); margin:.4rem 0 .2rem; }
+  .sub{ color:var(--muted); font-weight:700; margin:.2rem 0 0; }
+  .item{ font-size:clamp(1.1rem,5vw,1.4rem); font-weight:800; margin:1.2rem 0; }
+  .btns{ display:flex; flex-direction:column; gap:12px; margin-top:1rem; }
+  button{ font-family:inherit; font-weight:800; font-size:clamp(1.05rem,5vw,1.2rem);
+          border:0; border-radius:16px; padding:16px; cursor:pointer; }
+  .primary{ background:var(--brand); color:#fff; }
+  .ghost{ background:#eef4ee; color:var(--ink); }
+  .hide{ display:none; }
+
+  /* ===== 진행 표시 ===== */
+  .step{ display:inline-block; background:#eef4ee; color:var(--brand);
+    font-weight:800; font-size:clamp(.85rem,3.6vw,1rem); padding:6px 14px; border-radius:999px; }
+  .score{ font-weight:800; color:var(--gold); }
+
+  /* ===== 미니게임 카드 ===== */
+  .scene{ background:linear-gradient(160deg,#f3fbf8,#e6f4f0); border:3px solid var(--line);
+    border-radius:22px; padding:clamp(16px,5vw,26px); margin:14px 0; }
+  .scene .emoji{ font-size:clamp(56px,20vw,90px); line-height:1; }
+  .scene .name{ font-size:clamp(1.2rem,6vw,1.55rem); font-weight:800; margin-top:8px; }
+  .ask{ font-size:clamp(1rem,4.6vw,1.2rem); font-weight:800; color:var(--muted); margin:.4rem 0 0; }
+  .row2{ display:flex; gap:12px; }
+  .row2 button{ flex:1; }
+  .yes{ background:var(--brand); color:#fff; }
+  .no{ background:#fff0e6; color:#b5581f; }
+  .feedback{ min-height:1.2em; font-weight:800; font-size:clamp(1rem,4.6vw,1.2rem); margin:14px 0; }
+  .feedback.ok{ color:var(--brand); }
+  .feedback.no{ color:#c0623a; }
+  .feedback small{ display:block; font-weight:700; color:var(--muted); margin-top:6px; font-size:.85em; }
+
+  /* ===== 디자인 화면 ===== */
+  .label{ text-align:left; font-weight:800; color:var(--ink); margin:16px 0 8px; font-size:clamp(1rem,4.4vw,1.15rem); }
+  input[type=text]{ width:100%; font-family:inherit; font-size:clamp(1.05rem,5vw,1.2rem);
+    font-weight:800; text-align:center; padding:14px; border:3px solid var(--line);
+    border-radius:16px; color:var(--ink); }
+  input[type=text]:focus{ outline:none; border-color:var(--brand); }
+  .chips{ display:flex; flex-wrap:wrap; gap:10px; justify-content:center; }
+  .chip{ background:#eef4ee; color:var(--ink); border:3px solid transparent;
+    border-radius:16px; padding:12px 14px; font-size:clamp(1rem,4.6vw,1.15rem); flex:1 1 45%; }
+  .chip.sel{ background:#fff; border-color:var(--brand); color:var(--brand); }
+  .faces{ display:flex; flex-wrap:wrap; gap:10px; justify-content:center; }
+  .face{ background:#eef4ee; border:3px solid transparent; border-radius:18px;
+    padding:8px 12px; font-size:clamp(36px,11vw,48px); line-height:1; flex:0 0 auto; }
+  .face.sel{ background:#fff; border-color:var(--gold); }
+
+  /* ===== 내 AI 카드(미리보기 + 완성) ===== */
+  .aicard{ background:linear-gradient(160deg,#0f766e,#0b5c55); color:#fff;
+    border-radius:24px; padding:clamp(18px,6vw,28px); margin:18px 0 4px;
+    box-shadow:0 10px 26px rgba(11,92,85,.35); }
+  .aicard .face-big{ font-size:clamp(60px,22vw,100px); line-height:1; }
+  .aicard .ai-name{ font-size:clamp(1.35rem,7vw,1.9rem); font-weight:800; margin:8px 0 4px; }
+  .aicard .ai-job{ font-size:clamp(1rem,4.8vw,1.25rem); font-weight:700; color:#e8f6f2; }
+  .aicard .tag{ display:inline-block; background:var(--gold); color:#5a3d00;
+    font-weight:800; border-radius:999px; padding:5px 14px; margin-top:10px; font-size:.9rem; }
+  .big-card .face-big{ font-size:clamp(80px,28vw,130px); }
+  .confetti{ font-size:clamp(1.4rem,6vw,1.8rem); }
+</style>
+</head>
+<body>
+  <div class="wrap">
+
+    <!-- ===== 홈 ===== -->
+    <section id="s-start">
+      <div class="mascot">🤖✨</div>
+      <h1 data-title>꿈의 AI 만들기</h1>
+      <p class="sub">우리 곁의 AI를 찾고, 나만의 AI를 만들어요!</p>
+      <div class="btns"><button class="primary" onclick="startGame()">시작하기 ▶</button></div>
+    </section>
+
+    <!-- ===== ① 생활 속 AI 찾기 (미니게임) ===== -->
+    <section id="s-game" class="hide">
+      <div class="step" id="g-step">1 / 6</div>
+      <div class="scene">
+        <div class="emoji" id="g-emoji">🔊</div>
+        <div class="name" id="g-name">스마트 스피커</div>
+        <div class="ask">이건 AI일까요?</div>
+      </div>
+      <div class="row2" id="g-choose">
+        <button class="yes" onclick="answer(true)">🤖 AI예요</button>
+        <button class="no" onclick="answer(false)">🙅 아니에요</button>
+      </div>
+      <div class="feedback" id="g-fb"></div>
+      <div class="btns" id="g-next" style="display:none">
+        <button class="primary" onclick="nextItem()">다음 ▶</button>
+      </div>
+      <p class="sub">점수 <span class="score" id="g-score">0</span>점</p>
+    </section>
+
+    <!-- ===== ② 꿈의 AI 디자인 ===== -->
+    <section id="s-design" class="hide">
+      <div class="step">나만의 AI 만들기 ✏️</div>
+
+      <div class="label">1. AI 이름을 지어요</div>
+      <input type="text" id="d-name" maxlength="10" placeholder="예: 반짝이" oninput="render()" />
+
+      <div class="label">2. 하는 일을 골라요</div>
+      <div class="chips" id="d-jobs">
+        <button class="chip" data-job="도와주기" onclick="pickJob(this)">도와주기 🤝</button>
+        <button class="chip" data-job="놀아주기" onclick="pickJob(this)">놀아주기 🎮</button>
+        <button class="chip" data-job="가르치기" onclick="pickJob(this)">가르치기 📚</button>
+        <button class="chip" data-job="지켜주기" onclick="pickJob(this)">지켜주기 🛡️</button>
+      </div>
+
+      <div class="label">3. 얼굴을 골라요</div>
+      <div class="faces" id="d-faces">
+        <button class="face" data-face="🤖" onclick="pickFace(this)">🤖</button>
+        <button class="face" data-face="😊" onclick="pickFace(this)">😊</button>
+        <button class="face" data-face="🐱" onclick="pickFace(this)">🐱</button>
+        <button class="face" data-face="🚀" onclick="pickFace(this)">🚀</button>
+        <button class="face" data-face="🦉" onclick="pickFace(this)">🦉</button>
+        <button class="face" data-face="🐶" onclick="pickFace(this)">🐶</button>
+      </div>
+
+      <div class="label">내 AI 카드 미리보기 👀</div>
+      <div class="aicard">
+        <div class="face-big" id="p-face">🤖</div>
+        <div class="ai-name" id="p-name">이름을 지어주세요</div>
+        <div class="ai-job" id="p-job">하는 일을 골라주세요</div>
+        <div class="tag">나의 꿈의 AI</div>
+      </div>
+
+      <div class="btns"><button class="primary" onclick="finish()">완성하기 🎉</button></div>
+    </section>
+
+    <!-- ===== ③ 완성 ===== -->
+    <section id="s-end" class="hide">
+      <div class="confetti">🎉✨🎊</div>
+      <h1>멋진 AI가 완성됐어요!</h1>
+      <div class="aicard big-card">
+        <div class="face-big" id="e-face">🤖</div>
+        <div class="ai-name" id="e-name">반짝이</div>
+        <div class="ai-job" id="e-job">도와주는 AI</div>
+        <div class="tag">나의 꿈의 AI</div>
+      </div>
+      <p class="sub">우리 반 활동보드에 올려<br>AI 전시회를 만들어요! 🖼️</p>
+      <div class="btns"><button class="ghost" onclick="restart()">다시 만들기 🔁</button></div>
+    </section>
+
+  </div>
+
+<script>
+  // ===== 화면 전환 =====
+  function go(id){
+    document.querySelectorAll('.wrap > section').forEach(function(s){ s.classList.add('hide'); });
+    document.getElementById(id).classList.remove('hide');
+    document.querySelector('.wrap').scrollTop = 0;
+    window.scrollTo(0,0);
+  }
+
+  // ===== ① 미니게임 데이터 =====
+  var ITEMS = [
+    { emoji:'🔊', name:'스마트 스피커', ai:true,  why:'말을 알아듣고 대답해요.' },
+    { emoji:'🌐', name:'자동 번역기',   ai:true,  why:'다른 나라 말로 바꿔줘요.' },
+    { emoji:'🤖', name:'로봇 청소기',   ai:true,  why:'스스로 길을 찾아 청소해요.' },
+    { emoji:'📖', name:'종이책',        ai:false, why:'생각하지 못해요. 그냥 책이에요.' },
+    { emoji:'🕰️', name:'그냥 벽시계',   ai:false, why:'시간만 알려줘요. AI가 아니에요.' },
+    { emoji:'▶️', name:'추천 영상',     ai:true,  why:'내가 좋아할 영상을 골라줘요.' }
+  ];
+  var idx = 0, score = 0;
+
+  function startGame(){ idx = 0; score = 0; showItem(); go('s-game'); }
+
+  function showItem(){
+    var it = ITEMS[idx];
+    document.getElementById('g-emoji').textContent = it.emoji;
+    document.getElementById('g-name').textContent = it.name;
+    document.getElementById('g-step').textContent = (idx+1) + ' / ' + ITEMS.length;
+    document.getElementById('g-fb').textContent = '';
+    document.getElementById('g-fb').className = 'feedback';
+    document.getElementById('g-choose').style.display = 'flex';
+    document.getElementById('g-next').style.display = 'none';
+    document.getElementById('g-score').textContent = score;
+  }
+
+  function answer(pick){
+    var it = ITEMS[idx];
+    var correct = (pick === it.ai);
+    if(correct){ score++; }
+    var fb = document.getElementById('g-fb');
+    var head = correct ? '⭕ 정답이에요!' : '❌ 다시 생각해요';
+    var truth = it.ai ? 'AI예요.' : 'AI가 아니에요.';
+    fb.className = 'feedback ' + (correct ? 'ok' : 'no');
+    fb.innerHTML = head + ' 이건 ' + truth + '<small>' + it.why + '</small>';
+    document.getElementById('g-choose').style.display = 'none';
+    var isLast = (idx === ITEMS.length - 1);
+    document.getElementById('g-next').firstElementChild.textContent = isLast ? '나만의 AI 만들기 ▶' : '다음 ▶';
+    document.getElementById('g-next').style.display = 'flex';
+    document.getElementById('g-score').textContent = score;
+  }
+
+  function nextItem(){
+    if(idx === ITEMS.length - 1){ go('s-design'); render(); return; }
+    idx++; showItem();
+  }
+
+  // ===== ② 디자인 =====
+  var chosenJob = '', chosenFace = '🤖';
+
+  function pickJob(btn){
+    document.querySelectorAll('#d-jobs .chip').forEach(function(c){ c.classList.remove('sel'); });
+    btn.classList.add('sel');
+    chosenJob = btn.getAttribute('data-job');
+    render();
+  }
+  function pickFace(btn){
+    document.querySelectorAll('#d-faces .face').forEach(function(c){ c.classList.remove('sel'); });
+    btn.classList.add('sel');
+    chosenFace = btn.getAttribute('data-face');
+    render();
+  }
+
+  function jobSentence(){
+    var map = { '도와주기':'도와주는', '놀아주기':'놀아주는', '가르치기':'가르쳐주는', '지켜주기':'지켜주는' };
+    return chosenJob ? (map[chosenJob] + ' AI') : '하는 일을 골라주세요';
+  }
+
+  function render(){
+    var name = document.getElementById('d-name').value.trim();
+    document.getElementById('p-face').textContent = chosenFace;
+    document.getElementById('p-name').textContent = name ? name : '이름을 지어주세요';
+    document.getElementById('p-job').textContent = jobSentence();
+  }
+
+  // ===== ③ 완성 =====
+  function finish(){
+    var name = document.getElementById('d-name').value.trim() || '나의 AI';
+    document.getElementById('e-face').textContent = chosenFace;
+    document.getElementById('e-name').textContent = name;
+    document.getElementById('e-job').textContent = chosenJob ? jobSentence() : '멋진 일을 하는 AI';
+    go('s-end');
+  }
+
+  function restart(){
+    document.getElementById('d-name').value = '';
+    chosenJob = ''; chosenFace = '🤖';
+    document.querySelectorAll('.chip,.face').forEach(function(c){ c.classList.remove('sel'); });
+    render();
+    go('s-design');
+  }
+</script>
+</body>
+</html>

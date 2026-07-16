@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<title>착한 AI 판단왕</title>
+<style>
+  :root{
+    --brand:#0f766e; --brand2:#0b5c55; --gold:#f4b740; --ink:#243b34;
+    --muted:#5b6f68; --line:#e6ece5; --paper:#ffffff;
+    --good:#0f766e; --warn:#d97a1a;
+    --body:system-ui,"Apple SD Gothic Neo","Malgun Gothic",sans-serif;
+  }
+  *{ box-sizing:border-box; word-break:keep-all; }
+  html,body{ height:100%; margin:0; }
+  /* 배경(그라데이션)은 body에 — 발표 때 화면 전체를 채움 */
+  body{
+    font-family:var(--body); color:var(--ink);
+    background:linear-gradient(160deg,#1f9d84 0%, var(--brand2) 100%);
+    display:flex; align-items:center; justify-content:center; padding:16px;
+  }
+  /* ===== 최상위 카드는 반드시 .wrap ===== */
+  .wrap{
+    width:min(560px,100%); background:var(--paper); border-radius:30px;
+    box-shadow:0 16px 40px rgba(0,0,0,.18); padding:clamp(22px,6vw,34px); text-align:center;
+  }
+  .mascot{ font-size:clamp(48px,16vw,72px); line-height:1; }
+  h1{ color:var(--brand); font-size:clamp(1.5rem,7vw,2rem); margin:.4rem 0 .2rem; }
+  .sub{ color:var(--muted); font-weight:700; font-size:clamp(1rem,4.5vw,1.15rem); }
+  .item{ font-size:clamp(1.15rem,5vw,1.45rem); font-weight:800; margin:1rem 0; line-height:1.4; }
+  .btns{ display:flex; flex-direction:column; gap:12px; margin-top:1rem; }
+  button{ font-family:inherit; font-weight:800; font-size:clamp(1.05rem,5vw,1.2rem);
+          border:0; border-radius:16px; padding:16px; cursor:pointer; }
+  .primary{ background:var(--brand); color:#fff; }
+  .good{ background:#0f766e; color:#fff; }
+  .warn{ background:var(--gold); color:var(--ink); }
+  .ghost{ background:#eef4ee; color:var(--ink); }
+  button:disabled{ opacity:.55; cursor:default; }
+  .hide{ display:none; }
+
+  /* 진행 표시 & 점수 */
+  .top{ display:flex; justify-content:space-between; align-items:center;
+        font-weight:800; color:var(--muted); margin-bottom:.4rem; }
+  .top .score{ color:var(--gold); }
+  /* 상황 카드 */
+  .situation{ background:#f2f8f4; border:3px dashed var(--brand); border-radius:22px;
+              padding:clamp(16px,5vw,24px); }
+  .situation .face{ font-size:clamp(40px,13vw,58px); line-height:1; }
+  /* 피드백 */
+  .feedback{ border-radius:20px; padding:clamp(16px,5vw,22px); margin-top:1rem; }
+  .feedback.ok{ background:#e7f5ee; border:3px solid var(--good); }
+  .feedback.no{ background:#fdf1e0; border:3px solid var(--warn); }
+  .feedback .verdict{ font-size:clamp(1.2rem,5.5vw,1.5rem); font-weight:900; }
+  .feedback.ok .verdict{ color:var(--good); }
+  .feedback.no .verdict{ color:var(--warn); }
+  .feedback .why{ font-weight:700; color:var(--ink); margin-top:.4rem; line-height:1.4; }
+  /* 배지 */
+  .badge{ display:inline-block; background:var(--gold); color:var(--ink);
+          font-weight:900; font-size:clamp(1.1rem,5vw,1.35rem);
+          padding:14px 22px; border-radius:999px; margin:.6rem 0; }
+  .scoreBig{ font-size:clamp(2.4rem,12vw,3.4rem); font-weight:900; color:var(--brand); }
+  /* 약속 입력 */
+  textarea{ width:100%; font-family:inherit; font-size:clamp(1.05rem,4.5vw,1.2rem);
+            font-weight:700; color:var(--ink); border:3px solid var(--line);
+            border-radius:16px; padding:14px; resize:none; }
+  textarea:focus{ outline:none; border-color:var(--brand); }
+  .note{ background:#fff8e8; border:2px solid var(--gold); border-radius:16px;
+         padding:14px; font-weight:800; color:var(--ink); margin-top:1rem; line-height:1.4; }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <!-- 홈 -->
+    <section id="s-start">
+      <div class="mascot">😊</div>
+      <h1 data-title>착한 AI 판단왕</h1>
+      <p class="sub">AI를 바르게 쓰는 상황을 골라봐요!</p>
+      <div class="btns"><button class="primary" onclick="start()">시작하기 ▶</button></div>
+    </section>
+
+    <!-- 상황 퀴즈 -->
+    <section id="s-q" class="hide">
+      <div class="top">
+        <span id="progress">상황 1 / 5</span>
+        <span class="score">⭐ <span id="scoreNow">0</span></span>
+      </div>
+      <div class="situation">
+        <div class="face" id="qFace">🤔</div>
+        <div class="item" id="qText">상황</div>
+      </div>
+      <div class="btns" id="choiceBtns">
+        <button class="good" onclick="answer(true)">👍 착한 사용</button>
+        <button class="warn" onclick="answer(false)">⚠️ 조심!</button>
+      </div>
+      <div class="feedback hide" id="feedback">
+        <div class="verdict" id="fbVerdict"></div>
+        <div class="why" id="fbWhy"></div>
+        <div class="btns"><button class="primary" onclick="next()" id="nextBtn">다음 ▶</button></div>
+      </div>
+    </section>
+
+    <!-- 결과 -->
+    <section id="s-result" class="hide">
+      <div class="mascot">🏅</div>
+      <h1>결과 발표!</h1>
+      <div class="scoreBig"><span id="finalScore">0</span> / 5</div>
+      <div class="badge" id="badge">착한 AI 판단왕! 🏅</div>
+      <p class="sub" id="praise">정말 잘했어요!</p>
+      <div class="btns"><button class="primary" onclick="go('s-end')">나의 약속 쓰기 ▶</button></div>
+    </section>
+
+    <!-- 끝: 나의 AI 약속 -->
+    <section id="s-end" class="hide">
+      <div class="mascot">🤝</div>
+      <h1>나의 AI 약속</h1>
+      <p class="sub">AI를 바르게 쓰는 약속을 한 문장 적어봐요.</p>
+      <textarea id="promise" rows="3" placeholder="예) 나는 친구 정보를 소중히 지킬래요"></textarea>
+      <div class="note">📌 약속을 우리 반 활동보드에 올려보자!<br>(여기 쓴 글은 나만 보는 연습이에요. 진짜 제출은 활동보드에서 해요.)</div>
+      <div class="btns"><button class="ghost" onclick="restart()">다시 하기 ↺</button></div>
+    </section>
+  </div>
+
+<script>
+  // 상황 데이터: good=true 이면 '착한 사용'이 정답
+  var QUIZ = [
+    { face:"📸", text:"친구 사진을 몰래 AI에 올렸어요.", good:false, why:"친구의 개인정보예요." },
+    { face:"📄", text:"AI가 써 준 답을 그대로 베껴서 냈어요.", good:false, why:"스스로 생각하지 않았어요." },
+    { face:"💡", text:"궁금한 걸 AI에게 묻고, 내 생각도 더했어요.", good:true, why:"도구로 잘 썼어요." },
+    { face:"🎭", text:"AI로 거짓 이야기를 만들어 친구를 속였어요.", good:false, why:"남을 속이면 안 돼요." },
+    { face:"📚", text:"AI가 알려준 걸 책에서 한 번 더 확인했어요.", good:true, why:"스스로 확인했어요." }
+  ];
+
+  var idx = 0, score = 0;
+
+  // 화면 전환 — 한 번에 한 section만 보이기
+  function go(id){
+    document.querySelectorAll('.wrap > section').forEach(function(s){ s.classList.add('hide'); });
+    document.getElementById(id).classList.remove('hide');
+    document.querySelector('.wrap').scrollTop = 0;
+  }
+
+  function start(){ idx = 0; score = 0; go('s-q'); render(); }
+
+  function render(){
+    var q = QUIZ[idx];
+    document.getElementById('progress').textContent = '상황 ' + (idx+1) + ' / ' + QUIZ.length;
+    document.getElementById('scoreNow').textContent = score;
+    document.getElementById('qFace').textContent = q.face;
+    document.getElementById('qText').textContent = q.text;
+    document.getElementById('feedback').classList.add('hide');
+    setChoices(true);
+  }
+
+  function setChoices(on){
+    document.querySelectorAll('#choiceBtns button').forEach(function(b){ b.disabled = !on; });
+  }
+
+  function answer(pickedGood){
+    var q = QUIZ[idx];
+    var correct = (pickedGood === q.good);
+    if(correct) score++;
+    document.getElementById('scoreNow').textContent = score;
+    setChoices(false);
+
+    var fb = document.getElementById('feedback');
+    fb.classList.remove('hide','ok','no');
+    var rightLabel = q.good ? '👍 착한 사용' : '⚠️ 조심!';
+    if(correct){
+      fb.classList.add('ok');
+      document.getElementById('fbVerdict').textContent = '정답이에요! 🎉 (' + rightLabel + ')';
+    }else{
+      fb.classList.add('no');
+      document.getElementById('fbVerdict').textContent = '괜찮아요, 다시 볼까요? 정답은 ' + rightLabel + '이에요.';
+    }
+    document.getElementById('fbWhy').textContent = '👉 ' + q.why;
+
+    var nb = document.getElementById('nextBtn');
+    nb.textContent = (idx === QUIZ.length-1) ? '결과 보기 ▶' : '다음 ▶';
+  }
+
+  function next(){
+    if(idx < QUIZ.length-1){ idx++; render(); }
+    else{ showResult(); }
+  }
+
+  function showResult(){
+    document.getElementById('finalScore').textContent = score;
+    var badge = document.getElementById('badge');
+    var praise = document.getElementById('praise');
+    if(score === 5){ badge.textContent = '착한 AI 판단왕! 🏅'; praise.textContent = '모두 맞혔어요! 최고예요!'; }
+    else if(score >= 3){ badge.textContent = '착한 AI 도우미! 🌟'; praise.textContent = '아주 잘했어요!'; }
+    else{ badge.textContent = '착한 AI 새싹! 🌱'; praise.textContent = '한 번 더 하면 판단왕이 될 수 있어요!'; }
+    go('s-result');
+  }
+
+  function restart(){ document.getElementById('promise').value = ''; go('s-start'); }
+</script>
+</body>
+</html>

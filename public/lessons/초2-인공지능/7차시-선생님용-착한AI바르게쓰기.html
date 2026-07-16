@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="ko" data-present="fill">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>착한 AI, 바르게 쓰기 · 선생님용 슬라이드</title>
+<style>
+  :root{
+    --brand:#0f766e; --brand2:#0b5c55; --gold:#f4b740; --ink:#243b34;
+    --muted:#5b6f68; --line:#e3e9e2; --paper:#ffffff;
+    --body:system-ui,"Apple SD Gothic Neo","Malgun Gothic",sans-serif;
+  }
+  *{ box-sizing:border-box; word-break:keep-all; overflow-wrap:break-word; }
+  html,body{ height:100%; margin:0; }
+  body{
+    font-family:var(--body); color:var(--ink);
+    background:linear-gradient(165deg,#E9EDE4 0%, #D7DFCE 100%);
+    display:flex; align-items:center; justify-content:center; padding:clamp(8px,3vw,24px);
+  }
+  .deck{
+    width:min(1680px,94vw); height:min(940px,92vh);
+    background:var(--paper); border-radius:clamp(14px,2.4vw,20px);
+    box-shadow:0 18px 50px rgba(30,50,40,.24); overflow:hidden;
+    display:flex; flex-direction:column;
+  }
+  .topbar{ flex:0 0 auto; display:flex; align-items:center; justify-content:space-between;
+           padding:clamp(11px,2vw,14px) clamp(16px,3.5vw,24px); border-bottom:1px solid var(--line); }
+  .course{ font-size:clamp(11.5px,2.3vw,13px); font-weight:700; color:var(--muted); }
+  .course b{ color:var(--brand); }
+  .counter{ font-size:clamp(11.5px,2.3vw,13px); font-weight:800; font-variant-numeric:tabular-nums; }
+
+  .board{ flex:1 1 auto; min-height:0; overflow:auto;
+          padding:clamp(28px,4.6vw,52px); }
+  .slide{ display:none; }
+  .slide.on{ display:block; }
+  .eyebrow{ font-size:clamp(12px,2.5vw,14px); font-weight:800; color:var(--brand); }
+  .h1{ font-size:clamp(1.6rem,5.4vw,2.5rem); font-weight:800; line-height:1.32; margin:.4rem 0 0; }
+  .lead{ font-size:clamp(1.02rem,2.8vw,1.3rem); font-weight:600; color:var(--muted); line-height:1.6; margin:.9rem 0 0; max-width:52ch; }
+  .bullets{ margin:1rem 0 0; padding-left:1.2em; }
+  .bullets li{ font-size:clamp(1.02rem,2.8vw,1.26rem); font-weight:600; line-height:1.6; margin-bottom:.7rem; }
+
+  /* 표지 */
+  .cover{ display:flex; flex-direction:column; align-items:center; justify-content:center;
+          text-align:center; min-height:100%; gap:clamp(10px,2vw,18px); }
+  .cover .emoji{ font-size:clamp(3.4rem,12vw,6rem); line-height:1; }
+  .cover .h1{ font-size:clamp(2rem,7vw,3.4rem); }
+  .badge{ display:inline-block; background:var(--brand); color:#fff; font-weight:800;
+          font-size:clamp(12px,2.4vw,14px); padding:.45em 1em; border-radius:999px; }
+  .sub{ font-size:clamp(1.1rem,3.4vw,1.6rem); font-weight:700; color:var(--brand2); margin:.2rem 0 0; }
+
+  /* 목표 칩 */
+  .goals{ display:flex; flex-wrap:wrap; gap:clamp(8px,1.6vw,12px); margin-top:1.2rem; justify-content:center; }
+  .goals span{ background:#eef5f3; color:var(--brand2); font-weight:700;
+               font-size:clamp(12px,2.3vw,14px); padding:.5em 1em; border-radius:12px; border:1px solid var(--line); }
+
+  /* 카드 그리드 */
+  .cards{ display:grid; gap:clamp(12px,2.2vw,20px); margin-top:1.3rem;
+          grid-template-columns:repeat(auto-fit,minmax(min(240px,100%),1fr)); }
+  .card{ background:#fbfdfc; border:1px solid var(--line); border-radius:16px;
+         padding:clamp(16px,2.6vw,24px); box-shadow:0 6px 18px rgba(30,50,40,.06); }
+  .card .ic{ font-size:clamp(2.2rem,6vw,3rem); line-height:1; }
+  .card h3{ font-size:clamp(1.1rem,3vw,1.4rem); font-weight:800; margin:.5rem 0 .3rem; color:var(--ink); }
+  .card p{ font-size:clamp(.98rem,2.5vw,1.14rem); font-weight:600; color:var(--muted); line-height:1.55; margin:0; }
+
+  /* 약속 배너 */
+  .promise{ display:flex; align-items:center; gap:clamp(14px,3vw,24px); margin-top:1.2rem;
+            background:linear-gradient(135deg,#eef5f3,#e4efec); border:1px solid var(--line);
+            border-radius:18px; padding:clamp(18px,3vw,30px); }
+  .promise .big{ font-size:clamp(3rem,11vw,5rem); line-height:1; }
+  .promise .no{ display:inline-block; background:var(--gold); color:var(--ink); font-weight:900;
+                font-size:clamp(13px,2.5vw,15px); padding:.35em .9em; border-radius:999px; }
+  .promise h2{ font-size:clamp(1.4rem,4.4vw,2rem); font-weight:800; margin:.4rem 0 .3rem; }
+  .promise p{ font-size:clamp(1rem,2.7vw,1.24rem); font-weight:600; color:var(--muted); line-height:1.55; margin:0; }
+
+  .next{ margin-top:1.3rem; background:var(--brand); color:#fff; border-radius:16px;
+         padding:clamp(14px,2.6vw,22px) clamp(18px,3vw,26px); font-weight:700;
+         font-size:clamp(1rem,2.7vw,1.24rem); display:flex; align-items:center; gap:.6em; line-height:1.5; }
+
+  .foot{ flex:0 0 auto; display:flex; align-items:center; gap:clamp(12px,3vw,16px);
+         padding:clamp(12px,2.2vw,16px) clamp(16px,3.5vw,24px); border-top:1px solid var(--line); }
+  .progress{ flex:1; height:7px; background:var(--line); border-radius:4px; overflow:hidden; }
+  .progress i{ display:block; height:100%; background:var(--gold); width:0; transition:width .35s ease; }
+  .nav{ border:1px solid var(--line); background:#fff; color:var(--ink); font-weight:800;
+        font-size:clamp(14px,2.6vw,15px); padding:12px clamp(18px,4vw,24px); border-radius:11px; cursor:pointer; }
+  .nav.primary{ background:var(--brand); color:#fff; border-color:var(--brand); }
+  .nav:disabled{ opacity:.34; cursor:default; }
+</style>
+</head>
+<body>
+  <div class="deck">
+    <div class="topbar">
+      <div class="course"><b data-title>초2 · AI 융합수업</b> · 7차시</div>
+      <div class="counter"><span id="cur">1</span> / <span id="total">8</span></div>
+    </div>
+
+    <div class="board">
+
+      <!-- 1. 표지 -->
+      <section class="slide on">
+        <div class="cover">
+          <div class="emoji">🤝😊</div>
+          <span class="badge">7차시 · 성찰과 토의 (도덕·사회)</span>
+          <h1 class="h1" data-title>착한 AI, 바르게 쓰기</h1>
+          <p class="sub">AI를 똑똑하고 안전하게!</p>
+          <div class="goals">
+            <span>🤖 AI도 실수·편견이 있어요</span>
+            <span>🔒 바르게 쓰는 약속</span>
+            <span>🤔 스스로 판단하는 힘</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- 2. AI도 틀려요 -->
+      <section class="slide">
+        <div class="eyebrow">● 지난 시간과 이어서</div>
+        <h1 class="h1">AI도 틀릴 때가 있어요</h1>
+        <p class="lead">지난 6차시에 우리는 AI가 데이터를 보고 배우는 걸 알았지요. 그런데 <b>한쪽 예시만 배운 AI는 헷갈려요.</b></p>
+        <div class="cards">
+          <div class="card">
+            <div class="ic">🐶</div>
+            <h3>강아지만 본 AI</h3>
+            <p>강아지 사진만 잔뜩 배우면, 고양이를 봐도 "강아지!"라고 착각할 수 있어요.</p>
+          </div>
+          <div class="card">
+            <div class="ic">⚖️</div>
+            <h3>편견이 뭐예요?</h3>
+            <p>한쪽만 보고 "다 그럴 거야" 하고 정하는 거예요. 사람도, AI도 그럴 수 있어요.</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- 3. 실수 사례 -->
+      <section class="slide">
+        <div class="eyebrow">● 이럴 때 실수해요</div>
+        <h1 class="h1">AI의 실수, 이런 게 있어요</h1>
+        <p class="lead">AI는 아주 똑똑하지만, 사람처럼 실수도 해요. 어떤 실수가 있을까요?</p>
+        <div class="cards">
+          <div class="card">
+            <div class="ic">🐱</div>
+            <h3>착각해요</h3>
+            <p>강아지를 고양이로 잘못 알아볼 때가 있어요.</p>
+          </div>
+          <div class="card">
+            <div class="ic">🎁</div>
+            <h3>엉뚱해요</h3>
+            <p>내가 좋아하지 않는 걸 자꾸 추천하기도 해요.</p>
+          </div>
+          <div class="card">
+            <div class="ic">❌</div>
+            <h3>틀린 말도 해요</h3>
+            <p>가끔은 맞지 않는 정보를 진짜처럼 말하기도 해요.</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- 4. 왜 틀릴까 -->
+      <section class="slide">
+        <div class="eyebrow">● 왜 그럴까요?</div>
+        <h1 class="h1">AI는 왜 틀릴까요?</h1>
+        <p class="lead">AI는 <b>사람이 준 데이터와 규칙대로</b> 배워요. 그래서 배운 것 안에서만 대답할 수 있어요.</p>
+        <div class="promise">
+          <div class="big">🧑‍🏫➡️🤖</div>
+          <div>
+            <h2>그래서 사람이 중요해요</h2>
+            <p>사람이 <b>잘 가르치고</b>, 우리가 <b>잘 써야</b> AI도 착하고 똑똑해져요. 오늘은 바르게 쓰는 약속 세 가지를 배워요!</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- 5. 약속 1 -->
+      <section class="slide">
+        <div class="eyebrow">● 우리의 약속 ①</div>
+        <h1 class="h1">개인정보 지키기</h1>
+        <div class="promise">
+          <div class="big">🔒</div>
+          <div>
+            <span class="no">약속 1</span>
+            <h2>내 정보는 소중해요</h2>
+            <p>내 이름·주소·전화번호, 친구 사진을 <b>함부로 AI에 넣지 않아요.</b> 소중한 정보는 나와 우리 가족만 알아요.</p>
+          </div>
+        </div>
+        <ul class="bullets">
+          <li>🙅 "우리 집 주소는 ○○이야" 하고 AI에 알려주지 않기</li>
+          <li>📷 친구 얼굴 사진을 마음대로 올리지 않기</li>
+        </ul>
+      </section>
+
+      <!-- 6. 약속 2 -->
+      <section class="slide">
+        <div class="eyebrow">● 우리의 약속 ②</div>
+        <h1 class="h1">스스로 확인하기</h1>
+        <div class="promise">
+          <div class="big">🤔</div>
+          <div>
+            <span class="no">약속 2</span>
+            <h2>한 번 더 생각해요</h2>
+            <p><b>AI 말이 다 맞진 않아요.</b> AI가 알려준 것도 "정말 맞을까?" 한 번 더 생각하고 확인해요.</p>
+          </div>
+        </div>
+        <ul class="bullets">
+          <li>📚 책이나 선생님, 부모님께도 물어보기</li>
+          <li>✅ 이상하면 "이건 틀린 것 같아요!" 하고 말하기</li>
+        </ul>
+      </section>
+
+      <!-- 7. 약속 3 -->
+      <section class="slide">
+        <div class="eyebrow">● 우리의 약속 ③</div>
+        <h1 class="h1">바르고 친절하게</h1>
+        <div class="promise">
+          <div class="big">🙏</div>
+          <div>
+            <span class="no">약속 3</span>
+            <h2>착한 마음으로 써요</h2>
+            <p>AI로 남을 <b>속이거나 나쁘게 쓰지 않아요.</b> 사람에게 하듯이 예의를 지키며 바르게 써요.</p>
+          </div>
+        </div>
+        <ul class="bullets">
+          <li>😊 고마우면 "고마워" 하고 친절하게 말하기</li>
+          <li>🚫 남을 놀리거나 속이는 데 쓰지 않기</li>
+        </ul>
+      </section>
+
+      <!-- 8. 정리 -->
+      <section class="slide">
+        <div class="eyebrow">● 정리하기</div>
+        <h1 class="h1">우리 반 AI 약속을 정해요!</h1>
+        <p class="lead">오늘 배운 세 가지 약속을 함께 지켜요. 우리가 바르게 쓰면 AI는 정말 착한 친구가 돼요.</p>
+        <div class="cards">
+          <div class="card">
+            <div class="ic">🔒</div>
+            <h3>약속 1</h3>
+            <p>개인정보를 지켜요.</p>
+          </div>
+          <div class="card">
+            <div class="ic">🤔</div>
+            <h3>약속 2</h3>
+            <p>스스로 한 번 더 확인해요.</p>
+          </div>
+          <div class="card">
+            <div class="ic">🙏</div>
+            <h3>약속 3</h3>
+            <p>바르고 친절하게 써요.</p>
+          </div>
+        </div>
+        <div class="next">
+          <span>👉</span>
+          <span><b>다음 차시 예고</b> — 다음엔 「AI와 함께하는 우리 하루」를 배워요!</span>
+        </div>
+      </section>
+
+    </div>
+
+    <div class="foot">
+      <button class="nav" id="prev" disabled>이전</button>
+      <div class="progress"><i id="bar"></i></div>
+      <button class="nav primary" id="next">다음</button>
+    </div>
+  </div>
+
+<script>
+  (function(){
+    var slides = Array.prototype.slice.call(document.querySelectorAll('.slide'));
+    var i = 0, total = slides.length;
+    var cur = document.getElementById('cur'), tot = document.getElementById('total');
+    var bar = document.getElementById('bar'), prev = document.getElementById('prev'), next = document.getElementById('next');
+    tot.textContent = total;
+    function render(){
+      slides.forEach(function(s,n){ s.classList.toggle('on', n===i); });
+      cur.textContent = i+1;
+      bar.style.width = ((i+1)/total*100)+'%';
+      prev.disabled = i===0; next.disabled = i===total-1;
+      document.querySelector('.board').scrollTop = 0;
+    }
+    prev.onclick = function(){ if(i>0){ i--; render(); } };
+    next.onclick = function(){ if(i<total-1){ i++; render(); } };
+    document.addEventListener('keydown', function(e){
+      if(e.key==='ArrowRight'||e.key===' ') next.onclick();
+      if(e.key==='ArrowLeft') prev.onclick();
+    });
+    render();
+  })();
+</script>
+</body>
+</html>
