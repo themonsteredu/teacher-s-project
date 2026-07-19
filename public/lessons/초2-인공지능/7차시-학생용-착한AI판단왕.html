@@ -12,13 +12,14 @@
     --body:system-ui,"Apple SD Gothic Neo","Malgun Gothic",sans-serif;
   }
   *{ box-sizing:border-box; word-break:keep-all; }
-  html,body{ height:100%; margin:0; }
+  html,body{ margin:0; }
   /* 배경(그라데이션)은 body에 — 발표 때 화면 전체를 채움 */
   body{
     font-family:var(--body); color:var(--ink);
     background:linear-gradient(160deg,#1f9d84 0%, var(--brand2) 100%);
+    background-attachment:fixed;
     display:flex; align-items:center; justify-content:center; padding:16px;
-    min-height:100%;
+    min-height:100vh;
   }
   /* 반짝이 배경 장식 */
   body::before{
@@ -259,10 +260,37 @@
         <ul id="summaryList"></ul>
       </div>
 
-      <div class="btns"><button class="primary" onclick="go('s-end')">
+      <div class="btns"><button class="primary" onclick="startFix()">
         <svg viewBox="0 0 24 24" fill="none"><path d="M4 20l3-1 11-11-2-2L5 17z" fill="#fff"/><path d="M14 6l2 2" stroke="#0f766e" stroke-width="2"/></svg>
-        나의 AI 약속 쓰기
+        다음 활동 — 착하게 고쳐요 ▶
       </button></div>
+    </section>
+
+    <!-- ===== 추가 활동: 착하게 고쳐요 (판단 → 실천) ===== -->
+    <section id="s-fix" class="hide">
+      <div class="top">
+        <span id="fixProgress">고치기 1 / 3</span>
+        <span class="score">
+          <svg viewBox="0 0 24 24" fill="none"><path d="M12 3a6 6 0 00-3 11v2h6v-2a6 6 0 00-3-11z" fill="#f4b740"/><path d="M9 19h6M10 21h4" stroke="#0f766e" stroke-width="2" stroke-linecap="round"/></svg>
+          착하게 <b id="fixCount">0</b>
+        </span>
+      </div>
+      <div class="bar"><i id="fixBar"></i></div>
+
+      <div class="situation">
+        <span class="tag">이럴 땐 어떻게?</span>
+        <div id="fixIcon"></div>
+        <div class="item" id="fixText">상황</div>
+      </div>
+
+      <p class="sub" style="margin:.4rem 0 0"><b>착한 행동</b>을 골라볼까요?</p>
+      <div class="btns" id="fixBtns"></div>
+
+      <div class="feedback hide" id="fixFb">
+        <div class="fbHead"><span id="fixFbIcon"></span><div class="verdict" id="fixFbVerdict"></div></div>
+        <div class="why" id="fixWhy"></div>
+        <div class="btns"><button class="primary" onclick="fixNext()" id="fixNextBtn">다음</button></div>
+      </div>
     </section>
 
     <!-- ===== 끝: 나의 AI 약속 ===== -->
@@ -468,6 +496,56 @@
 
     go('s-result');
     countUp(document.getElementById('finalScore'), score);
+  }
+
+  // ===== 추가 활동: 착하게 고쳐요 (판단 → 실천) =====
+  var FIX = [
+    { icon:'<svg viewBox="0 0 24 24" fill="none"><rect x="4" y="6" width="16" height="12" rx="2" fill="#0f766e"/><circle cx="9" cy="11" r="2" fill="#fff"/><path d="M6 16l4-3 3 2 3-3 2 2v2H6z" fill="#37c4a4"/></svg>',
+      text:'친구 사진을 AI에 올리고 싶어요.',
+      good:'친구에게 먼저 물어봐요', bad:'그냥 몰래 올려요',
+      why:'친구 사진은 소중한 정보예요. 허락을 받는 게 착한 행동이에요.' },
+    { icon:'<svg viewBox="0 0 24 24" fill="none"><rect x="5" y="3" width="14" height="18" rx="2" fill="#0f766e"/><path d="M8 8h8M8 12h8M8 16h5" stroke="#fff" stroke-width="2" stroke-linecap="round"/></svg>',
+      text:'AI가 숙제 답을 알려줬어요.',
+      good:'답을 보고 내 생각을 더해요', bad:'그대로 베껴서 내요',
+      why:'내 생각을 더해야 진짜 내 실력이 자라요.' },
+    { icon:'<svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" fill="#f4b740"/><path d="M9 10a3 3 0 116 0c0 2-3 2-3 4" stroke="#5a3d00" stroke-width="2" fill="none" stroke-linecap="round"/><circle cx="12" cy="18" r="1.3" fill="#5a3d00"/></svg>',
+      text:'AI가 알려준 게 진짜인지 잘 모르겠어요.',
+      good:'책이나 어른께 확인해요', bad:'무조건 그냥 믿어요',
+      why:'한 번 더 확인하면 실수를 줄일 수 있어요.' }
+  ];
+  var fixIdx = 0, fixCount = 0;
+  function startFix(){ fixIdx = 0; fixCount = 0; showFix(); go('s-fix'); }
+  function showFix(){
+    var f = FIX[fixIdx];
+    document.getElementById('fixProgress').textContent = '고치기 ' + (fixIdx+1) + ' / ' + FIX.length;
+    document.getElementById('fixCount').textContent = fixCount;
+    document.getElementById('fixBar').style.width = (fixIdx/FIX.length*100) + '%';
+    document.getElementById('fixIcon').innerHTML = f.icon;
+    document.getElementById('fixText').textContent = f.text;
+    document.getElementById('fixFb').classList.add('hide');
+    var wrap = document.getElementById('fixBtns'); wrap.innerHTML = '';
+    var opts = [{t:f.good, ok:true},{t:f.bad, ok:false}];
+    if(fixIdx % 2 === 1) opts.reverse();   // 정답 위치 섞기(색으로 안 티나게 둘 다 같은 스타일)
+    opts.forEach(function(o){
+      var b = document.createElement('button'); b.type = 'button'; b.className = 'ghost';
+      b.textContent = o.t; b.onclick = function(){ fixAnswer(o.ok); };
+      wrap.appendChild(b);
+    });
+  }
+  function fixAnswer(ok){
+    document.querySelectorAll('#fixBtns button').forEach(function(b){ b.disabled = true; });
+    if(ok) fixCount++;
+    document.getElementById('fixCount').textContent = fixCount;
+    var fb = document.getElementById('fixFb'); fb.classList.remove('hide');
+    document.getElementById('fixFbIcon').innerHTML = ok ? IC_CHECK : IC_WARN;
+    document.getElementById('fixFbVerdict').textContent = ok ? '착하게 고쳤어요! 🎉' : '다시 볼까요? 착한 쪽이 있어요.';
+    document.getElementById('fixWhy').textContent = '👉 ' + FIX[fixIdx].why;
+    document.getElementById('fixBar').style.width = ((fixIdx+1)/FIX.length*100) + '%';
+    document.getElementById('fixNextBtn').textContent = (fixIdx === FIX.length-1) ? '약속 쓰러 가기 ▶' : '다음';
+  }
+  function fixNext(){
+    if(fixIdx < FIX.length-1){ fixIdx++; showFix(); }
+    else{ go('s-end'); }
   }
 
   // ===== 나의 약속 =====

@@ -11,11 +11,13 @@
     --body:system-ui,"Apple SD Gothic Neo","Malgun Gothic",sans-serif;
   }
   *{ box-sizing:border-box; word-break:keep-all; }
-  html,body{ height:100%; margin:0; }
-  /* 배경(그라데이션)은 body에 — 발표 때 화면 전체를 채움 */
+  html,body{ margin:0; }
+  /* 배경은 body에. min-height:100vh + 세로 스크롤 → 내용이 길어도 위쪽까지 다 닿음
+     (height:100%로 고정하면 짧은 창에서 위가 잘려 안 보일 수 있음) */
   body{
-    font-family:var(--body); color:var(--ink);
+    font-family:var(--body); color:var(--ink); min-height:100vh;
     background:linear-gradient(160deg,#1f9d84 0%, var(--brand2) 100%);
+    background-attachment:fixed;
     display:flex; align-items:center; justify-content:center; padding:16px;
   }
   /* ===== 최상위 카드는 반드시 .wrap ===== (발표 때 가운데 크게, 안 잘림) */
