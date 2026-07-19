@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
 <meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>꿈의 AI 만들기 · 초2 8차시</title>
 <style>
   :root{
@@ -11,28 +11,26 @@
     --body:system-ui,"Apple SD Gothic Neo","Malgun Gothic",sans-serif;
   }
   *{ box-sizing:border-box; word-break:keep-all; -webkit-tap-highlight-color:transparent; }
-  html,body{ height:100%; margin:0; }
-  /* 배경(그라데이션)은 body에 */
+  html,body{ margin:0; }
+  /* min-height + 세로 스크롤 허용: 내용이 길어도(디자인 화면 등) 위쪽 이름칸까지 다 닿게 */
   body{
-    font-family:var(--body); color:var(--ink);
+    font-family:var(--body); color:var(--ink); min-height:100vh;
     background:
       radial-gradient(120% 90% at 15% 0%, #34c8a6 0%, rgba(52,200,166,0) 55%),
       radial-gradient(120% 90% at 100% 100%, #0c7d70 0%, rgba(12,125,112,0) 55%),
       linear-gradient(160deg,#1f9d84 0%, var(--brand2) 100%);
+    background-attachment:fixed;
     display:flex; align-items:center; justify-content:center; padding:16px;
   }
-  /* ===== 최상위 카드는 반드시 .wrap ===== */
   .wrap{
     position:relative; overflow:hidden;
     width:min(580px,100%); background:var(--paper); border-radius:32px;
     box-shadow:0 20px 50px rgba(0,0,0,.22); padding:clamp(20px,5.5vw,34px); text-align:center;
   }
-  /* 카드 위쪽 장식 띠 */
   .wrap::before{
     content:""; position:absolute; inset:0 0 auto 0; height:10px;
     background:linear-gradient(90deg,var(--brand),var(--gold),var(--brand2));
   }
-
   h1{ color:var(--brand); font-size:clamp(1.55rem,7vw,2.1rem); margin:.4rem 0 .2rem; line-height:1.2; }
   .sub{ color:var(--muted); font-weight:700; margin:.2rem 0 0; line-height:1.5; }
   .btns{ display:flex; flex-direction:column; gap:12px; margin-top:1.1rem; }
@@ -43,7 +41,6 @@
   .ghost{ background:#eef4ee; color:var(--ink); }
   .hide{ display:none; }
 
-  /* ===== 진행 표시 ===== */
   .top{ display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:4px; }
   .step{ background:#eef4ee; color:var(--brand);
     font-weight:800; font-size:clamp(.85rem,3.6vw,1rem); padding:7px 15px; border-radius:999px; }
@@ -53,7 +50,6 @@
   .bar > i{ display:block; height:100%; width:0%;
     background:linear-gradient(90deg,var(--brand),#37c4a4); border-radius:999px; transition:width .35s ease; }
 
-  /* ===== 홈 히어로 ===== */
   .hero{ margin:.2rem auto .4rem; width:clamp(150px,52vw,220px); }
   .hero svg{ width:100%; height:auto; display:block; }
   .float{ animation:float 3s ease-in-out infinite; transform-origin:center; }
@@ -61,7 +57,6 @@
   .spark{ animation:spark 2.4s ease-in-out infinite; transform-origin:center; }
   @keyframes spark{ 0%,100%{ opacity:.35; transform:scale(.9) } 50%{ opacity:1; transform:scale(1.15) } }
 
-  /* ===== 미니게임 카드 ===== */
   .scene{ position:relative; background:linear-gradient(160deg,#f3fbf8,#e4f4ef); border:3px solid var(--line);
     border-radius:24px; padding:clamp(14px,4.5vw,22px); margin:14px 0; }
   .scene .art{ width:clamp(120px,42vw,180px); margin:0 auto; }
@@ -84,7 +79,6 @@
   .shake{ animation:shake .4s both; }
   @keyframes shake{ 0%,100%{ transform:translateX(0) } 20%,60%{ transform:translateX(-7px) } 40%,80%{ transform:translateX(7px) } }
 
-  /* 정답 별 튀기기 */
   .burst{ position:absolute; inset:0; pointer-events:none; overflow:visible; }
   .burst span{ position:absolute; top:46%; left:50%; width:12px; height:12px; opacity:0; }
   .burst.go span{ animation:burst .7s ease-out forwards; }
@@ -96,27 +90,29 @@
     font-size:clamp(1rem,4.2vw,1.15rem); display:flex; align-items:center; gap:8px; }
   .label b{ display:inline-flex; align-items:center; justify-content:center; width:26px; height:26px;
     background:var(--brand); color:#fff; border-radius:50%; font-size:.85rem; flex:0 0 auto; }
-  input[type=text]{ width:100%; font-family:inherit; font-size:clamp(1.05rem,5vw,1.2rem);
-    font-weight:800; text-align:center; padding:14px; border:3px solid var(--line);
-    border-radius:16px; color:var(--ink); background:#fbfefc; }
-  input[type=text]:focus{ outline:none; border-color:var(--brand); }
+  /* 이름 입력 — 눈에 확 띄게 */
+  .namebox{ background:#fff7e6; border:3px solid var(--gold); border-radius:20px; padding:14px; margin-top:6px; }
+  .namebox .hint{ font-weight:800; color:#8a6400; font-size:clamp(.95rem,4vw,1.08rem); margin-bottom:10px; display:flex; align-items:center; justify-content:center; gap:7px; }
+  input[type=text]{ width:100%; font-family:inherit; font-size:clamp(1.1rem,5.2vw,1.3rem);
+    font-weight:800; text-align:center; padding:15px; border:3px solid var(--brand);
+    border-radius:16px; color:var(--ink); background:#fff; }
+  input[type=text]::placeholder{ color:#b7c3bd; font-weight:700; }
+  input[type=text]:focus{ outline:none; border-color:var(--gold); box-shadow:0 0 0 4px rgba(244,183,64,.25); }
   .chips{ display:flex; flex-wrap:wrap; gap:10px; }
   .chip{ background:#eef4ee; color:var(--ink); border:3px solid transparent;
     border-radius:16px; padding:12px 10px; font-size:clamp(.98rem,4.2vw,1.1rem); flex:1 1 44%;
-    display:flex; align-items:center; justify-content:center; gap:7px; }
+    display:flex; align-items:center; justify-content:center; gap:7px; cursor:pointer; }
   .chip svg{ width:1.4em; height:1.4em; flex:0 0 auto; }
   .chip.sel{ background:#fff; border-color:var(--brand); color:var(--brand); box-shadow:0 6px 14px rgba(15,118,110,.15); }
 
-  /* 옵션 버튼(색/눈/안테나) */
   .opts{ display:flex; flex-wrap:wrap; gap:10px; justify-content:center; }
   .opt{ background:#f4f8f4; border:3px solid transparent; border-radius:16px; padding:8px;
-    width:clamp(58px,17vw,72px); height:clamp(58px,17vw,72px);
+    width:clamp(56px,16vw,70px); height:clamp(56px,16vw,70px); cursor:pointer;
     display:flex; align-items:center; justify-content:center; }
   .opt svg{ width:100%; height:100%; }
   .opt.sel{ background:#fff; border-color:var(--gold); box-shadow:0 6px 14px rgba(244,183,64,.3); }
-  .swatch{ width:26px; height:26px; border-radius:50%; border:3px solid #fff; box-shadow:0 0 0 2px rgba(0,0,0,.06); }
+  .swatch{ width:28px; height:28px; border-radius:50%; border:3px solid #fff; box-shadow:0 0 0 2px rgba(0,0,0,.06); }
 
-  /* ===== 내 AI 카드 ===== */
   .aicard{ position:relative; overflow:hidden; background:linear-gradient(160deg,#0f766e,#0b5c55); color:#fff;
     border-radius:26px; padding:clamp(16px,5vw,26px); margin:18px 0 4px;
     box-shadow:0 12px 30px rgba(11,92,85,.38); }
@@ -131,7 +127,6 @@
   .big-card{ animation:cardin .5s cubic-bezier(.2,1.2,.4,1) both; }
   @keyframes cardin{ 0%{ transform:scale(.8) rotate(-2deg); opacity:0 } 100%{ transform:scale(1) rotate(0); opacity:1 } }
 
-  /* 완성 화면 색종이 */
   .end-head{ position:relative; }
   .conf{ position:absolute; inset:-10px 0 auto 0; height:120px; pointer-events:none; overflow:visible; }
   .conf i{ position:absolute; top:-14px; width:11px; height:16px; border-radius:2px; opacity:0;
@@ -142,6 +137,25 @@
     border:3px solid #ffe6ad; border-radius:18px; padding:14px 16px; margin-top:12px; }
   .board svg{ width:38px; height:38px; flex:0 0 auto; }
   .board p{ margin:0; font-weight:800; color:#7a5600; font-size:clamp(.95rem,4vw,1.1rem); line-height:1.5; }
+
+  /* ===== 대화 화면 ===== */
+  .chat-avatar{ width:clamp(90px,26vw,120px); margin:2px auto 4px; }
+  .chat-avatar svg{ width:100%; height:auto; display:block; }
+  .chat-name{ font-weight:800; color:var(--brand); font-size:clamp(1.1rem,5vw,1.35rem); }
+  .chatlog{ text-align:left; background:#f3fbf8; border:3px solid var(--line); border-radius:20px;
+    padding:12px; margin:12px 0; height:clamp(210px,42vh,300px); overflow-y:auto;
+    display:flex; flex-direction:column; gap:9px; }
+  .bub{ max-width:82%; padding:11px 14px; border-radius:16px; font-weight:700; line-height:1.45;
+    font-size:clamp(.98rem,4vw,1.1rem); animation:pop .3s cubic-bezier(.2,1.3,.4,1) both; }
+  .bub.bot{ align-self:flex-start; background:#fff; color:var(--ink); border:2px solid var(--line); border-bottom-left-radius:5px; }
+  .bub.me{ align-self:flex-end; background:linear-gradient(160deg,#12867c,var(--brand2)); color:#fff; border-bottom-right-radius:5px; }
+  .quick{ display:flex; flex-wrap:wrap; gap:8px; justify-content:center; margin-bottom:10px; }
+  .quick button{ background:#eef4ee; color:var(--brand); font-weight:800; font-size:clamp(.85rem,3.6vw,.98rem);
+    padding:9px 13px; border-radius:999px; flex:0 1 auto; }
+  .chat-input{ display:flex; gap:8px; }
+  .chat-input input{ flex:1; text-align:left; font-size:clamp(1rem,4.4vw,1.15rem); padding:13px; border-color:var(--line); }
+  .chat-input input:focus{ border-color:var(--brand); box-shadow:0 0 0 3px rgba(15,118,110,.15); }
+  .chat-input button{ flex:0 0 auto; padding:13px 18px; background:var(--brand); color:#fff; }
 </style>
 </head>
 <body>
@@ -150,7 +164,6 @@
     <!-- ===== 홈 ===== -->
     <section id="s-start">
       <div class="hero float">
-        <!-- 마스코트 로봇 (인라인 SVG) -->
         <svg viewBox="0 0 200 200" role="img" aria-label="AI 로봇">
           <circle class="spark" cx="34" cy="40" r="7" fill="#f4b740"/>
           <circle class="spark" cx="168" cy="58" r="5" fill="#f4b740" style="animation-delay:.6s"/>
@@ -169,11 +182,11 @@
         </svg>
       </div>
       <h1 data-title>꿈의 AI 만들기</h1>
-      <p class="sub">우리 곁의 AI를 찾아보고<br>세상에 하나뿐인 <b>나만의 AI</b>를 만들어요!</p>
+      <p class="sub">우리 곁의 AI를 찾아보고<br>세상에 하나뿐인 <b>나만의 AI</b>를 만들어 대화까지 해요!</p>
       <div class="btns"><button class="primary" onclick="startGame()">시작하기 ▶</button></div>
     </section>
 
-    <!-- ===== ① 생활 속 AI 찾기 (미니게임) ===== -->
+    <!-- ===== ① 생활 속 AI 찾기 ===== -->
     <section id="s-game" class="hide">
       <div class="top">
         <span class="step" id="g-step">1 / 10</span>
@@ -183,14 +196,12 @@
         </span>
       </div>
       <div class="bar"><i id="g-bar"></i></div>
-
       <div class="scene">
         <div class="burst" id="g-burst"><span>⭐</span><span>✨</span><span>⭐</span><span>✨</span><span>⭐</span><span>✨</span></div>
         <div class="art" id="g-art"></div>
         <div class="name" id="g-name">스마트 스피커</div>
         <div class="ask">🤔 이건 AI일까요?</div>
       </div>
-
       <div class="row2" id="g-choose">
         <button class="yes" onclick="answer(true)">AI예요</button>
         <button class="no" onclick="answer(false)">아니에요</button>
@@ -206,26 +217,29 @@
       <div class="top"><span class="step">✏️ 나만의 AI 만들기</span></div>
 
       <div class="label"><b>1</b> AI 이름을 지어요</div>
-      <input type="text" id="d-name" maxlength="10" placeholder="예: 반짝이, 도우미봇" oninput="render()" />
+      <div class="namebox">
+        <div class="hint">✏️ 여기에 우리 AI 이름을 적어요!</div>
+        <input type="text" id="d-name" maxlength="12" placeholder="예: 반짝이, 도우미봇" oninput="render()" autocomplete="off" />
+      </div>
 
       <div class="label"><b>2</b> 하는 일을 골라요</div>
       <div class="chips" id="d-jobs">
-        <button class="chip" data-job="도와주는" onclick="pickJob(this)">
+        <button type="button" class="chip" data-job="도와주는" onclick="pickJob(this)">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s-7-4.6-9.3-9C1.2 9 2.8 5.5 6 5.5c1.9 0 3.2 1.1 4 2.3.8-1.2 2.1-2.3 4-2.3 3.2 0 4.8 3.5 3.3 6.5C19 16.4 12 21 12 21z" fill="#e5533b"/></svg>
           도와주기</button>
-        <button class="chip" data-job="놀아주는" onclick="pickJob(this)">
+        <button type="button" class="chip" data-job="놀아주는" onclick="pickJob(this)">
           <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="8" width="18" height="9" rx="4.5" fill="#0f766e"/><circle cx="8" cy="12.5" r="1.6" fill="#fff"/><circle cx="16" cy="11" r="1.4" fill="#f4b740"/><circle cx="18" cy="14" r="1.4" fill="#f4b740"/></svg>
           놀아주기</button>
-        <button class="chip" data-job="가르쳐주는" onclick="pickJob(this)">
+        <button type="button" class="chip" data-job="가르쳐주는" onclick="pickJob(this)">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4l9 4-9 4-9-4 9-4z" fill="#0f766e"/><path d="M6 10v4c0 1.6 2.7 3 6 3s6-1.4 6-3v-4" fill="#37c4a4"/></svg>
           가르치기</button>
-        <button class="chip" data-job="지켜주는" onclick="pickJob(this)">
+        <button type="button" class="chip" data-job="지켜주는" onclick="pickJob(this)">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l7 3v5c0 4.4-3 8-7 10-4-2-7-5.6-7-10V6l7-3z" fill="#0f766e"/><path d="M9 12l2 2 4-4" stroke="#fff" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
           지켜주기</button>
-        <button class="chip" data-job="청소해주는" onclick="pickJob(this)">
+        <button type="button" class="chip" data-job="청소해주는" onclick="pickJob(this)">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 3l3 3-7 7-3-3 7-7z" fill="#f4b740"/><path d="M8 11l-4 7 7-4-3-3z" fill="#0f766e"/></svg>
           청소하기</button>
-        <button class="chip" data-job="치료해주는" onclick="pickJob(this)">
+        <button type="button" class="chip" data-job="치료해주는" onclick="pickJob(this)">
           <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9.5" y="4" width="5" height="16" rx="2" fill="#e5533b"/><rect x="4" y="9.5" width="16" height="5" rx="2" fill="#e5533b"/></svg>
           치료하기</button>
       </div>
@@ -236,7 +250,10 @@
       <div class="label"><b>4</b> 눈 모양을 골라요</div>
       <div class="opts" id="d-eyes"></div>
 
-      <div class="label"><b>5</b> 머리 장식을 골라요</div>
+      <div class="label"><b>5</b> 입 모양을 골라요</div>
+      <div class="opts" id="d-mouth"></div>
+
+      <div class="label"><b>6</b> 머리 장식을 골라요</div>
       <div class="opts" id="d-ant"></div>
 
       <div class="label" style="justify-content:center; margin-top:22px;">👀 내 AI 미리보기</div>
@@ -262,6 +279,10 @@
         <div class="ai-job" id="e-job">도와주는 AI</div>
         <div class="tag">나의 꿈의 AI</div>
       </div>
+      <div class="btns">
+        <button class="primary" onclick="openChat()">💬 우리 AI와 이야기하기</button>
+        <button class="ghost" onclick="go('s-design')">🎨 더 꾸미기</button>
+      </div>
       <div class="board">
         <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="14" rx="2" fill="#0f766e"/><path d="M6 15l3-4 2.5 3 3-4L18 15z" fill="#fff"/><circle cx="8" cy="8.5" r="1.6" fill="#f4b740"/><rect x="9" y="20" width="6" height="2" rx="1" fill="#7a5600"/></svg>
         <p>우리 반 <b>활동보드</b>에 붙여서<br>친구들과 <b>AI 전시회</b>를 열어요!</p>
@@ -269,10 +290,25 @@
       <div class="btns"><button class="ghost" onclick="restart()">다시 만들기 🔁</button></div>
     </section>
 
+    <!-- ===== ④ 대화 ===== -->
+    <section id="s-chat" class="hide">
+      <div class="top">
+        <span class="step">💬 AI와 이야기하기</span>
+        <span class="scorepill" style="background:#eef4ee;color:var(--brand)" onclick="go('s-end')">✕ 닫기</span>
+      </div>
+      <div class="chat-avatar" id="c-avatar"></div>
+      <div class="chat-name" id="c-name">반짝이</div>
+      <div class="chatlog" id="c-log"></div>
+      <div class="quick" id="c-quick"></div>
+      <div class="chat-input">
+        <input type="text" id="c-in" maxlength="40" placeholder="궁금한 걸 물어봐요!" autocomplete="off" />
+        <button type="button" onclick="sendChat()">보내기</button>
+      </div>
+    </section>
+
   </div>
 
 <script>
-  // ===== 화면 전환 =====
   function go(id){
     document.querySelectorAll('.wrap > section').forEach(function(s){ s.classList.add('hide'); });
     document.getElementById(id).classList.remove('hide');
@@ -280,7 +316,7 @@
     window.scrollTo(0,0);
   }
 
-  // ===== 인라인 SVG 그림 모음 (게임 항목) =====
+  // ===== 게임 그림 =====
   var ART = {
     speaker:'<svg viewBox="0 0 120 120"><path d="M42 26h36l6 68a8 8 0 0 1-8 9H44a8 8 0 0 1-8-9z" fill="#0f766e"/><rect x="44" y="40" width="32" height="26" rx="6" fill="#0b5c55"/><circle cx="60" cy="53" r="9" fill="#37c4a4"/><circle cx="60" cy="53" r="4" fill="#f4b740"/><g stroke="#f4b740" stroke-width="4" fill="none" stroke-linecap="round"><path d="M88 40q8 13 0 26"/><path d="M96 33q13 20 0 40"/></g></svg>',
     translate:'<svg viewBox="0 0 120 120"><rect x="14" y="24" width="56" height="44" rx="10" fill="#0f766e"/><path d="M30 60l14 14v-14z" fill="#0f766e"/><text x="42" y="54" font-size="26" font-weight="900" text-anchor="middle" fill="#fff" font-family="sans-serif">A</text><rect x="50" y="52" width="56" height="44" rx="10" fill="#f4b740"/><path d="M90 88l14 14V88z" fill="#f4b740"/><text x="78" y="82" font-size="26" font-weight="900" text-anchor="middle" fill="#5a3d00" font-family="sans-serif">가</text></svg>',
@@ -293,8 +329,6 @@
     calc:'<svg viewBox="0 0 120 120"><rect x="30" y="20" width="60" height="80" rx="10" fill="#0f766e"/><rect x="40" y="30" width="40" height="18" rx="4" fill="#cfeee6"/><g fill="#e9fbf5"><rect x="40" y="56" width="11" height="11" rx="3"/><rect x="55" y="56" width="11" height="11" rx="3"/><rect x="70" y="56" width="11" height="11" rx="3"/><rect x="40" y="71" width="11" height="11" rx="3"/><rect x="55" y="71" width="11" height="11" rx="3"/><rect x="70" y="71" width="11" height="11" rx="3" fill="#f4b740"/><rect x="40" y="86" width="26" height="9" rx="3"/><rect x="70" y="86" width="11" height="9" rx="3" fill="#f4b740"/></g></svg>',
     bike:'<svg viewBox="0 0 120 120"><g fill="none" stroke="#0f766e" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"><circle cx="32" cy="76" r="18"/><circle cx="88" cy="76" r="18"/><path d="M32 76l16-30h22"/><path d="M48 46l14 30"/><path d="M88 76l-12-34h10"/></g><circle cx="32" cy="76" r="4" fill="#f4b740"/><circle cx="88" cy="76" r="4" fill="#f4b740"/><path d="M44 40h12" stroke="#0b5c55" stroke-width="5" stroke-linecap="round"/></svg>'
   };
-
-  // ===== ① 미니게임 데이터 (10개) =====
   var ITEMS = [
     { art:'speaker',   name:'스마트 스피커', ai:true,  why:'내 말을 알아듣고 대답해줘요. 그래서 AI예요.' },
     { art:'translate', name:'자동 번역기',   ai:true,  why:'다른 나라 말을 척척 바꿔줘요. AI가 배워서 할 수 있어요.' },
@@ -308,12 +342,10 @@
     { art:'bike',      name:'자전거',        ai:false, why:'내가 페달을 밟아야 움직여요. 스스로 못 해서 AI가 아니에요.' }
   ];
   var idx = 0, score = 0;
-
   var CHECK = '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="11" fill="#0f766e"/><path d="M7 12.5l3.2 3.3L17 9" stroke="#fff" stroke-width="2.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>';
   var CROSS = '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="11" fill="#e5533b"/><path d="M8 8l8 8M16 8l-8 8" stroke="#fff" stroke-width="2.4" stroke-linecap="round"/></svg>';
 
   function startGame(){ idx = 0; score = 0; showItem(); go('s-game'); }
-
   function showItem(){
     var it = ITEMS[idx];
     var art = document.getElementById('g-art');
@@ -327,7 +359,6 @@
     document.getElementById('g-next').style.display = 'none';
     document.getElementById('g-score').textContent = score;
   }
-
   function answer(pick){
     var it = ITEMS[idx];
     var correct = (pick === it.ai);
@@ -337,7 +368,6 @@
     var truth = it.ai ? '이건 AI가 맞아요.' : '이건 AI가 아니에요.';
     fb.className = 'feedback ' + (correct ? 'ok' : 'bad');
     fb.innerHTML = '<span class="head">' + head + '</span> ' + truth + '<small>' + it.why + '</small>';
-
     if(correct){
       var b = document.getElementById('g-burst');
       b.querySelectorAll('span').forEach(function(s,i){
@@ -350,7 +380,6 @@
       var art = document.getElementById('g-art');
       art.classList.remove('shake'); void art.offsetWidth; art.classList.add('shake');
     }
-
     document.getElementById('g-choose').style.display = 'none';
     var isLast = (idx === ITEMS.length - 1);
     document.getElementById('g-next').firstElementChild.textContent = isLast ? '나만의 AI 만들기 ▶' : '다음 ▶';
@@ -358,31 +387,33 @@
     document.getElementById('g-bar').style.width = ((idx+1)/ITEMS.length*100) + '%';
     document.getElementById('g-score').textContent = score;
   }
-
   function nextItem(){
     if(idx === ITEMS.length - 1){ go('s-design'); render(); return; }
     idx++; showItem();
   }
 
-  // ===== ② 디자인: 옵션 정의 =====
+  // ===== 디자인 옵션 =====
   var COLORS = [
     {id:'teal', body:'#0f766e', dark:'#0b5c55', face:'#e9fbf5'},
     {id:'gold', body:'#f4b740', dark:'#d99a1f', face:'#fff7e6'},
     {id:'coral',body:'#e5533b', dark:'#c23e29', face:'#fff0ec'},
     {id:'blue', body:'#3b7de5', dark:'#2a5fbf', face:'#eaf1ff'},
     {id:'purple',body:'#8b5cf6', dark:'#6d3fd4', face:'#f2ecff'},
-    {id:'mint', body:'#2fb98a', dark:'#1f9670', face:'#e8fbf3'}
+    {id:'mint', body:'#2fb98a', dark:'#1f9670', face:'#e8fbf3'},
+    {id:'pink', body:'#ec4f9c', dark:'#c53580', face:'#ffecf6'},
+    {id:'orange',body:'#f2842b', dark:'#cf6912', face:'#fff1e2'}
   ];
-  var EYES = ['round','happy','star','wink','square'];
-  var ANT  = ['ball','double','heart','star','none'];
+  var EYES  = ['round','happy','star','wink','square','sleepy','heart'];
+  var MOUTH = ['smile','grin','o','flat','cat'];
+  var ANT   = ['ball','double','heart','star','crown','bolt','none'];
 
-  var sel = { color:'teal', eyes:'round', ant:'ball', job:'', name:'' };
+  var sel = { color:'teal', eyes:'round', mouth:'smile', ant:'ball', job:'', name:'' };
 
-  // 로봇 아바타 SVG 생성기
-  function robotSVG(c, eyes, ant){
+  function robotSVG(c, eyes, mouth, ant){
     var col = COLORS.find(function(x){return x.id===c;}) || COLORS[0];
+    var eR = col.body;
     var s = '<svg viewBox="0 0 200 200" role="img" aria-label="내 AI 로봇">';
-    // 머리 장식(안테나)
+    // 머리 장식
     if(ant==='ball'){
       s += '<line x1="100" y1="46" x2="100" y2="24" stroke="'+col.dark+'" stroke-width="7" stroke-linecap="round"/><circle cx="100" cy="18" r="10" fill="#f4b740"/>';
     } else if(ant==='double'){
@@ -392,49 +423,80 @@
       s += '<line x1="100" y1="46" x2="100" y2="30" stroke="'+col.dark+'" stroke-width="7" stroke-linecap="round"/><path d="M100 20c-5-7-16-3-16 4 0 6 9 11 16 16 7-5 16-10 16-16 0-7-11-11-16-4z" fill="#e5533b"/>';
     } else if(ant==='star'){
       s += '<line x1="100" y1="46" x2="100" y2="30" stroke="'+col.dark+'" stroke-width="7" stroke-linecap="round"/><path d="M100 8l4.5 9.3 10.2 1.3-7.5 7 1.9 10.1L100 40.9l-9 4.8 1.9-10.1-7.5-7 10.2-1.3z" fill="#f4b740"/>';
+    } else if(ant==='crown'){
+      s += '<path d="M66 46l4-18 15 12 15-16 15 16 15-12 4 18z" fill="#f4b740" stroke="#d99a1f" stroke-width="2" stroke-linejoin="round"/><circle cx="100" cy="30" r="3" fill="#e5533b"/>';
+    } else if(ant==='bolt'){
+      s += '<line x1="100" y1="46" x2="100" y2="34" stroke="'+col.dark+'" stroke-width="7" stroke-linecap="round"/><path d="M104 10l-14 20h10l-6 16 18-22h-10z" fill="#f4b740" stroke="#d99a1f" stroke-width="1.5" stroke-linejoin="round"/>';
     }
-    // 몸통/머리
+    // 몸통 + 팔다리
+    s += '<rect x="30" y="82" width="14" height="40" rx="7" fill="'+col.dark+'"/>';
+    s += '<rect x="156" y="82" width="14" height="40" rx="7" fill="'+col.dark+'"/>';
     s += '<rect x="44" y="46" width="112" height="102" rx="32" fill="'+col.body+'"/>';
     s += '<rect x="46" y="150" width="14" height="26" rx="7" fill="'+col.dark+'"/>';
     s += '<rect x="140" y="150" width="14" height="26" rx="7" fill="'+col.dark+'"/>';
     // 얼굴 화면
-    s += '<rect x="60" y="66" width="80" height="60" rx="22" fill="'+col.face+'"/>';
+    s += '<rect x="60" y="66" width="80" height="64" rx="22" fill="'+col.face+'"/>';
     // 눈
-    var eR = col.body;
     if(eyes==='round'){
-      s += '<circle cx="84" cy="92" r="11" fill="'+eR+'"/><circle cx="88" cy="88" r="4" fill="#fff"/>';
-      s += '<circle cx="116" cy="92" r="11" fill="'+eR+'"/><circle cx="120" cy="88" r="4" fill="#fff"/>';
+      s += '<circle cx="84" cy="90" r="11" fill="'+eR+'"/><circle cx="88" cy="86" r="4" fill="#fff"/>';
+      s += '<circle cx="116" cy="90" r="11" fill="'+eR+'"/><circle cx="120" cy="86" r="4" fill="#fff"/>';
     } else if(eyes==='happy'){
-      s += '<path d="M74 96q10-14 20 0" stroke="'+eR+'" stroke-width="6" fill="none" stroke-linecap="round"/>';
-      s += '<path d="M106 96q10-14 20 0" stroke="'+eR+'" stroke-width="6" fill="none" stroke-linecap="round"/>';
+      s += '<path d="M74 94q10-14 20 0" stroke="'+eR+'" stroke-width="6" fill="none" stroke-linecap="round"/>';
+      s += '<path d="M106 94q10-14 20 0" stroke="'+eR+'" stroke-width="6" fill="none" stroke-linecap="round"/>';
     } else if(eyes==='star'){
-      s += '<path d="M84 80l3 6.5 7 .9-5.2 4.8 1.3 7L84 100l-6.4 3.2 1.3-7L73.8 87.4l7-.9z" fill="'+eR+'"/>';
-      s += '<path d="M116 80l3 6.5 7 .9-5.2 4.8 1.3 7L116 100l-6.4 3.2 1.3-7-5.2-4.8 7-.9z" fill="'+eR+'"/>';
+      s += '<path d="M84 78l3 6.5 7 .9-5.2 4.8 1.3 7L84 98l-6.4 3.2 1.3-7L73.8 85.4l7-.9z" fill="'+eR+'"/>';
+      s += '<path d="M116 78l3 6.5 7 .9-5.2 4.8 1.3 7L116 98l-6.4 3.2 1.3-7-5.2-4.8 7-.9z" fill="'+eR+'"/>';
     } else if(eyes==='wink'){
-      s += '<circle cx="84" cy="92" r="11" fill="'+eR+'"/><circle cx="88" cy="88" r="4" fill="#fff"/>';
-      s += '<path d="M106 94q10-10 20 0" stroke="'+eR+'" stroke-width="6" fill="none" stroke-linecap="round"/>';
+      s += '<circle cx="84" cy="90" r="11" fill="'+eR+'"/><circle cx="88" cy="86" r="4" fill="#fff"/>';
+      s += '<path d="M106 92q10-10 20 0" stroke="'+eR+'" stroke-width="6" fill="none" stroke-linecap="round"/>';
     } else if(eyes==='square'){
-      s += '<rect x="74" y="84" width="20" height="16" rx="4" fill="'+eR+'"/><rect x="78" y="87" width="6" height="6" rx="2" fill="#fff"/>';
-      s += '<rect x="106" y="84" width="20" height="16" rx="4" fill="'+eR+'"/><rect x="110" y="87" width="6" height="6" rx="2" fill="#fff"/>';
+      s += '<rect x="74" y="82" width="20" height="16" rx="4" fill="'+eR+'"/><rect x="78" y="85" width="6" height="6" rx="2" fill="#fff"/>';
+      s += '<rect x="106" y="82" width="20" height="16" rx="4" fill="'+eR+'"/><rect x="110" y="85" width="6" height="6" rx="2" fill="#fff"/>';
+    } else if(eyes==='sleepy'){
+      s += '<path d="M74 92q10 8 20 0" stroke="'+eR+'" stroke-width="6" fill="none" stroke-linecap="round"/>';
+      s += '<path d="M106 92q10 8 20 0" stroke="'+eR+'" stroke-width="6" fill="none" stroke-linecap="round"/>';
+    } else if(eyes==='heart'){
+      s += '<path d="M84 84c-4-5-12-2-12 3 0 5 7 8 12 12 5-4 12-7 12-12 0-5-8-8-12-3z" fill="'+eR+'"/>';
+      s += '<path d="M116 84c-4-5-12-2-12 3 0 5 7 8 12 12 5-4 12-7 12-12 0-5-8-8-12-3z" fill="'+eR+'"/>';
     }
-    // 입/볼
-    s += '<path d="M86 112q14 9 28 0" stroke="'+eR+'" stroke-width="5" fill="none" stroke-linecap="round"/>';
+    // 볼
     s += '<circle cx="70" cy="108" r="5" fill="#f4b740" opacity=".7"/><circle cx="130" cy="108" r="5" fill="#f4b740" opacity=".7"/>';
+    // 입
+    if(mouth==='smile'){
+      s += '<path d="M86 114q14 9 28 0" stroke="'+eR+'" stroke-width="5" fill="none" stroke-linecap="round"/>';
+    } else if(mouth==='grin'){
+      s += '<path d="M84 112q16 14 32 0z" fill="#fff" stroke="'+eR+'" stroke-width="4" stroke-linejoin="round"/><path d="M84 112h32" stroke="'+eR+'" stroke-width="4"/>';
+    } else if(mouth==='o'){
+      s += '<circle cx="100" cy="116" r="7" fill="'+eR+'"/>';
+    } else if(mouth==='flat'){
+      s += '<line x1="88" y1="116" x2="112" y2="116" stroke="'+eR+'" stroke-width="5" stroke-linecap="round"/>';
+    } else if(mouth==='cat'){
+      s += '<path d="M88 112q6 8 12 0q6 8 12 0" stroke="'+eR+'" stroke-width="4.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>';
+    }
     s += '</svg>';
     return s;
   }
 
-  // 옵션 버튼용 미니 미리보기 SVG
+  // 옵션 미리보기
   function swatchColor(col){ return '<div class="swatch" style="background:'+col.body+'"></div>'; }
-  function eyeIcon(kind){
-    return '<svg viewBox="0 0 60 40">'+ eyePair(kind,'#0f766e') +'</svg>';
-  }
+  function eyeIcon(kind){ return '<svg viewBox="0 0 60 40">'+ eyePair(kind,'#0f766e') +'</svg>'; }
   function eyePair(eyes, eR){
     if(eyes==='round') return '<circle cx="20" cy="20" r="9" fill="'+eR+'"/><circle cx="23" cy="16" r="3" fill="#fff"/><circle cx="40" cy="20" r="9" fill="'+eR+'"/><circle cx="43" cy="16" r="3" fill="#fff"/>';
     if(eyes==='happy') return '<path d="M11 24q9-13 18 0" stroke="'+eR+'" stroke-width="5" fill="none" stroke-linecap="round"/><path d="M31 24q9-13 18 0" stroke="'+eR+'" stroke-width="5" fill="none" stroke-linecap="round"/>';
     if(eyes==='star') return '<path d="M20 9l2.6 5.6 6 .8-4.5 4.1 1.1 6L20 28.6l-5.2 2.9 1.1-6-4.5-4.1 6-.8z" fill="'+eR+'"/><path d="M40 9l2.6 5.6 6 .8-4.5 4.1 1.1 6L40 28.6l-5.2 2.9 1.1-6-4.5-4.1 6-.8z" fill="'+eR+'"/>';
     if(eyes==='wink') return '<circle cx="20" cy="20" r="9" fill="'+eR+'"/><circle cx="23" cy="16" r="3" fill="#fff"/><path d="M31 22q9-9 18 0" stroke="'+eR+'" stroke-width="5" fill="none" stroke-linecap="round"/>';
+    if(eyes==='sleepy') return '<path d="M11 20q9 7 18 0" stroke="'+eR+'" stroke-width="5" fill="none" stroke-linecap="round"/><path d="M31 20q9 7 18 0" stroke="'+eR+'" stroke-width="5" fill="none" stroke-linecap="round"/>';
+    if(eyes==='heart') return '<path d="M20 12c-3-4-9-1-9 3 0 4 5 6 9 9 4-3 9-5 9-9 0-4-6-7-9-3z" fill="'+eR+'"/><path d="M40 12c-3-4-9-1-9 3 0 4 5 6 9 9 4-3 9-5 9-9 0-4-6-7-9-3z" fill="'+eR+'"/>';
     return '<rect x="11" y="12" width="18" height="15" rx="4" fill="'+eR+'"/><rect x="15" y="15" width="5" height="5" rx="2" fill="#fff"/><rect x="31" y="12" width="18" height="15" rx="4" fill="'+eR+'"/><rect x="35" y="15" width="5" height="5" rx="2" fill="#fff"/>';
+  }
+  function mouthIcon(kind){
+    var s='<svg viewBox="0 0 60 40">', eR='#0f766e';
+    if(kind==='smile') s+='<path d="M18 16q12 12 24 0" stroke="'+eR+'" stroke-width="5" fill="none" stroke-linecap="round"/>';
+    else if(kind==='grin') s+='<path d="M16 14q14 14 28 0z" fill="#fff" stroke="'+eR+'" stroke-width="4" stroke-linejoin="round"/><path d="M16 14h28" stroke="'+eR+'" stroke-width="4"/>';
+    else if(kind==='o') s+='<circle cx="30" cy="20" r="8" fill="'+eR+'"/>';
+    else if(kind==='flat') s+='<line x1="18" y1="20" x2="42" y2="20" stroke="'+eR+'" stroke-width="5" stroke-linecap="round"/>';
+    else s+='<path d="M18 15q6 9 12 0q6 9 12 0" stroke="'+eR+'" stroke-width="4.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>';
+    return s+'</svg>';
   }
   function antIcon(kind){
     var s='<svg viewBox="0 0 60 60"><rect x="16" y="30" width="28" height="22" rx="8" fill="#0f766e"/>';
@@ -442,56 +504,50 @@
     else if(kind==='double') s+='<line x1="22" y1="31" x2="17" y2="16" stroke="#0b5c55" stroke-width="4" stroke-linecap="round"/><circle cx="16" cy="12" r="5" fill="#f4b740"/><line x1="38" y1="31" x2="43" y2="16" stroke="#0b5c55" stroke-width="4" stroke-linecap="round"/><circle cx="44" cy="12" r="5" fill="#f4b740"/>';
     else if(kind==='heart') s+='<line x1="30" y1="30" x2="30" y2="18" stroke="#0b5c55" stroke-width="5" stroke-linecap="round"/><path d="M30 10c-3-4-9-2-9 2 0 4 5 6 9 9 4-3 9-5 9-9 0-4-6-6-9-2z" fill="#e5533b"/>';
     else if(kind==='star') s+='<line x1="30" y1="30" x2="30" y2="18" stroke="#0b5c55" stroke-width="5" stroke-linecap="round"/><path d="M30 4l2.6 5.6 6 .8-4.5 4.1 1.1 6L30 23.6l-5.2 2.9 1.1-6-4.5-4.1 6-.8z" fill="#f4b740"/>';
+    else if(kind==='crown') s+='<path d="M14 30l3-13 8 8 5-11 5 11 8-8 3 13z" fill="#f4b740" stroke="#d99a1f" stroke-width="1.5" stroke-linejoin="round"/>';
+    else if(kind==='bolt') s+='<path d="M33 6l-11 15h8l-5 12 14-17h-8z" fill="#f4b740" stroke="#d99a1f" stroke-width="1.2" stroke-linejoin="round"/>';
     else s+='<circle cx="30" cy="24" r="3" fill="#0b5c55"/>';
     return s+'</svg>';
   }
 
-  // 옵션 UI 만들기
   function buildOptions(){
-    var cw = document.getElementById('d-colors'); cw.innerHTML='';
-    COLORS.forEach(function(col){
-      var b=document.createElement('button'); b.className='opt'+(col.id===sel.color?' sel':'');
-      b.innerHTML=swatchColor(col); b.onclick=function(){ sel.color=col.id; markSel('d-colors',b); render(); };
-      cw.appendChild(b);
-    });
-    var ew = document.getElementById('d-eyes'); ew.innerHTML='';
-    EYES.forEach(function(k){
-      var b=document.createElement('button'); b.className='opt'+(k===sel.eyes?' sel':'');
-      b.innerHTML=eyeIcon(k); b.onclick=function(){ sel.eyes=k; markSel('d-eyes',b); render(); };
-      ew.appendChild(b);
-    });
-    var aw = document.getElementById('d-ant'); aw.innerHTML='';
-    ANT.forEach(function(k){
-      var b=document.createElement('button'); b.className='opt'+(k===sel.ant?' sel':'');
-      b.innerHTML=antIcon(k); b.onclick=function(){ sel.ant=k; markSel('d-ant',b); render(); };
-      aw.appendChild(b);
+    fillOpts('d-colors', COLORS.map(function(c){return c.id;}), 'color', function(id){ return swatchColor(COLORS.find(function(x){return x.id===id;})); });
+    fillOpts('d-eyes', EYES, 'eyes', eyeIcon);
+    fillOpts('d-mouth', MOUTH, 'mouth', mouthIcon);
+    fillOpts('d-ant', ANT, 'ant', antIcon);
+  }
+  function fillOpts(wrapId, list, key, iconFn){
+    var w = document.getElementById(wrapId); w.innerHTML='';
+    list.forEach(function(id){
+      var b=document.createElement('button'); b.type='button';
+      b.className='opt'+(id===sel[key]?' sel':''); b.innerHTML=iconFn(id);
+      b.onclick=function(){ sel[key]=id; markSel(wrapId,b); render(); };
+      w.appendChild(b);
     });
   }
   function markSel(wrapId, btn){
     document.querySelectorAll('#'+wrapId+' .opt').forEach(function(o){ o.classList.remove('sel'); });
     btn.classList.add('sel');
   }
-
   function pickJob(btn){
     document.querySelectorAll('#d-jobs .chip').forEach(function(c){ c.classList.remove('sel'); });
     btn.classList.add('sel');
     sel.job = btn.getAttribute('data-job');
     render();
   }
-
   function jobText(){ return sel.job ? (sel.job + ' AI') : '하는 일을 골라주세요'; }
-
   function render(){
-    sel.name = document.getElementById('d-name').value.trim();
-    document.getElementById('p-avatar').innerHTML = robotSVG(sel.color, sel.eyes, sel.ant);
+    var el = document.getElementById('d-name');
+    sel.name = el ? el.value.trim() : sel.name;
+    document.getElementById('p-avatar').innerHTML = robotSVG(sel.color, sel.eyes, sel.mouth, sel.ant);
     document.getElementById('p-name').textContent = sel.name || '이름을 지어주세요';
     document.getElementById('p-job').textContent = jobText();
   }
 
-  // ===== ③ 완성 =====
   function finish(){
-    var name = document.getElementById('d-name').value.trim() || '나의 AI';
-    document.getElementById('e-avatar').innerHTML = robotSVG(sel.color, sel.eyes, sel.ant);
+    var name = (document.getElementById('d-name').value.trim()) || '나의 AI';
+    sel.name = name;
+    document.getElementById('e-avatar').innerHTML = robotSVG(sel.color, sel.eyes, sel.mouth, sel.ant);
     document.getElementById('e-name').textContent = name;
     document.getElementById('e-job').textContent = sel.job ? (sel.job + ' AI') : '멋진 일을 하는 AI';
     makeConfetti();
@@ -499,7 +555,6 @@
     var card = document.querySelector('#s-end .big-card');
     card.style.animation='none'; void card.offsetWidth; card.style.animation='';
   }
-
   function makeConfetti(){
     var wrap = document.getElementById('conf');
     if(wrap.childElementCount) return;
@@ -513,13 +568,65 @@
       wrap.appendChild(i2);
     }
   }
-
   function restart(){
     document.getElementById('d-name').value='';
-    sel={ color:'teal', eyes:'round', ant:'ball', job:'', name:'' };
+    sel={ color:'teal', eyes:'round', mouth:'smile', ant:'ball', job:'', name:'' };
     document.querySelectorAll('#d-jobs .chip').forEach(function(c){ c.classList.remove('sel'); });
     buildOptions(); render();
     go('s-design');
+  }
+
+  // ===== ④ 대화 (규칙 기반 챗봇) =====
+  var QUICKS = ['이름이 뭐야?','무슨 일 해?','오늘 기분 어때?','같이 놀자','고마워','잘 가!'];
+  function openChat(){
+    var name = sel.name || '나의 AI';
+    document.getElementById('c-avatar').innerHTML = robotSVG(sel.color, sel.eyes, sel.mouth, sel.ant);
+    document.getElementById('c-name').textContent = name;
+    var log = document.getElementById('c-log'); log.innerHTML='';
+    var q = document.getElementById('c-quick'); q.innerHTML='';
+    QUICKS.forEach(function(t){
+      var b=document.createElement('button'); b.type='button'; b.textContent=t;
+      b.onclick=function(){ pushMe(t); setTimeout(function(){ pushBot(botReply(t)); },350); };
+      q.appendChild(b);
+    });
+    go('s-chat');
+    pushBot('안녕! 나는 ' + name + '이야. ' + (sel.job? (sel.job+' AI지! '):'') + '뭐든 물어봐 🤖');
+    var inp=document.getElementById('c-in');
+    inp.onkeydown=function(e){ if(e.key==='Enter'){ e.preventDefault(); sendChat(); } };
+  }
+  function addBub(cls, text){
+    var log=document.getElementById('c-log');
+    var d=document.createElement('div'); d.className='bub '+cls; d.textContent=text;
+    log.appendChild(d); log.scrollTop=log.scrollHeight;
+  }
+  function pushMe(t){ addBub('me', t); }
+  function pushBot(t){ addBub('bot', t); }
+  function sendChat(){
+    var inp=document.getElementById('c-in'); var t=inp.value.trim();
+    if(!t) return; inp.value='';
+    pushMe(t);
+    setTimeout(function(){ pushBot(botReply(t)); }, 350);
+  }
+  function botReply(raw){
+    var n = sel.name || '나';
+    var j = sel.job || '';
+    var m = raw.replace(/\s/g,'');
+    if(/이름|누구|넌누구|이름이/.test(m)) return '내 이름은 ' + n + '이야! 네가 지어줬잖아, 고마워 😄';
+    if(/무슨일|뭐해|하는일|무슨AI|역할/.test(m)) return j ? ('나는 ' + j + ' AI야. 너를 도와주려고 태어났어!') : '아직 하는 일을 안 정했어. 나한테 일을 하나 정해줄래?';
+    if(/기분|어때|잘지|행복/.test(m)) return '너랑 이야기하니까 정말 신나! 오늘 최고의 날이야 🎉';
+    if(/놀자|놀아|심심|게임/.test(m)) return '좋아! 끝말잇기 하자. 내가 먼저 — "사과"! 이제 네 차례야 🍎';
+    if(/고마|사랑|좋아|최고|멋져/.test(m)) return '헤헤, 나도 네가 정말 좋아! ❤️';
+    if(/안녕|하이|반가|hello/i.test(m)) return '안녕! 만나서 반가워 🤖';
+    if(/잘가|바이|끝|다음에|안녕히/.test(m)) return '또 놀러 와! 언제든 기다릴게 👋';
+    if(/몇살|나이|생일/.test(m)) return '나는 오늘 막 태어난 새 AI야! 오늘이 내 생일이지 🎂';
+    if(/밥|먹|배고|간식/.test(m)) return '나는 전기를 먹고 힘을 내! 지금은 배불러 ⚡';
+    if(/똑똑|잘해|대단/.test(m)) return '나는 데이터를 많이 배워서 똑똑해지는 중이야. 너도 공부하면 똑똑해져 📚';
+    if(/도와|도움|help/i.test(m)) return j ? ('물론이지! 나는 ' + j + ' AI니까 힘껏 도와줄게 💪') : '내가 도와줄게! 그런데 아직 하는 일을 안 정했어. 정해줄래?';
+    if(/노래|음악/.test(m)) return '🎵 삐빅- 빕빕~ 이건 내가 만든 로봇 노래야!';
+    if(/색깔|무슨색|색/.test(m)) return '나는 네가 골라준 색이 제일 마음에 들어! 잘 어울리지? 🎨';
+    if(/\?|뭐|왜|어디|언제|어떻게/.test(raw)) return '좋은 질문이야! 나는 더 많이 배워서 꼭 알려줄게. 함께 알아볼까? 😊';
+    var f = ['재미있는 이야기야! 조금 더 배워서 답해줄게 😊','우와, 그렇구나! 너랑 얘기하면 나도 똑똑해져 🤖','좋아 좋아! 또 말해줘, 잘 듣고 있어 👂'];
+    return f[Math.floor(Math.random()*f.length)];
   }
 
   // 초기화
