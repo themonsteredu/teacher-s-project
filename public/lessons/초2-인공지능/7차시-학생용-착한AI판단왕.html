@@ -18,134 +18,362 @@
     font-family:var(--body); color:var(--ink);
     background:linear-gradient(160deg,#1f9d84 0%, var(--brand2) 100%);
     display:flex; align-items:center; justify-content:center; padding:16px;
+    min-height:100%;
+  }
+  /* 반짝이 배경 장식 */
+  body::before{
+    content:""; position:fixed; inset:0; z-index:0; pointer-events:none;
+    background:
+      radial-gradient(circle at 12% 18%, rgba(255,255,255,.14) 0 3px, transparent 4px),
+      radial-gradient(circle at 82% 12%, rgba(255,255,255,.12) 0 4px, transparent 5px),
+      radial-gradient(circle at 68% 82%, rgba(255,255,255,.12) 0 3px, transparent 4px),
+      radial-gradient(circle at 22% 78%, rgba(255,255,255,.10) 0 4px, transparent 5px);
   }
   /* ===== 최상위 카드는 반드시 .wrap ===== */
   .wrap{
-    width:min(560px,100%); background:var(--paper); border-radius:30px;
-    box-shadow:0 16px 40px rgba(0,0,0,.18); padding:clamp(22px,6vw,34px); text-align:center;
+    position:relative; z-index:1;
+    width:min(580px,100%); background:var(--paper); border-radius:32px;
+    box-shadow:0 18px 46px rgba(0,0,0,.22); padding:clamp(20px,6vw,34px); text-align:center;
+    overflow:hidden;
   }
-  .mascot{ font-size:clamp(48px,16vw,72px); line-height:1; }
-  h1{ color:var(--brand); font-size:clamp(1.5rem,7vw,2rem); margin:.4rem 0 .2rem; }
-  .sub{ color:var(--muted); font-weight:700; font-size:clamp(1rem,4.5vw,1.15rem); }
-  .item{ font-size:clamp(1.15rem,5vw,1.45rem); font-weight:800; margin:1rem 0; line-height:1.4; }
-  .btns{ display:flex; flex-direction:column; gap:12px; margin-top:1rem; }
-  button{ font-family:inherit; font-weight:800; font-size:clamp(1.05rem,5vw,1.2rem);
-          border:0; border-radius:16px; padding:16px; cursor:pointer; }
-  .primary{ background:var(--brand); color:#fff; }
-  .good{ background:#0f766e; color:#fff; }
-  .warn{ background:var(--gold); color:var(--ink); }
+
+  /* 마스코트(인라인 SVG) */
+  .mascot{ width:clamp(96px,30vw,140px); height:auto; margin:0 auto; display:block; }
+  .mascot.bob{ animation:bob 2.4s ease-in-out infinite; }
+  @keyframes bob{ 0%,100%{ transform:translateY(0) } 50%{ transform:translateY(-8px) } }
+
+  h1{ color:var(--brand); font-size:clamp(1.6rem,7.5vw,2.15rem); margin:.5rem 0 .2rem; letter-spacing:-.5px; }
+  .sub{ color:var(--muted); font-weight:700; font-size:clamp(1rem,4.6vw,1.18rem); line-height:1.45; }
+
+  /* 시작화면 안내 pill */
+  .pills{ display:flex; flex-wrap:wrap; gap:8px; justify-content:center; margin:1rem 0 .2rem; }
+  .pill{ background:#eef7f2; color:var(--brand); font-weight:800;
+         font-size:clamp(.85rem,3.8vw,1rem); padding:9px 14px; border-radius:999px;
+         display:inline-flex; align-items:center; gap:6px; }
+  .pill svg{ width:18px; height:18px; }
+
+  .item{ font-size:clamp(1.2rem,5.4vw,1.55rem); font-weight:800; margin:1rem 0; line-height:1.45; color:var(--ink); }
+  .btns{ display:flex; flex-direction:column; gap:12px; margin-top:1.1rem; }
+  button{ font-family:inherit; font-weight:800; font-size:clamp(1.05rem,5vw,1.22rem);
+          border:0; border-radius:18px; padding:16px; cursor:pointer;
+          display:inline-flex; align-items:center; justify-content:center; gap:10px;
+          transition:transform .12s ease, box-shadow .12s ease; }
+  button:active{ transform:scale(.97); }
+  button svg{ width:26px; height:26px; flex:none; }
+  .primary{ background:var(--brand); color:#fff; box-shadow:0 6px 0 var(--brand2); }
+  .primary:active{ box-shadow:0 2px 0 var(--brand2); }
+  .good{ background:#0f766e; color:#fff; box-shadow:0 6px 0 #0b5c55; }
+  .good:active{ box-shadow:0 2px 0 #0b5c55; }
+  .warn{ background:var(--gold); color:var(--ink); box-shadow:0 6px 0 #d69a1f; }
+  .warn:active{ box-shadow:0 2px 0 #d69a1f; }
   .ghost{ background:#eef4ee; color:var(--ink); }
-  button:disabled{ opacity:.55; cursor:default; }
+  button:disabled{ opacity:.5; cursor:default; box-shadow:none; transform:none; }
   .hide{ display:none; }
 
-  /* 진행 표시 & 점수 */
+  /* 상단 진행/점수 바 */
   .top{ display:flex; justify-content:space-between; align-items:center;
-        font-weight:800; color:var(--muted); margin-bottom:.4rem; }
-  .top .score{ color:var(--gold); }
+        font-weight:800; color:var(--muted); margin-bottom:.6rem; font-size:clamp(.95rem,4vw,1.1rem); }
+  .top .score{ color:var(--ink); background:#fff7e4; border:2px solid var(--gold);
+               padding:5px 12px; border-radius:999px; display:inline-flex; align-items:center; gap:6px; }
+  .top .score svg{ width:20px; height:20px; }
+  .top .score b{ color:var(--warn); min-width:1ch; }
+  /* 진행 막대 */
+  .bar{ height:14px; background:#e9f1ec; border-radius:999px; overflow:hidden; margin-bottom:1rem; }
+  .bar > i{ display:block; height:100%; width:0%;
+            background:linear-gradient(90deg,#1fb894,var(--brand));
+            border-radius:999px; transition:width .5s cubic-bezier(.3,1,.4,1); }
+
   /* 상황 카드 */
-  .situation{ background:#f2f8f4; border:3px dashed var(--brand); border-radius:22px;
-              padding:clamp(16px,5vw,24px); }
-  .situation .face{ font-size:clamp(40px,13vw,58px); line-height:1; }
+  .situation{ background:#f2f8f4; border:3px dashed var(--brand); border-radius:24px;
+              padding:clamp(16px,5vw,26px); animation:pop .35s ease; }
+  @keyframes pop{ 0%{ transform:scale(.94); opacity:0 } 100%{ transform:scale(1); opacity:1 } }
+  .sceneIcon{ width:clamp(74px,22vw,104px); height:clamp(74px,22vw,104px); margin:0 auto .4rem; display:block; }
+  .tag{ display:inline-block; background:var(--brand); color:#fff; font-weight:800;
+        font-size:clamp(.8rem,3.6vw,.95rem); padding:5px 13px; border-radius:999px; margin-bottom:.3rem; }
+
   /* 피드백 */
-  .feedback{ border-radius:20px; padding:clamp(16px,5vw,22px); margin-top:1rem; }
+  .feedback{ border-radius:22px; padding:clamp(16px,5vw,22px); margin-top:1rem; animation:pop .3s ease; }
   .feedback.ok{ background:#e7f5ee; border:3px solid var(--good); }
   .feedback.no{ background:#fdf1e0; border:3px solid var(--warn); }
-  .feedback .verdict{ font-size:clamp(1.2rem,5.5vw,1.5rem); font-weight:900; }
+  .fbHead{ display:flex; align-items:center; justify-content:center; gap:10px; }
+  .fbHead svg{ width:clamp(34px,10vw,46px); height:clamp(34px,10vw,46px); flex:none; }
+  .feedback .verdict{ font-size:clamp(1.2rem,5.6vw,1.55rem); font-weight:900; }
   .feedback.ok .verdict{ color:var(--good); }
   .feedback.no .verdict{ color:var(--warn); }
-  .feedback .why{ font-weight:700; color:var(--ink); margin-top:.4rem; line-height:1.4; }
-  /* 배지 */
-  .badge{ display:inline-block; background:var(--gold); color:var(--ink);
-          font-weight:900; font-size:clamp(1.1rem,5vw,1.35rem);
-          padding:14px 22px; border-radius:999px; margin:.6rem 0; }
-  .scoreBig{ font-size:clamp(2.4rem,12vw,3.4rem); font-weight:900; color:var(--brand); }
+  .feedback .why{ font-weight:700; color:var(--ink); margin-top:.6rem; line-height:1.5;
+                  text-align:left; background:rgba(255,255,255,.65); border-radius:14px; padding:12px 14px; }
+  .feedback .tip{ font-weight:800; color:var(--brand); margin-top:.55rem; line-height:1.45;
+                  display:flex; gap:8px; text-align:left; align-items:flex-start; }
+  .feedback .tip svg{ width:22px; height:22px; flex:none; margin-top:1px; }
+
+  /* 별 애니메이션(정답) */
+  .stars{ height:0; position:relative; }
+  .stars.play span{ position:absolute; left:50%; top:0; width:16px; height:16px;
+                    animation:fly .9s ease-out forwards; opacity:0; }
+  .stars.play span svg{ width:100%; height:100%; }
+  @keyframes fly{
+    0%{ opacity:0; transform:translate(-50%,0) scale(.4) rotate(0) }
+    30%{ opacity:1 }
+    100%{ opacity:0; transform:translate(var(--dx),var(--dy)) scale(1.2) rotate(180deg) }
+  }
+
+  /* 결과 화면 */
+  .scoreBig{ font-size:clamp(2.6rem,13vw,3.6rem); font-weight:900; color:var(--brand); line-height:1.1; margin:.2rem 0; }
+  .scoreBig small{ font-size:.4em; color:var(--muted); font-weight:800; }
+  .badge{ display:inline-flex; align-items:center; gap:10px; background:var(--gold); color:var(--ink);
+          font-weight:900; font-size:clamp(1.1rem,5vw,1.4rem);
+          padding:13px 22px; border-radius:999px; margin:.5rem 0;
+          box-shadow:0 6px 18px rgba(244,183,64,.5); animation:pop .4s ease; }
+  .badge svg{ width:30px; height:30px; }
+  .summary{ text-align:left; background:#f2f8f4; border-radius:18px; padding:16px 18px; margin-top:1rem; }
+  .summary h3{ margin:0 0 .5rem; color:var(--brand); font-size:clamp(1.05rem,4.6vw,1.2rem); }
+  .summary ul{ margin:0; padding:0; list-style:none; }
+  .summary li{ display:flex; gap:9px; align-items:flex-start; font-weight:700; line-height:1.5; margin:7px 0; color:var(--ink); }
+  .summary li svg{ width:22px; height:22px; flex:none; margin-top:1px; }
+
   /* 약속 입력 */
-  textarea{ width:100%; font-family:inherit; font-size:clamp(1.05rem,4.5vw,1.2rem);
+  textarea{ width:100%; font-family:inherit; font-size:clamp(1.05rem,4.6vw,1.22rem);
             font-weight:700; color:var(--ink); border:3px solid var(--line);
-            border-radius:16px; padding:14px; resize:none; }
+            border-radius:18px; padding:15px; resize:none; }
   textarea:focus{ outline:none; border-color:var(--brand); }
+  .promiseCard{ background:linear-gradient(160deg,#fff9ec,#fff);
+                border:3px solid var(--gold); border-radius:20px; padding:16px;
+                margin-top:1rem; text-align:left; animation:pop .35s ease; }
+  .promiseCard .lbl{ font-weight:900; color:var(--warn); font-size:clamp(.9rem,4vw,1rem);
+                     display:flex; align-items:center; gap:7px; margin-bottom:.5rem; }
+  .promiseCard .lbl svg{ width:22px; height:22px; }
+  .promiseCard .txt{ font-weight:800; color:var(--ink); font-size:clamp(1.1rem,4.8vw,1.3rem); line-height:1.5; }
   .note{ background:#fff8e8; border:2px solid var(--gold); border-radius:16px;
-         padding:14px; font-weight:800; color:var(--ink); margin-top:1rem; line-height:1.4; }
+         padding:14px; font-weight:800; color:var(--ink); margin-top:1rem; line-height:1.5;
+         display:flex; gap:9px; align-items:flex-start; text-align:left; }
+  .note svg{ width:24px; height:24px; flex:none; margin-top:1px; }
+  .quickchips{ display:flex; flex-wrap:wrap; gap:8px; justify-content:center; margin-top:.7rem; }
+  .quickchips button{ background:#eef4ee; color:var(--ink); font-size:clamp(.85rem,3.8vw,.98rem);
+                      padding:9px 14px; border-radius:999px; box-shadow:none; }
 </style>
 </head>
 <body>
   <div class="wrap">
-    <!-- 홈 -->
+
+    <!-- ===== 시작 화면 ===== -->
     <section id="s-start">
-      <div class="mascot">😊</div>
+      <!-- 착한 로봇 마스코트 -->
+      <svg class="mascot bob" viewBox="0 0 120 120" role="img" aria-label="착한 AI 로봇">
+        <defs>
+          <linearGradient id="bodyG" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stop-color="#17a488"/><stop offset="1" stop-color="#0f766e"/>
+          </linearGradient>
+        </defs>
+        <line x1="60" y1="14" x2="60" y2="26" stroke="#0b5c55" stroke-width="4" stroke-linecap="round"/>
+        <circle cx="60" cy="11" r="6" fill="#f4b740"/>
+        <rect x="24" y="26" width="72" height="60" rx="20" fill="url(#bodyG)"/>
+        <rect x="34" y="40" width="52" height="30" rx="14" fill="#eafaf5"/>
+        <circle cx="49" cy="55" r="6.5" fill="#0f766e"/>
+        <circle cx="71" cy="55" r="6.5" fill="#0f766e"/>
+        <circle cx="51" cy="53" r="2" fill="#fff"/>
+        <circle cx="73" cy="53" r="2" fill="#fff"/>
+        <path d="M50 64 q10 8 20 0" stroke="#0f766e" stroke-width="3.5" fill="none" stroke-linecap="round"/>
+        <circle cx="30" cy="42" r="5" fill="#f4b740"/>
+        <circle cx="90" cy="42" r="5" fill="#f4b740"/>
+        <rect x="40" y="90" width="40" height="18" rx="9" fill="#0b5c55"/>
+        <rect x="20" y="60" width="10" height="24" rx="5" fill="#0f766e"/>
+        <rect x="90" y="60" width="10" height="24" rx="5" fill="#0f766e"/>
+      </svg>
       <h1 data-title>착한 AI 판단왕</h1>
-      <p class="sub">AI를 바르게 쓰는 상황을 골라봐요!</p>
-      <div class="btns"><button class="primary" onclick="start()">시작하기 ▶</button></div>
+      <p class="sub">AI를 <b>바르게</b> 쓰는 상황을 골라봐요!<br>착한 사용일까요, 조심해야 할까요?</p>
+      <div class="pills">
+        <span class="pill"><svg viewBox="0 0 24 24" fill="none"><path d="M12 3l2.2 4.8L19.5 8l-3.8 3.6.9 5.2L12 14.4 7.4 16.8l.9-5.2L4.5 8l5.3-.2z" fill="#f4b740"/></svg>상황 8개</span>
+        <span class="pill"><svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" fill="#17a488"/><path d="M8 12.5l2.5 2.5L16 9" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>판단 게임</span>
+        <span class="pill"><svg viewBox="0 0 24 24" fill="none"><path d="M6 4h12v9a6 6 0 01-12 0z" fill="#f4b740"/><path d="M9 20h6M12 19v-3" stroke="#0f766e" stroke-width="2" stroke-linecap="round"/></svg>판단왕 배지</span>
+      </div>
+      <div class="btns">
+        <button class="primary" onclick="start()">
+          <svg viewBox="0 0 24 24" fill="none"><path d="M7 5l12 7-12 7z" fill="#fff"/></svg>시작하기
+        </button>
+      </div>
     </section>
 
-    <!-- 상황 퀴즈 -->
+    <!-- ===== 상황 퀴즈 ===== -->
     <section id="s-q" class="hide">
       <div class="top">
-        <span id="progress">상황 1 / 5</span>
-        <span class="score">⭐ <span id="scoreNow">0</span></span>
+        <span id="progress">상황 1 / 8</span>
+        <span class="score">
+          <svg viewBox="0 0 24 24" fill="none"><path d="M12 3l2.2 4.8L19.5 8l-3.8 3.6.9 5.2L12 14.4 7.4 16.8l.9-5.2L4.5 8l5.3-.2z" fill="#f4b740"/></svg>
+          점수 <b id="scoreNow">0</b>
+        </span>
       </div>
+      <div class="bar"><i id="barFill"></i></div>
+
       <div class="situation">
-        <div class="face" id="qFace">🤔</div>
+        <span class="tag" id="qTag">상황</span>
+        <div id="qIcon"></div>
         <div class="item" id="qText">상황</div>
       </div>
+
+      <div class="stars" id="stars" aria-hidden="true"></div>
+
       <div class="btns" id="choiceBtns">
-        <button class="good" onclick="answer(true)">👍 착한 사용</button>
-        <button class="warn" onclick="answer(false)">⚠️ 조심!</button>
+        <button class="good" onclick="answer(true)">
+          <svg viewBox="0 0 24 24" fill="none"><path d="M4 11h3v9H4zM7 11l4-7c1.5 0 2.5 1 2 2.6L12 10h6.2a2 2 0 011.9 2.6l-1.9 6A2 2 0 0116.3 20H7z" fill="#fff"/></svg>
+          착한 사용이에요
+        </button>
+        <button class="warn" onclick="answer(false)">
+          <svg viewBox="0 0 24 24" fill="none"><path d="M12 3l10 17H2z" fill="#243b34"/><path d="M12 9v5M12 16.5v.5" stroke="#f4b740" stroke-width="2.4" stroke-linecap="round"/></svg>
+          조심해야 해요
+        </button>
       </div>
+
       <div class="feedback hide" id="feedback">
-        <div class="verdict" id="fbVerdict"></div>
+        <div class="fbHead">
+          <span id="fbIcon"></span>
+          <div class="verdict" id="fbVerdict"></div>
+        </div>
         <div class="why" id="fbWhy"></div>
-        <div class="btns"><button class="primary" onclick="next()" id="nextBtn">다음 ▶</button></div>
+        <div class="tip" id="fbTip">
+          <svg viewBox="0 0 24 24" fill="none"><path d="M12 3a6 6 0 00-3 11v2h6v-2a6 6 0 00-3-11z" fill="#f4b740"/><path d="M9 19h6M10 21h4" stroke="#0f766e" stroke-width="2" stroke-linecap="round"/></svg>
+          <span id="fbTipText"></span>
+        </div>
+        <div class="btns"><button class="primary" onclick="next()" id="nextBtn">다음</button></div>
       </div>
     </section>
 
-    <!-- 결과 -->
+    <!-- ===== 결과 ===== -->
     <section id="s-result" class="hide">
-      <div class="mascot">🏅</div>
+      <svg class="mascot" viewBox="0 0 120 120" role="img" aria-label="트로피">
+        <path d="M34 22h52v14a26 26 0 01-52 0z" fill="#f4b740"/>
+        <path d="M34 26H22a10 10 0 0012 12M86 26h12a10 10 0 01-12 12" stroke="#0f766e" stroke-width="5" fill="none"/>
+        <rect x="52" y="60" width="16" height="18" fill="#0b5c55"/>
+        <rect x="38" y="78" width="44" height="12" rx="4" fill="#0f766e"/>
+        <rect x="30" y="90" width="60" height="12" rx="5" fill="#0b5c55"/>
+        <path d="M60 34l2.6 5.4 5.9.6-4.4 4 1.2 5.8L60 47l-5.3 2.8 1.2-5.8-4.4-4 5.9-.6z" fill="#fff"/>
+      </svg>
       <h1>결과 발표!</h1>
-      <div class="scoreBig"><span id="finalScore">0</span> / 5</div>
-      <div class="badge" id="badge">착한 AI 판단왕! 🏅</div>
+      <div class="scoreBig"><span id="finalScore">0</span> <small>/ 8</small></div>
+      <div class="badge" id="badge">
+        <span id="badgeIcon"></span><span id="badgeText">착한 AI 판단왕!</span>
+      </div>
       <p class="sub" id="praise">정말 잘했어요!</p>
-      <div class="btns"><button class="primary" onclick="go('s-end')">나의 약속 쓰기 ▶</button></div>
+
+      <div class="summary">
+        <h3>오늘 배운 착한 AI 사용법</h3>
+        <ul id="summaryList"></ul>
+      </div>
+
+      <div class="btns"><button class="primary" onclick="go('s-end')">
+        <svg viewBox="0 0 24 24" fill="none"><path d="M4 20l3-1 11-11-2-2L5 17z" fill="#fff"/><path d="M14 6l2 2" stroke="#0f766e" stroke-width="2"/></svg>
+        나의 AI 약속 쓰기
+      </button></div>
     </section>
 
-    <!-- 끝: 나의 AI 약속 -->
+    <!-- ===== 끝: 나의 AI 약속 ===== -->
     <section id="s-end" class="hide">
-      <div class="mascot">🤝</div>
+      <svg class="mascot" viewBox="0 0 120 120" role="img" aria-label="약속 손 맞잡기">
+        <path d="M38 60l14 12c4 3 9 3 13 0l17-14-6-6-11 9" stroke="#0f766e" stroke-width="6" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M82 52l-14-12c-4-3-9-3-13 0L38 54l6 6 11-9" stroke="#17a488" stroke-width="6" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+        <circle cx="26" cy="34" r="4" fill="#f4b740"/><circle cx="94" cy="34" r="4" fill="#f4b740"/>
+      </svg>
       <h1>나의 AI 약속</h1>
       <p class="sub">AI를 바르게 쓰는 약속을 한 문장 적어봐요.</p>
-      <textarea id="promise" rows="3" placeholder="예) 나는 친구 정보를 소중히 지킬래요"></textarea>
-      <div class="note">📌 약속을 우리 반 활동보드에 올려보자!<br>(여기 쓴 글은 나만 보는 연습이에요. 진짜 제출은 활동보드에서 해요.)</div>
-      <div class="btns"><button class="ghost" onclick="restart()">다시 하기 ↺</button></div>
+      <textarea id="promise" rows="3" placeholder="예) 나는 친구의 정보를 소중히 지킬래요" oninput="onPromise()"></textarea>
+      <div class="quickchips">
+        <button onclick="fillPromise('나는 친구의 정보를 소중히 지킬래요')">친구 정보 지키기</button>
+        <button onclick="fillPromise('나는 AI 답을 확인하고 내 생각을 더할래요')">스스로 생각하기</button>
+        <button onclick="fillPromise('나는 AI로 남을 속이지 않을래요')">정직하게 쓰기</button>
+      </div>
+
+      <div class="promiseCard hide" id="promiseCard">
+        <div class="lbl">
+          <svg viewBox="0 0 24 24" fill="none"><path d="M6 3h9l4 4v14H6z" fill="#fff" stroke="#f4b740" stroke-width="2"/><path d="M9 12l2 2 4-4" stroke="#0f766e" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          나의 AI 약속
+        </div>
+        <div class="txt" id="promiseShow"></div>
+      </div>
+
+      <div class="note">
+        <svg viewBox="0 0 24 24" fill="none"><rect x="4" y="5" width="16" height="15" rx="3" fill="#f4b740"/><path d="M8 3v4M16 3v4M4 10h16" stroke="#0f766e" stroke-width="2" stroke-linecap="round"/></svg>
+        <span>내 약속을 우리 반 <b>활동보드</b>에 올려보자!<br>(여기 쓴 글은 나만 보는 연습이에요. 진짜 제출은 활동보드에서 해요.)</span>
+      </div>
+
+      <div class="btns"><button class="ghost" onclick="restart()">
+        <svg viewBox="0 0 24 24" fill="none"><path d="M5 12a7 7 0 1112 5" stroke="#243b34" stroke-width="2.4" fill="none" stroke-linecap="round"/><path d="M5 8v4h4" stroke="#243b34" stroke-width="2.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        처음부터 다시 하기
+      </button></div>
     </section>
+
   </div>
 
 <script>
-  // 상황 데이터: good=true 이면 '착한 사용'이 정답
+  // ===== 아이콘(작은 인라인 SVG) =====
+  var ICON = {
+    photo:'<svg viewBox="0 0 64 64" fill="none"><rect x="8" y="16" width="48" height="36" rx="6" fill="#17a488"/><circle cx="24" cy="30" r="6" fill="#fff"/><path d="M14 50l14-13 10 9 8-6 8 10z" fill="#eafaf5"/><rect x="24" y="10" width="16" height="8" rx="3" fill="#0f766e"/></svg>',
+    copy:'<svg viewBox="0 0 64 64" fill="none"><rect x="14" y="10" width="30" height="38" rx="5" fill="#eafaf5" stroke="#0f766e" stroke-width="3"/><rect x="22" y="18" width="30" height="38" rx="5" fill="#17a488"/><path d="M28 30h18M28 38h18M28 46h12" stroke="#fff" stroke-width="3" stroke-linecap="round"/></svg>',
+    idea:'<svg viewBox="0 0 64 64" fill="none"><path d="M32 8a16 16 0 00-9 29v6h18v-6a16 16 0 00-9-29z" fill="#f4b740"/><path d="M24 50h16M27 56h10" stroke="#0f766e" stroke-width="3.4" stroke-linecap="round"/><path d="M32 20v14M26 28l6 6 6-6" stroke="#0f766e" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+    mask:'<svg viewBox="0 0 64 64" fill="none"><path d="M12 22c14-6 26-6 40 0 2 14-4 26-20 30C16 48 10 36 12 22z" fill="#17a488"/><circle cx="24" cy="30" r="5" fill="#fff"/><circle cx="40" cy="30" r="5" fill="#fff"/><path d="M24 42q8 6 16 0" stroke="#fff" stroke-width="3" fill="none" stroke-linecap="round"/></svg>',
+    book:'<svg viewBox="0 0 64 64" fill="none"><path d="M32 16c-6-4-14-4-20-2v34c6-2 14-2 20 2z" fill="#17a488"/><path d="M32 16c6-4 14-4 20-2v34c-6-2-14-2-20 2z" fill="#0f766e"/><path d="M32 16v36" stroke="#eafaf5" stroke-width="2"/><path d="M42 26l3 3 6-6" stroke="#f4b740" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+    lock:'<svg viewBox="0 0 64 64" fill="none"><rect x="16" y="28" width="32" height="26" rx="6" fill="#f4b740"/><path d="M22 28v-6a10 10 0 0120 0v6" stroke="#0f766e" stroke-width="4" fill="none"/><circle cx="32" cy="40" r="4" fill="#0f766e"/><rect x="30" y="42" width="4" height="7" rx="2" fill="#0f766e"/></svg>',
+    heart:'<svg viewBox="0 0 64 64" fill="none"><path d="M32 52C14 40 10 30 14 22c3-6 12-7 18 0 6-7 15-6 18 0 4 8 0 18-18 30z" fill="#17a488"/><path d="M26 30l4 4 8-8" stroke="#fff" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+    robot:'<svg viewBox="0 0 64 64" fill="none"><rect x="16" y="20" width="32" height="26" rx="9" fill="#0f766e"/><circle cx="26" cy="32" r="4" fill="#eafaf5"/><circle cx="38" cy="32" r="4" fill="#eafaf5"/><path d="M32 12v8" stroke="#0b5c55" stroke-width="3"/><circle cx="32" cy="10" r="4" fill="#f4b740"/><path d="M24 40h16" stroke="#eafaf5" stroke-width="3" stroke-linecap="round"/><path d="M40 26l6 5-6 5" stroke="#f4b740" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>'
+  };
+  var IC_CHECK='<svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" fill="#0f766e"/><path d="M7 12.5l3 3 7-7" stroke="#fff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  var IC_WARN='<svg viewBox="0 0 24 24" fill="none"><path d="M12 3l10 17H2z" fill="#d97a1a"/><path d="M12 9v5M12 16.5v.5" stroke="#fff" stroke-width="2.4" stroke-linecap="round"/></svg>';
+  var IC_STAR='<svg viewBox="0 0 24 24" fill="none"><path d="M12 3l2.2 4.8L19.5 8l-3.8 3.6.9 5.2L12 14.4 7.4 16.8l.9-5.2L4.5 8l5.3-.2z" fill="#f4b740"/></svg>';
+  var IC_MEDAL='<svg viewBox="0 0 24 24" fill="none"><path d="M8 3h8l-2 8h-4z" fill="#0f766e"/><circle cx="12" cy="16" r="6" fill="#f4b740"/><path d="M12 13l1 2 2 .2-1.5 1.4.4 2-1.9-1-1.9 1 .4-2L9 15.2l2-.2z" fill="#fff"/></svg>';
+
+  // ===== 상황 데이터 (8개) : good=true 이면 '착한 사용'이 정답 =====
   var QUIZ = [
-    { face:"📸", text:"친구 사진을 몰래 AI에 올렸어요.", good:false, why:"친구의 개인정보예요." },
-    { face:"📄", text:"AI가 써 준 답을 그대로 베껴서 냈어요.", good:false, why:"스스로 생각하지 않았어요." },
-    { face:"💡", text:"궁금한 걸 AI에게 묻고, 내 생각도 더했어요.", good:true, why:"도구로 잘 썼어요." },
-    { face:"🎭", text:"AI로 거짓 이야기를 만들어 친구를 속였어요.", good:false, why:"남을 속이면 안 돼요." },
-    { face:"📚", text:"AI가 알려준 걸 책에서 한 번 더 확인했어요.", good:true, why:"스스로 확인했어요." }
+    { tag:"개인정보", icon:"photo", good:false,
+      text:"친구에게 안 물어보고 친구 사진을 AI에 올렸어요.",
+      why:"친구 사진은 소중한 개인정보예요. 주인에게 물어보지 않고 올리면 안 돼요.",
+      tip:"올리기 전에 \"올려도 돼?\" 하고 꼭 물어봐요." },
+    { tag:"베끼기", icon:"copy", good:false,
+      text:"AI가 써 준 답을 그대로 베껴서 숙제로 냈어요.",
+      why:"그대로 베끼면 내 생각이 자라지 않아요. AI는 도와주는 도구예요.",
+      tip:"AI 답을 참고만 하고, 내 문장으로 다시 써 봐요." },
+    { tag:"스스로 생각", icon:"idea", good:true,
+      text:"궁금한 걸 AI에게 묻고, 내 생각을 더해서 정리했어요.",
+      why:"AI를 도구로 똑똑하게 썼어요. 내 생각을 더하면 진짜 내 실력이 돼요.",
+      tip:"\"나는 어떻게 생각하지?\"를 늘 함께 떠올려요." },
+    { tag:"정직", icon:"mask", good:false,
+      text:"AI로 거짓 이야기를 만들어 친구를 속였어요.",
+      why:"AI로 남을 속이면 친구가 속상하고 믿음이 깨져요.",
+      tip:"AI는 즐겁고 정직하게 써야 진짜 도움이 돼요." },
+    { tag:"확인하기", icon:"book", good:true,
+      text:"AI가 알려 준 내용을 책에서 한 번 더 확인했어요.",
+      why:"AI도 가끔 틀려요. 다른 곳에서 확인하면 더 똑똑해져요.",
+      tip:"중요한 건 책이나 선생님께 한 번 더 확인해요." },
+    { tag:"개인정보", icon:"lock", good:false,
+      text:"내 이름, 집 주소, 전화번호를 AI 채팅에 적었어요.",
+      why:"내 주소·전화번호는 비밀이에요. 함부로 적으면 위험할 수 있어요.",
+      tip:"개인정보는 AI에게도 알려 주지 않아요." },
+    { tag:"예의", icon:"heart", good:true,
+      text:"AI가 도와주자 \"고마워\" 하고 예의 있게 말했어요.",
+      why:"고운 말은 언제나 좋아요. 예의 바르게 말하는 습관을 길러요.",
+      tip:"기계에게도 사람에게도 고운 말을 써요." },
+    { tag:"AI 과신", icon:"robot", good:false,
+      text:"AI가 한 말이니까 무조건 다 맞다고 그냥 믿었어요.",
+      why:"AI 말이 항상 옳은 건 아니에요. 무조건 믿으면 실수할 수 있어요.",
+      tip:"\"정말 맞을까?\" 하고 스스로 한 번 생각해요." }
   ];
 
-  var idx = 0, score = 0;
+  var idx = 0, score = 0, scoreShown = 0;
 
-  // 화면 전환 — 한 번에 한 section만 보이기
+  // ===== 화면 전환 =====
   function go(id){
     document.querySelectorAll('.wrap > section').forEach(function(s){ s.classList.add('hide'); });
     document.getElementById(id).classList.remove('hide');
-    document.querySelector('.wrap').scrollTop = 0;
+    window.scrollTo(0,0);
   }
 
-  function start(){ idx = 0; score = 0; go('s-q'); render(); }
+  function start(){ idx = 0; score = 0; scoreShown = 0; go('s-q'); render(); }
 
   function render(){
     var q = QUIZ[idx];
     document.getElementById('progress').textContent = '상황 ' + (idx+1) + ' / ' + QUIZ.length;
     document.getElementById('scoreNow').textContent = score;
-    document.getElementById('qFace').textContent = q.face;
+    document.getElementById('barFill').style.width = (idx / QUIZ.length * 100) + '%';
+    document.getElementById('qTag').textContent = q.tag;
+    document.getElementById('qIcon').innerHTML = '<svg class="sceneIcon" viewBox="0 0 64 64">' +
+      ICON[q.icon].replace(/^<svg[^>]*>|<\/svg>$/g,'') + '</svg>';
     document.getElementById('qText').textContent = q.text;
     document.getElementById('feedback').classList.add('hide');
     setChoices(true);
@@ -155,27 +383,45 @@
     document.querySelectorAll('#choiceBtns button').forEach(function(b){ b.disabled = !on; });
   }
 
+  function burstStars(){
+    var box = document.getElementById('stars');
+    box.innerHTML = '';
+    for(var i=0;i<7;i++){
+      var s = document.createElement('span');
+      var ang = (i/7)*Math.PI*2;
+      s.style.setProperty('--dx', (Math.cos(ang)*90) + 'px');
+      s.style.setProperty('--dy', (Math.sin(ang)*70 - 10) + 'px');
+      s.style.animationDelay = (i*0.03)+'s';
+      s.innerHTML = IC_STAR;
+      box.appendChild(s);
+    }
+    box.classList.remove('play'); void box.offsetWidth; box.classList.add('play');
+  }
+
   function answer(pickedGood){
     var q = QUIZ[idx];
     var correct = (pickedGood === q.good);
-    if(correct) score++;
+    if(correct){ score++; }
     document.getElementById('scoreNow').textContent = score;
+    document.getElementById('barFill').style.width = ((idx+1) / QUIZ.length * 100) + '%';
     setChoices(false);
 
     var fb = document.getElementById('feedback');
     fb.classList.remove('hide','ok','no');
-    var rightLabel = q.good ? '👍 착한 사용' : '⚠️ 조심!';
+    var rightLabel = q.good ? '착한 사용' : '조심하기';
     if(correct){
       fb.classList.add('ok');
-      document.getElementById('fbVerdict').textContent = '정답이에요! 🎉 (' + rightLabel + ')';
+      document.getElementById('fbIcon').innerHTML = IC_CHECK;
+      document.getElementById('fbVerdict').textContent = '정답이에요! (' + rightLabel + ')';
+      burstStars();
     }else{
       fb.classList.add('no');
-      document.getElementById('fbVerdict').textContent = '괜찮아요, 다시 볼까요? 정답은 ' + rightLabel + '이에요.';
+      document.getElementById('fbIcon').innerHTML = IC_WARN;
+      document.getElementById('fbVerdict').textContent = '다시 볼까요? 정답은 「' + rightLabel + '」';
     }
-    document.getElementById('fbWhy').textContent = '👉 ' + q.why;
-
-    var nb = document.getElementById('nextBtn');
-    nb.textContent = (idx === QUIZ.length-1) ? '결과 보기 ▶' : '다음 ▶';
+    document.getElementById('fbWhy').innerHTML = '<b>왜 그럴까요?</b> ' + q.why;
+    document.getElementById('fbTipText').innerHTML = '<b>한 줄 팁:</b> ' + q.tip;
+    document.getElementById('nextBtn').textContent = (idx === QUIZ.length-1) ? '결과 보기' : '다음';
   }
 
   function next(){
@@ -183,17 +429,68 @@
     else{ showResult(); }
   }
 
-  function showResult(){
-    document.getElementById('finalScore').textContent = score;
-    var badge = document.getElementById('badge');
-    var praise = document.getElementById('praise');
-    if(score === 5){ badge.textContent = '착한 AI 판단왕! 🏅'; praise.textContent = '모두 맞혔어요! 최고예요!'; }
-    else if(score >= 3){ badge.textContent = '착한 AI 도우미! 🌟'; praise.textContent = '아주 잘했어요!'; }
-    else{ badge.textContent = '착한 AI 새싹! 🌱'; praise.textContent = '한 번 더 하면 판단왕이 될 수 있어요!'; }
-    go('s-result');
+  // 점수 카운트업
+  function countUp(el, target){
+    var cur = 0;
+    el.textContent = '0';
+    var timer = setInterval(function(){
+      cur++;
+      el.textContent = cur;
+      if(cur >= target){ clearInterval(timer); }
+    }, 180);
   }
 
-  function restart(){ document.getElementById('promise').value = ''; go('s-start'); }
+  var SUMMARY = [
+    "친구의 사진·정보는 물어보고 소중히 지켜요.",
+    "AI 답은 그대로 베끼지 않고 내 생각을 더해요.",
+    "중요한 건 책·선생님께 한 번 더 확인해요.",
+    "AI로 남을 속이지 않고 정직하게 써요.",
+    "AI 말도 \"정말 맞을까?\" 하고 스스로 생각해요."
+  ];
+
+  function showResult(){
+    document.getElementById('barFill').style.width = '100%';
+    var badge = document.getElementById('badge');
+    var bIcon = document.getElementById('badgeIcon');
+    var bText = document.getElementById('badgeText');
+    var praise = document.getElementById('praise');
+    if(score >= 7){ bIcon.innerHTML = IC_MEDAL; bText.textContent = '착한 AI 판단왕!'; praise.textContent = '거의 다 맞혔어요! 정말 최고예요! 🎉'; }
+    else if(score >= 4){ bIcon.innerHTML = IC_STAR; bText.textContent = '착한 AI 도우미!'; praise.textContent = '아주 잘했어요! 조금만 더 하면 판단왕!'; }
+    else{ bIcon.innerHTML = '<svg viewBox="0 0 24 24" fill="none"><path d="M12 20c-4-6-2-11 0-13 2 2 4 7 0 13z" fill="#17a488"/><path d="M12 20v-8" stroke="#0f766e" stroke-width="2" stroke-linecap="round"/></svg>'; bText.textContent = '착한 AI 새싹!'; praise.textContent = '좋아요! 한 번 더 하면 쑥쑥 자라요! 🌱'; }
+
+    var ul = document.getElementById('summaryList');
+    ul.innerHTML = '';
+    SUMMARY.forEach(function(t){
+      var li = document.createElement('li');
+      li.innerHTML = IC_CHECK + '<span>' + t + '</span>';
+      ul.appendChild(li);
+    });
+
+    go('s-result');
+    countUp(document.getElementById('finalScore'), score);
+  }
+
+  // ===== 나의 약속 =====
+  function onPromise(){
+    var v = document.getElementById('promise').value.trim();
+    var card = document.getElementById('promiseCard');
+    if(v){
+      document.getElementById('promiseShow').textContent = '"' + v + '"';
+      card.classList.remove('hide');
+    }else{
+      card.classList.add('hide');
+    }
+  }
+  function fillPromise(t){
+    document.getElementById('promise').value = t;
+    onPromise();
+  }
+
+  function restart(){
+    document.getElementById('promise').value = '';
+    document.getElementById('promiseCard').classList.add('hide');
+    go('s-start');
+  }
 </script>
 </body>
 </html>

@@ -8,6 +8,7 @@
   :root{
     --brand:#0f766e; --brand2:#0b5c55; --gold:#f4b740; --ink:#243b34;
     --muted:#5b6f68; --line:#e3e9e2; --paper:#ffffff;
+    --sky:#e6f2f0; --cream:#fdf7e8; --rose:#fbe9e7;
     --body:system-ui,"Apple SD Gothic Neo","Malgun Gothic",sans-serif;
   }
   *{ box-sizing:border-box; word-break:keep-all; overflow-wrap:break-word; }
@@ -24,57 +25,117 @@
     display:flex; flex-direction:column;
   }
   .topbar{ flex:0 0 auto; display:flex; align-items:center; justify-content:space-between;
-           padding:clamp(11px,2vw,14px) clamp(16px,3.5vw,24px); border-bottom:1px solid var(--line); }
+           padding:clamp(11px,2vw,14px) clamp(16px,3.5vw,24px); border-bottom:1px solid var(--line);
+           background:linear-gradient(90deg,#ffffff, #f4f9f7); }
   .course{ font-size:clamp(11.5px,2.3vw,13px); font-weight:700; color:var(--muted); }
   .course b{ color:var(--brand); }
   .counter{ font-size:clamp(11.5px,2.3vw,13px); font-weight:800; font-variant-numeric:tabular-nums; }
 
   .board{ flex:1 1 auto; min-height:0; overflow:auto;
-          padding:clamp(28px,4.6vw,52px); }
-  .slide{ display:none; }
+          padding:clamp(24px,4vw,48px); position:relative; }
+  .slide{ display:none; animation:fade .4s ease; }
   .slide.on{ display:block; }
-  .eyebrow{ font-size:clamp(12px,2.5vw,14px); font-weight:800; color:var(--brand); }
-  .h1{ font-size:clamp(1.6rem,5.4vw,2.5rem); font-weight:800; line-height:1.32; margin:.4rem 0 0; }
-  .lead{ font-size:clamp(1.02rem,2.8vw,1.3rem); font-weight:600; color:var(--muted); line-height:1.6; margin:.9rem 0 0; max-width:52ch; }
-  .bullets{ margin:1rem 0 0; padding-left:1.2em; }
-  .bullets li{ font-size:clamp(1.02rem,2.8vw,1.26rem); font-weight:600; line-height:1.6; margin-bottom:.7rem; }
+  @keyframes fade{ from{ opacity:0; transform:translateY(8px);} to{ opacity:1; transform:none;} }
+
+  .eyebrow{ display:inline-flex; align-items:center; gap:.4em; font-size:clamp(12px,2.5vw,14px);
+            font-weight:800; color:var(--brand); letter-spacing:.02em; }
+  .eyebrow::before{ content:""; width:.7em; height:.7em; border-radius:50%; background:var(--gold); }
+  .h1{ font-size:clamp(1.6rem,5.4vw,2.5rem); font-weight:800; line-height:1.28; margin:.4rem 0 0; }
+  .lead{ font-size:clamp(1.02rem,2.8vw,1.28rem); font-weight:600; color:var(--muted); line-height:1.6; margin:.8rem 0 0; max-width:54ch; }
+  .lead b{ color:var(--brand2); }
+  .bullets{ margin:1rem 0 0; padding-left:0; list-style:none; }
+  .bullets li{ font-size:clamp(1.02rem,2.8vw,1.24rem); font-weight:600; line-height:1.55; margin-bottom:.7rem;
+               display:flex; gap:.6em; align-items:flex-start; }
+  .bullets li .bic{ flex:0 0 auto; width:1.5em; height:1.5em; }
+
+  /* 2단 레이아웃: 그림 + 글 */
+  .split{ display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1.05fr); gap:clamp(16px,3vw,36px);
+          align-items:center; margin-top:clamp(10px,2vw,20px); }
+  .split.rev{ grid-template-columns:minmax(0,1.05fr) minmax(0,1fr); }
+  @media (max-width:760px){ .split,.split.rev{ grid-template-columns:1fr; } }
+  .art{ width:100%; }
+  .art svg{ width:100%; height:auto; display:block; }
+  .artcard{ background:linear-gradient(160deg,var(--sky),#f4faf8); border:1px solid var(--line);
+            border-radius:20px; padding:clamp(14px,2.4vw,26px); box-shadow:0 8px 22px rgba(30,50,40,.08); }
 
   /* 표지 */
   .cover{ display:flex; flex-direction:column; align-items:center; justify-content:center;
-          text-align:center; min-height:100%; gap:clamp(10px,2vw,18px); }
-  .cover .emoji{ font-size:clamp(3.4rem,12vw,6rem); line-height:1; }
+          text-align:center; min-height:100%; gap:clamp(8px,1.6vw,16px); }
+  .cover .art{ max-width:min(440px,60vw); }
   .cover .h1{ font-size:clamp(2rem,7vw,3.4rem); }
   .badge{ display:inline-block; background:var(--brand); color:#fff; font-weight:800;
-          font-size:clamp(12px,2.4vw,14px); padding:.45em 1em; border-radius:999px; }
-  .sub{ font-size:clamp(1.1rem,3.4vw,1.6rem); font-weight:700; color:var(--brand2); margin:.2rem 0 0; }
+          font-size:clamp(12px,2.4vw,14px); padding:.45em 1em; border-radius:999px;
+          box-shadow:0 6px 16px rgba(15,118,110,.28); }
+  .sub{ font-size:clamp(1.1rem,3.4vw,1.6rem); font-weight:800; color:var(--brand2); margin:.1rem 0 0; }
 
   /* 목표 칩 */
-  .goals{ display:flex; flex-wrap:wrap; gap:clamp(8px,1.6vw,12px); margin-top:1.2rem; justify-content:center; }
-  .goals span{ background:#eef5f3; color:var(--brand2); font-weight:700;
-               font-size:clamp(12px,2.3vw,14px); padding:.5em 1em; border-radius:12px; border:1px solid var(--line); }
+  .goals{ display:flex; flex-wrap:wrap; gap:clamp(8px,1.6vw,12px); margin-top:.6rem; justify-content:center; }
+  .goals span{ display:inline-flex; align-items:center; gap:.45em; background:#eef5f3; color:var(--brand2); font-weight:800;
+               font-size:clamp(12px,2.3vw,14px); padding:.5em 1em; border-radius:999px; border:1px solid var(--line); }
+  .goals span svg{ width:1.2em; height:1.2em; }
+
+  /* 목표 큰 카드 */
+  .goalgrid{ display:grid; gap:clamp(12px,2.2vw,18px); margin-top:1.1rem;
+             grid-template-columns:repeat(auto-fit,minmax(min(220px,100%),1fr)); }
+  .goalbox{ background:#fbfdfc; border:1px solid var(--line); border-radius:18px;
+            padding:clamp(16px,2.4vw,22px); box-shadow:0 6px 18px rgba(30,50,40,.06); text-align:center; }
+  .goalbox svg{ width:clamp(56px,12vw,84px); height:clamp(56px,12vw,84px); }
+  .goalbox h3{ font-size:clamp(1.05rem,2.9vw,1.32rem); font-weight:800; margin:.5rem 0 .3rem; }
+  .goalbox p{ font-size:clamp(.95rem,2.4vw,1.1rem); font-weight:600; color:var(--muted); line-height:1.5; margin:0; }
 
   /* 카드 그리드 */
-  .cards{ display:grid; gap:clamp(12px,2.2vw,20px); margin-top:1.3rem;
-          grid-template-columns:repeat(auto-fit,minmax(min(240px,100%),1fr)); }
+  .cards{ display:grid; gap:clamp(12px,2.2vw,18px); margin-top:1.1rem;
+          grid-template-columns:repeat(auto-fit,minmax(min(230px,100%),1fr)); }
   .card{ background:#fbfdfc; border:1px solid var(--line); border-radius:16px;
-         padding:clamp(16px,2.6vw,24px); box-shadow:0 6px 18px rgba(30,50,40,.06); }
-  .card .ic{ font-size:clamp(2.2rem,6vw,3rem); line-height:1; }
-  .card h3{ font-size:clamp(1.1rem,3vw,1.4rem); font-weight:800; margin:.5rem 0 .3rem; color:var(--ink); }
-  .card p{ font-size:clamp(.98rem,2.5vw,1.14rem); font-weight:600; color:var(--muted); line-height:1.55; margin:0; }
+         padding:clamp(14px,2.4vw,22px); box-shadow:0 6px 18px rgba(30,50,40,.06); }
+  .card .ic{ width:clamp(48px,10vw,66px); height:clamp(48px,10vw,66px); }
+  .card h3{ font-size:clamp(1.05rem,3vw,1.32rem); font-weight:800; margin:.5rem 0 .3rem; color:var(--ink); }
+  .card p{ font-size:clamp(.95rem,2.4vw,1.12rem); font-weight:600; color:var(--muted); line-height:1.55; margin:0; }
 
   /* 약속 배너 */
-  .promise{ display:flex; align-items:center; gap:clamp(14px,3vw,24px); margin-top:1.2rem;
+  .promise{ display:flex; align-items:center; gap:clamp(14px,3vw,24px); margin-top:1rem;
             background:linear-gradient(135deg,#eef5f3,#e4efec); border:1px solid var(--line);
-            border-radius:18px; padding:clamp(18px,3vw,30px); }
-  .promise .big{ font-size:clamp(3rem,11vw,5rem); line-height:1; }
-  .promise .no{ display:inline-block; background:var(--gold); color:var(--ink); font-weight:900;
-                font-size:clamp(13px,2.5vw,15px); padding:.35em .9em; border-radius:999px; }
-  .promise h2{ font-size:clamp(1.4rem,4.4vw,2rem); font-weight:800; margin:.4rem 0 .3rem; }
-  .promise p{ font-size:clamp(1rem,2.7vw,1.24rem); font-weight:600; color:var(--muted); line-height:1.55; margin:0; }
+            border-radius:18px; padding:clamp(16px,2.8vw,28px); }
+  .promise .pic{ flex:0 0 auto; width:clamp(84px,18vw,132px); height:clamp(84px,18vw,132px); }
+  .promise .pic svg{ width:100%; height:100%; }
+  .no{ display:inline-block; background:var(--gold); color:var(--ink); font-weight:900;
+       font-size:clamp(13px,2.5vw,15px); padding:.35em .9em; border-radius:999px; }
+  .promise h2{ font-size:clamp(1.35rem,4.2vw,2rem); font-weight:800; margin:.4rem 0 .3rem; }
+  .promise p{ font-size:clamp(1rem,2.6vw,1.22rem); font-weight:600; color:var(--muted); line-height:1.55; margin:0; }
 
-  .next{ margin-top:1.3rem; background:var(--brand); color:#fff; border-radius:16px;
+  /* 발문 상자 (교사용) */
+  .ask{ margin-top:1rem; background:var(--cream); border:1px solid #f0e2be; border-left:6px solid var(--gold);
+        border-radius:12px; padding:clamp(13px,2.4vw,20px); }
+  .ask .tag{ font-size:clamp(11px,2.2vw,13px); font-weight:900; color:#a6790a; letter-spacing:.03em; }
+  .ask p{ font-size:clamp(1rem,2.6vw,1.2rem); font-weight:700; color:var(--ink); margin:.35rem 0 0; line-height:1.5; }
+  .ask p + p{ margin-top:.4rem; color:var(--muted); font-weight:600; }
+
+  /* O / X 예시 */
+  .ox{ display:grid; grid-template-columns:1fr 1fr; gap:clamp(10px,2vw,16px); margin-top:1rem; }
+  @media (max-width:560px){ .ox{ grid-template-columns:1fr; } }
+  .oxbox{ border-radius:14px; padding:clamp(13px,2.4vw,20px); border:2px solid; display:flex; gap:.7em; align-items:flex-start; }
+  .oxbox.o{ background:#ecf7f1; border-color:#bfe3d0; }
+  .oxbox.x{ background:var(--rose); border-color:#f3c9c2; }
+  .oxbox .mk{ flex:0 0 auto; width:clamp(30px,6vw,42px); height:clamp(30px,6vw,42px); }
+  .oxbox p{ margin:0; font-size:clamp(.98rem,2.5vw,1.14rem); font-weight:700; line-height:1.5; }
+  .oxbox small{ display:block; font-weight:600; color:var(--muted); margin-top:.2em; font-size:.82em; }
+
+  /* 활동 스텝 */
+  .steps{ display:grid; gap:clamp(10px,2vw,16px); margin-top:1rem;
+          grid-template-columns:repeat(auto-fit,minmax(min(210px,100%),1fr)); }
+  .step{ background:#fbfdfc; border:1px solid var(--line); border-radius:16px; padding:clamp(14px,2.4vw,20px);
+         position:relative; box-shadow:0 6px 18px rgba(30,50,40,.06); }
+  .step .n{ position:absolute; top:-14px; left:16px; width:32px; height:32px; border-radius:50%;
+            background:var(--brand); color:#fff; font-weight:900; display:flex; align-items:center; justify-content:center;
+            font-size:15px; box-shadow:0 4px 10px rgba(15,118,110,.3); }
+  .step h3{ font-size:clamp(1.02rem,2.8vw,1.24rem); font-weight:800; margin:.5rem 0 .3rem; }
+  .step p{ font-size:clamp(.94rem,2.4vw,1.08rem); font-weight:600; color:var(--muted); line-height:1.5; margin:0; }
+
+  .next{ margin-top:1.1rem; background:var(--brand); color:#fff; border-radius:16px;
          padding:clamp(14px,2.6vw,22px) clamp(18px,3vw,26px); font-weight:700;
-         font-size:clamp(1rem,2.7vw,1.24rem); display:flex; align-items:center; gap:.6em; line-height:1.5; }
+         font-size:clamp(1rem,2.7vw,1.22rem); display:flex; align-items:center; gap:.7em; line-height:1.5;
+         box-shadow:0 10px 24px rgba(15,118,110,.22); }
+  .next svg{ flex:0 0 auto; width:1.7em; height:1.7em; }
 
   .foot{ flex:0 0 auto; display:flex; align-items:center; gap:clamp(12px,3vw,16px);
          padding:clamp(12px,2.2vw,16px) clamp(16px,3.5vw,24px); border-top:1px solid var(--line); }
@@ -89,8 +150,8 @@
 <body>
   <div class="deck">
     <div class="topbar">
-      <div class="course"><b data-title>초2 · AI 융합수업</b> · 7차시</div>
-      <div class="counter"><span id="cur">1</span> / <span id="total">8</span></div>
+      <div class="course"><b data-title>초2 · AI 융합수업</b> · 7차시 · 도덕·사회</div>
+      <div class="counter"><span id="cur">1</span> / <span id="total">12</span></div>
     </div>
 
     <div class="board">
@@ -98,154 +159,457 @@
       <!-- 1. 표지 -->
       <section class="slide on">
         <div class="cover">
-          <div class="emoji">🤝😊</div>
-          <span class="badge">7차시 · 성찰과 토의 (도덕·사회)</span>
+          <div class="art" aria-hidden="true">
+            <svg viewBox="0 0 400 300" role="img">
+              <defs>
+                <linearGradient id="cvbg" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0" stop-color="#e6f2f0"/><stop offset="1" stop-color="#d5ece7"/>
+                </linearGradient>
+              </defs>
+              <ellipse cx="200" cy="270" rx="150" ry="20" fill="#0f766e" opacity=".12"/>
+              <!-- 로봇 친구 -->
+              <g>
+                <rect x="120" y="95" width="120" height="110" rx="26" fill="#0f766e"/>
+                <rect x="132" y="112" width="96" height="66" rx="18" fill="#effaf7"/>
+                <circle cx="162" cy="145" r="13" fill="#0b5c55"/><circle cx="166" cy="141" r="4" fill="#fff"/>
+                <circle cx="198" cy="145" r="13" fill="#0b5c55"/><circle cx="202" cy="141" r="4" fill="#fff"/>
+                <path d="M158 165 Q180 182 202 165" stroke="#0b5c55" stroke-width="5" fill="none" stroke-linecap="round"/>
+                <rect x="172" y="70" width="16" height="20" rx="6" fill="#f4b740"/>
+                <circle cx="180" cy="66" r="10" fill="#f4b740"/>
+                <rect x="104" y="128" width="18" height="40" rx="9" fill="#0b5c55"/>
+                <rect x="238" y="128" width="18" height="40" rx="9" fill="#0b5c55"/>
+              </g>
+              <!-- 아이 손 하트 -->
+              <g>
+                <circle cx="300" cy="150" r="34" fill="#f4b740"/>
+                <path d="M300 138 c-6-11-24-8-24 4 c0 10 15 18 24 26 c9-8 24-16 24-26 c0-12-18-15-24-4z" fill="#e05b4a"/>
+              </g>
+              <g>
+                <circle cx="92" cy="185" r="26" fill="#7cc7b8"/>
+                <path d="M84 185 l7 7 l14-15" stroke="#fff" stroke-width="6" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+              </g>
+            </svg>
+          </div>
+          <span class="badge">7차시 · 성찰과 토의 (도덕·사회 융합)</span>
           <h1 class="h1" data-title>착한 AI, 바르게 쓰기</h1>
-          <p class="sub">AI를 똑똑하고 안전하게!</p>
+          <p class="sub">AI를 똑똑하고 안전하게 쓰는 우리들의 약속!</p>
           <div class="goals">
-            <span>🤖 AI도 실수·편견이 있어요</span>
-            <span>🔒 바르게 쓰는 약속</span>
-            <span>🤔 스스로 판단하는 힘</span>
+            <span>AI도 실수·편견이 있어요</span>
+            <span>바르게 쓰는 세 가지 약속</span>
+            <span>스스로 판단하는 힘</span>
           </div>
         </div>
       </section>
 
-      <!-- 2. AI도 틀려요 -->
+      <!-- 2. 학습 목표 -->
       <section class="slide">
-        <div class="eyebrow">● 지난 시간과 이어서</div>
-        <h1 class="h1">AI도 틀릴 때가 있어요</h1>
-        <p class="lead">지난 6차시에 우리는 AI가 데이터를 보고 배우는 걸 알았지요. 그런데 <b>한쪽 예시만 배운 AI는 헷갈려요.</b></p>
-        <div class="cards">
-          <div class="card">
-            <div class="ic">🐶</div>
-            <h3>강아지만 본 AI</h3>
-            <p>강아지 사진만 잔뜩 배우면, 고양이를 봐도 "강아지!"라고 착각할 수 있어요.</p>
+        <div class="eyebrow">학습 목표</div>
+        <h1 class="h1">오늘 우리가 배울 것</h1>
+        <p class="lead">AI는 참 편리한 친구예요. 하지만 <b>똑똑하게, 그리고 바르게</b> 쓰려면 알아야 할 것이 있어요. 오늘은 세 가지를 배워요.</p>
+        <div class="goalgrid">
+          <div class="goalbox">
+            <svg viewBox="0 0 100 100" aria-hidden="true">
+              <circle cx="50" cy="50" r="46" fill="#eef5f3"/>
+              <rect x="30" y="30" width="40" height="36" rx="10" fill="#0f766e"/>
+              <circle cx="42" cy="46" r="5" fill="#fff"/><circle cx="58" cy="46" r="5" fill="#fff"/>
+              <path d="M40 58 q10 8 20 0" stroke="#fff" stroke-width="3" fill="none" stroke-linecap="round"/>
+              <text x="70" y="34" font-size="26" fill="#e05b4a" font-weight="900">?</text>
+            </svg>
+            <h3>AI도 틀려요</h3>
+            <p>AI도 실수와 편견이 있음을 알아요.</p>
           </div>
-          <div class="card">
-            <div class="ic">⚖️</div>
-            <h3>편견이 뭐예요?</h3>
-            <p>한쪽만 보고 "다 그럴 거야" 하고 정하는 거예요. 사람도, AI도 그럴 수 있어요.</p>
+          <div class="goalbox">
+            <svg viewBox="0 0 100 100" aria-hidden="true">
+              <circle cx="50" cy="50" r="46" fill="#fdf7e8"/>
+              <rect x="34" y="48" width="32" height="26" rx="5" fill="#f4b740"/>
+              <path d="M40 48 v-8 a10 10 0 0 1 20 0 v8" stroke="#0b5c55" stroke-width="5" fill="none"/>
+              <circle cx="50" cy="59" r="4" fill="#0b5c55"/>
+            </svg>
+            <h3>바르게 쓰는 약속</h3>
+            <p>개인정보와 예의를 지키며 써요.</p>
+          </div>
+          <div class="goalbox">
+            <svg viewBox="0 0 100 100" aria-hidden="true">
+              <circle cx="50" cy="50" r="46" fill="#eef5f3"/>
+              <path d="M50 26 c-14 0-24 10-24 22 c0 9 6 14 9 18 c1 2 1 4 1 6 h28 c0-2 0-4 1-6 c3-4 9-9 9-18 c0-12-10-22-24-22z" fill="#f4b740"/>
+              <rect x="40" y="74" width="20" height="6" rx="3" fill="#0b5c55"/>
+              <rect x="43" y="82" width="14" height="5" rx="2.5" fill="#0b5c55"/>
+            </svg>
+            <h3>스스로 판단하기</h3>
+            <p>"정말 맞을까?" 스스로 생각해요.</p>
           </div>
         </div>
       </section>
 
-      <!-- 3. 실수 사례 -->
+      <!-- 3. 지난 시간 복습 + 오늘 질문 -->
       <section class="slide">
-        <div class="eyebrow">● 이럴 때 실수해요</div>
-        <h1 class="h1">AI의 실수, 이런 게 있어요</h1>
-        <p class="lead">AI는 아주 똑똑하지만, 사람처럼 실수도 해요. 어떤 실수가 있을까요?</p>
-        <div class="cards">
-          <div class="card">
-            <div class="ic">🐱</div>
-            <h3>착각해요</h3>
-            <p>강아지를 고양이로 잘못 알아볼 때가 있어요.</p>
+        <div class="eyebrow">지난 시간과 이어서</div>
+        <h1 class="h1">지난 6차시, 기억나요?</h1>
+        <div class="split">
+          <div class="artcard art" aria-hidden="true">
+            <svg viewBox="0 0 320 220" role="img">
+              <rect x="20" y="40" width="90" height="70" rx="12" fill="#fff" stroke="#cfe3dd" stroke-width="3"/>
+              <circle cx="45" cy="65" r="9" fill="#f4b740"/><rect x="34" y="80" width="62" height="8" rx="4" fill="#cfe3dd"/><rect x="34" y="94" width="44" height="8" rx="4" fill="#cfe3dd"/>
+              <text x="50" y="132" font-size="15" fill="#5b6f68" font-weight="700">사진·글 데이터</text>
+              <path d="M120 80 h50" stroke="#0f766e" stroke-width="5" stroke-linecap="round"/>
+              <path d="M165 72 l12 8 l-12 8" fill="#0f766e"/>
+              <rect x="185" y="42" width="110" height="66" rx="16" fill="#0f766e"/>
+              <circle cx="215" cy="72" r="7" fill="#fff"/><circle cx="240" cy="72" r="7" fill="#fff"/>
+              <path d="M210 88 q20 10 40 0" stroke="#fff" stroke-width="4" fill="none" stroke-linecap="round"/>
+              <text x="210" y="132" font-size="15" fill="#5b6f68" font-weight="700">AI가 배워요</text>
+              <text x="112" y="180" font-size="17" fill="#0b5c55" font-weight="800">데이터를 많이 보고 → 배워요!</text>
+            </svg>
           </div>
-          <div class="card">
-            <div class="ic">🎁</div>
-            <h3>엉뚱해요</h3>
-            <p>내가 좋아하지 않는 걸 자꾸 추천하기도 해요.</p>
-          </div>
-          <div class="card">
-            <div class="ic">❌</div>
-            <h3>틀린 말도 해요</h3>
-            <p>가끔은 맞지 않는 정보를 진짜처럼 말하기도 해요.</p>
-          </div>
-        </div>
-      </section>
-
-      <!-- 4. 왜 틀릴까 -->
-      <section class="slide">
-        <div class="eyebrow">● 왜 그럴까요?</div>
-        <h1 class="h1">AI는 왜 틀릴까요?</h1>
-        <p class="lead">AI는 <b>사람이 준 데이터와 규칙대로</b> 배워요. 그래서 배운 것 안에서만 대답할 수 있어요.</p>
-        <div class="promise">
-          <div class="big">🧑‍🏫➡️🤖</div>
           <div>
-            <h2>그래서 사람이 중요해요</h2>
-            <p>사람이 <b>잘 가르치고</b>, 우리가 <b>잘 써야</b> AI도 착하고 똑똑해져요. 오늘은 바르게 쓰는 약속 세 가지를 배워요!</p>
+            <p class="lead">지난 시간에 우리는 AI가 <b>사진과 글 같은 데이터를 많이 보고 배운다</b>는 걸 알았어요. 많이 볼수록 더 잘 알아맞혔지요.</p>
+            <div class="ask">
+              <span class="tag">함께 생각하기</span>
+              <p>"그런데 얘들아, AI가 데이터를 보고 배운다면… <b>혹시 틀릴 때는 없을까요?</b>"</p>
+              <p>오늘은 AI가 실수하는 이유와, 우리가 바르게 쓰는 방법을 배워봐요!</p>
+            </div>
           </div>
         </div>
       </section>
 
-      <!-- 5. 약속 1 -->
+      <!-- 4. AI도 틀려요 - 편견 -->
       <section class="slide">
-        <div class="eyebrow">● 우리의 약속 ①</div>
+        <div class="eyebrow">AI도 틀려요</div>
+        <h1 class="h1">한쪽만 보면 헷갈려요</h1>
+        <div class="split rev">
+          <div>
+            <p class="lead">AI가 <b>강아지 사진만</b> 잔뜩 봤다면 어떻게 될까요? 처음 보는 고양이도 "강아지!"라고 착각할 수 있어요. 이렇게 <b>한쪽만 보고 정하는 것</b>을 편견이라고 해요.</p>
+            <div class="ask">
+              <span class="tag">발문</span>
+              <p>"강아지만 본 AI에게 고양이를 보여주면 뭐라고 할까요?"</p>
+              <p>"사람도 한 가지만 보고 '다 그럴 거야' 한 적 있나요?"</p>
+            </div>
+          </div>
+          <div class="artcard art" aria-hidden="true">
+            <svg viewBox="0 0 320 230" role="img">
+              <!-- 눈가리개 로봇: 강아지만 봄 -->
+              <rect x="20" y="60" width="80" height="60" rx="10" fill="#fff" stroke="#cfe3dd" stroke-width="3"/>
+              <path d="M40 100 q8-18 20-4 q6-14 16 0 q6 4 4 20 h-40 z" fill="#c9a06b"/>
+              <ellipse cx="48" cy="86" rx="4" ry="6" fill="#7a5a33"/><ellipse cx="72" cy="86" rx="4" ry="6" fill="#7a5a33"/>
+              <text x="34" y="140" font-size="13" fill="#5b6f68" font-weight="700">강아지만 봄</text>
+              <path d="M105 90 h34" stroke="#5b6f68" stroke-width="4" stroke-dasharray="6 5" stroke-linecap="round"/>
+              <!-- AI -->
+              <rect x="145" y="55" width="90" height="72" rx="18" fill="#0f766e"/>
+              <rect x="176" y="34" width="12" height="16" rx="5" fill="#f4b740"/><circle cx="182" cy="30" r="7" fill="#f4b740"/>
+              <circle cx="170" cy="86" r="8" fill="#fff"/><circle cx="210" cy="86" r="8" fill="#fff"/>
+              <path d="M166 106 q24 12 48 0" stroke="#fff" stroke-width="4" fill="none" stroke-linecap="round"/>
+              <!-- 고양이 입력 -->
+              <g transform="translate(258 60)">
+                <path d="M0 30 q4-20 14-6 q6-12 12 0 q10-14 14 6 q4 4 2 22 h-42z" fill="#9aa7b0"/>
+                <path d="M6 12 l-4-12 l10 6z M40 12 l4-12 l-10 6z" fill="#9aa7b0"/>
+                <circle cx="14" cy="26" r="3" fill="#243b34"/><circle cx="34" cy="26" r="3" fill="#243b34"/>
+              </g>
+              <!-- 말풍선 오답 -->
+              <g transform="translate(150 150)">
+                <rect x="0" y="0" width="150" height="42" rx="14" fill="#fbe9e7" stroke="#f3c9c2" stroke-width="2"/>
+                <path d="M30 42 l0 14 l16-14z" fill="#fbe9e7"/>
+                <text x="16" y="27" font-size="17" fill="#c1392b" font-weight="900">"강아지야!" ✗</text>
+              </g>
+              <text x="20" y="205" font-size="13" fill="#5b6f68" font-weight="700">→ 고양이인데 착각!</text>
+            </svg>
+          </div>
+        </div>
+      </section>
+
+      <!-- 5. 실수 사례 1: 착각 -->
+      <section class="slide">
+        <div class="eyebrow">AI 실수 사례 ①</div>
+        <h1 class="h1">사례 하나 — 착각해요</h1>
+        <p class="lead">AI가 사진을 보고 무엇인지 알아맞힐 때, <b>비슷하게 생긴 것을 헷갈려</b> 엉뚱하게 대답하기도 해요.</p>
+        <div class="cards">
+          <div class="card">
+            <svg class="ic" viewBox="0 0 80 80" aria-hidden="true">
+              <rect x="8" y="14" width="64" height="52" rx="10" fill="#eef5f3" stroke="#cfe3dd" stroke-width="3"/>
+              <path d="M22 52 q6-16 16-4 q6-12 14 0 q6 4 4 16 h-36z" fill="#c9a06b"/>
+              <circle cx="32" cy="42" r="3" fill="#5b3f1f"/><circle cx="48" cy="42" r="3" fill="#5b3f1f"/>
+            </svg>
+            <h3>진짜 정답</h3>
+            <p>이건 사실 강아지 사진이에요. 우리 눈에는 딱 보이지요.</p>
+          </div>
+          <div class="card">
+            <svg class="ic" viewBox="0 0 80 80" aria-hidden="true">
+              <rect x="10" y="14" width="60" height="46" rx="14" fill="#0f766e"/>
+              <circle cx="30" cy="38" r="6" fill="#fff"/><circle cx="50" cy="38" r="6" fill="#fff"/>
+              <path d="M26 52 q14 8 28 0" stroke="#fff" stroke-width="3" fill="none" stroke-linecap="round"/>
+              <rect x="36" y="4" width="8" height="10" rx="3" fill="#f4b740"/>
+            </svg>
+            <h3>AI의 대답</h3>
+            <p>"음… 곰인가?" AI가 자신 있게 틀린 답을 말했어요!</p>
+          </div>
+          <div class="card">
+            <svg class="ic" viewBox="0 0 80 80" aria-hidden="true">
+              <circle cx="40" cy="40" r="30" fill="#fdf7e8" stroke="#f0e2be" stroke-width="3"/>
+              <text x="40" y="54" font-size="34" text-anchor="middle" fill="#a6790a" font-weight="900">?</text>
+            </svg>
+            <h3>왜 그럴까?</h3>
+            <p>비슷한 털·색을 곰으로 착각한 거예요. AI도 실수해요.</p>
+          </div>
+        </div>
+        <div class="ask">
+          <span class="tag">함께 생각하기</span>
+          <p>"AI가 강아지를 곰이라고 했어요. 여러분이라면 어떻게 알려줄까요?"</p>
+        </div>
+      </section>
+
+      <!-- 6. 실수 사례 2: 틀린 정보/추천 -->
+      <section class="slide">
+        <div class="eyebrow">AI 실수 사례 ②</div>
+        <h1 class="h1">사례 둘 — 틀린 말·엉뚱한 추천</h1>
+        <div class="split">
+          <div class="artcard art" aria-hidden="true">
+            <svg viewBox="0 0 320 230" role="img">
+              <rect x="30" y="30" width="150" height="66" rx="16" fill="#fff" stroke="#cfe3dd" stroke-width="3"/>
+              <path d="M60 96 l0 16 l18-16z" fill="#fff" stroke="#cfe3dd" stroke-width="3"/>
+              <text x="46" y="60" font-size="15" fill="#243b34" font-weight="800">"수박은</text>
+              <text x="46" y="82" font-size="15" fill="#c1392b" font-weight="900">채소가 아니라 동물!"</text>
+              <g transform="translate(215 40)">
+                <rect x="0" y="0" width="80" height="64" rx="16" fill="#0f766e"/>
+                <circle cx="26" cy="30" r="7" fill="#fff"/><circle cx="54" cy="30" r="7" fill="#fff"/>
+                <path d="M22 48 q18 8 36 0" stroke="#fff" stroke-width="4" fill="none" stroke-linecap="round"/>
+                <rect x="34" y="-12" width="10" height="14" rx="4" fill="#f4b740"/>
+              </g>
+              <!-- 엉뚱 추천 -->
+              <rect x="30" y="140" width="260" height="70" rx="16" fill="#fdf7e8" stroke="#f0e2be" stroke-width="3"/>
+              <text x="48" y="168" font-size="15" fill="#a6790a" font-weight="800">겨울인데 "수영복 어때요?"</text>
+              <g transform="translate(232 150)">
+                <rect x="0" y="0" width="42" height="44" rx="8" fill="#e6f2f0"/>
+                <path d="M8 30 q13-8 26 0" stroke="#0f766e" stroke-width="4" fill="none"/>
+                <circle cx="14" cy="16" r="3" fill="#0f766e"/><circle cx="28" cy="16" r="3" fill="#0f766e"/>
+              </g>
+            </svg>
+          </div>
+          <div>
+            <p class="lead">AI는 가끔 <b>틀린 정보</b>를 진짜처럼 말하기도 하고, 나에게 <b>필요 없는 것을 자꾸 추천</b>하기도 해요.</p>
+            <ul class="bullets">
+              <li><svg class="bic" viewBox="0 0 24 24"><circle cx="12" cy="12" r="11" fill="#fbe9e7"/><text x="12" y="17" font-size="15" text-anchor="middle" fill="#c1392b" font-weight="900">✗</text></svg><span>"수박은 동물이에요" 같은 <b>틀린 사실</b></span></li>
+              <li><svg class="bic" viewBox="0 0 24 24"><circle cx="12" cy="12" r="11" fill="#fdf7e8"/><text x="12" y="17" font-size="14" text-anchor="middle" fill="#a6790a" font-weight="900">!</text></svg><span>추운 겨울에 <b>수영복을 추천</b>하는 엉뚱함</span></li>
+            </ul>
+            <div class="ask">
+              <span class="tag">발문</span>
+              <p>"AI 말이 이상할 때, 그냥 믿어도 될까요?"</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 7. 왜 틀릴까 - 사람이 준 데이터 -->
+      <section class="slide">
+        <div class="eyebrow">왜 틀릴까요?</div>
+        <h1 class="h1">AI는 사람에게서 배워요</h1>
+        <div class="split rev">
+          <div>
+            <p class="lead">AI는 스스로 아는 게 아니라, <b>사람이 준 데이터와 규칙</b>대로 배워요. 그래서 <b>배운 것 안에서만</b> 대답할 수 있어요. 사람이 잘못 가르치면 AI도 잘못 배우지요.</p>
+            <p class="lead">그러니 <b>사람이 참 중요해요.</b> 우리가 바르게 가르치고 바르게 써야 AI도 착하고 똑똑해져요!</p>
+          </div>
+          <div class="artcard art" aria-hidden="true">
+            <svg viewBox="0 0 320 240" role="img">
+              <!-- 사람 -->
+              <circle cx="70" cy="70" r="22" fill="#f4b740"/>
+              <rect x="48" y="96" width="44" height="46" rx="16" fill="#0b5c55"/>
+              <circle cx="63" cy="68" r="3.5" fill="#5b3f1f"/><circle cx="77" cy="68" r="3.5" fill="#5b3f1f"/>
+              <path d="M62 78 q8 6 16 0" stroke="#5b3f1f" stroke-width="3" fill="none" stroke-linecap="round"/>
+              <text x="34" y="164" font-size="15" fill="#0b5c55" font-weight="800">사람이 가르쳐요</text>
+              <!-- 화살표 데이터 -->
+              <path d="M100 100 C150 100 160 100 200 100" stroke="#0f766e" stroke-width="6" fill="none" stroke-linecap="round"/>
+              <path d="M196 90 l16 10 l-16 10z" fill="#0f766e"/>
+              <g fill="#f4b740"><circle cx="130" cy="82" r="6"/><circle cx="155" cy="118" r="6"/><circle cx="178" cy="80" r="6"/></g>
+              <text x="112" y="70" font-size="12" fill="#5b6f68" font-weight="700">데이터·규칙</text>
+              <!-- AI -->
+              <rect x="212" y="66" width="86" height="70" rx="18" fill="#0f766e"/>
+              <rect x="244" y="46" width="12" height="16" rx="5" fill="#f4b740"/><circle cx="250" cy="42" r="7" fill="#f4b740"/>
+              <circle cx="238" cy="96" r="8" fill="#fff"/><circle cx="274" cy="96" r="8" fill="#fff"/>
+              <path d="M234 116 q22 12 44 0" stroke="#fff" stroke-width="4" fill="none" stroke-linecap="round"/>
+              <text x="214" y="164" font-size="15" fill="#0b5c55" font-weight="800">AI가 배워요</text>
+              <rect x="40" y="188" width="240" height="38" rx="12" fill="#eef5f3" stroke="#cfe3dd" stroke-width="2"/>
+              <text x="160" y="212" font-size="15" text-anchor="middle" fill="#0b5c55" font-weight="800">잘 가르치면 → 착한 AI!</text>
+            </svg>
+          </div>
+        </div>
+      </section>
+
+      <!-- 8. 약속 1: 개인정보 -->
+      <section class="slide">
+        <div class="eyebrow">우리의 약속 ①</div>
         <h1 class="h1">개인정보 지키기</h1>
         <div class="promise">
-          <div class="big">🔒</div>
+          <div class="pic" aria-hidden="true">
+            <svg viewBox="0 0 120 120">
+              <circle cx="60" cy="60" r="56" fill="#eef5f3"/>
+              <rect x="36" y="58" width="48" height="40" rx="8" fill="#f4b740"/>
+              <path d="M44 58 v-12 a16 16 0 0 1 32 0 v12" stroke="#0b5c55" stroke-width="7" fill="none"/>
+              <circle cx="60" cy="74" r="6" fill="#0b5c55"/><rect x="57" y="78" width="6" height="12" rx="3" fill="#0b5c55"/>
+            </svg>
+          </div>
           <div>
             <span class="no">약속 1</span>
             <h2>내 정보는 소중해요</h2>
-            <p>내 이름·주소·전화번호, 친구 사진을 <b>함부로 AI에 넣지 않아요.</b> 소중한 정보는 나와 우리 가족만 알아요.</p>
+            <p>이름·주소·전화번호, 친구 사진을 <b>함부로 AI에 넣지 않아요.</b> 소중한 정보는 나와 우리 가족만 알아요.</p>
           </div>
         </div>
-        <ul class="bullets">
-          <li>🙅 "우리 집 주소는 ○○이야" 하고 AI에 알려주지 않기</li>
-          <li>📷 친구 얼굴 사진을 마음대로 올리지 않기</li>
-        </ul>
+        <div class="ox">
+          <div class="oxbox o">
+            <svg class="mk" viewBox="0 0 40 40" aria-hidden="true"><circle cx="20" cy="20" r="18" fill="#bfe3d0"/><path d="M13 21 l5 5 l10-11" stroke="#0b5c55" stroke-width="4" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            <p>이렇게 해요<small>"동물에 대해 알려줘" 처럼 궁금한 걸 물어봐요.</small></p>
+          </div>
+          <div class="oxbox x">
+            <svg class="mk" viewBox="0 0 40 40" aria-hidden="true"><circle cx="20" cy="20" r="18" fill="#f3c9c2"/><path d="M13 13 l14 14 M27 13 l-14 14" stroke="#c1392b" stroke-width="4" fill="none" stroke-linecap="round"/></svg>
+            <p>이건 안 돼요<small>"우리 집 주소는 ○○동이야" 처럼 내 정보 알려주기.</small></p>
+          </div>
+        </div>
+        <div class="ask">
+          <span class="tag">발문</span>
+          <p>"AI에게 알려주면 안 되는 나만의 정보, 또 뭐가 있을까요?"</p>
+        </div>
       </section>
 
-      <!-- 6. 약속 2 -->
+      <!-- 9. 약속 2: 스스로 확인 -->
       <section class="slide">
-        <div class="eyebrow">● 우리의 약속 ②</div>
-        <h1 class="h1">스스로 확인하기</h1>
-        <div class="promise">
-          <div class="big">🤔</div>
+        <div class="eyebrow">우리의 약속 ②</div>
+        <h1 class="h1">스스로 한 번 더 확인하기</h1>
+        <div class="split">
+          <div class="artcard art" aria-hidden="true">
+            <svg viewBox="0 0 300 230" role="img">
+              <!-- 아이 얼굴 -->
+              <circle cx="80" cy="120" r="40" fill="#f4b740"/>
+              <circle cx="68" cy="114" r="4.5" fill="#5b3f1f"/><circle cx="92" cy="114" r="4.5" fill="#5b3f1f"/>
+              <path d="M68 132 q12 8 24 0" stroke="#5b3f1f" stroke-width="3.5" fill="none" stroke-linecap="round"/>
+              <!-- 생각풍선 -->
+              <circle cx="128" cy="66" r="6" fill="#e6f2f0"/><circle cx="145" cy="52" r="9" fill="#e6f2f0"/>
+              <path d="M150 30 q60-14 108 6 q26 12 18 40 q-6 22-44 24 q-46 4-84-14 q-24-14-14-38 q6-16 16-18z" fill="#e6f2f0" stroke="#cfe3dd" stroke-width="3"/>
+              <text x="205" y="58" font-size="19" text-anchor="middle" fill="#0b5c55" font-weight="900">정말</text>
+              <text x="205" y="82" font-size="19" text-anchor="middle" fill="#0b5c55" font-weight="900">맞을까?</text>
+            </svg>
+          </div>
           <div>
             <span class="no">약속 2</span>
-            <h2>한 번 더 생각해요</h2>
-            <p><b>AI 말이 다 맞진 않아요.</b> AI가 알려준 것도 "정말 맞을까?" 한 번 더 생각하고 확인해요.</p>
+            <p class="lead"><b>AI 말이 다 맞진 않아요.</b> AI가 알려준 것도 "정말 맞을까?" 하고 한 번 더 생각하고 확인해요.</p>
+            <ul class="bullets">
+              <li><svg class="bic" viewBox="0 0 24 24"><circle cx="12" cy="12" r="11" fill="#eef5f3"/><path d="M8 12 l3 3 l6-7" stroke="#0b5c55" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg><span>책·선생님·부모님께 <b>다시 물어보기</b></span></li>
+              <li><svg class="bic" viewBox="0 0 24 24"><circle cx="12" cy="12" r="11" fill="#eef5f3"/><path d="M8 12 l3 3 l6-7" stroke="#0b5c55" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg><span>이상하면 <b>"이건 틀린 것 같아요!"</b> 말하기</span></li>
+            </ul>
+            <div class="ask">
+              <span class="tag">상황 함께 생각</span>
+              <p>"AI가 '지구는 네모예요'라고 했어요. 여러분은 어떻게 확인할까요?"</p>
+            </div>
           </div>
         </div>
-        <ul class="bullets">
-          <li>📚 책이나 선생님, 부모님께도 물어보기</li>
-          <li>✅ 이상하면 "이건 틀린 것 같아요!" 하고 말하기</li>
-        </ul>
       </section>
 
-      <!-- 7. 약속 3 -->
+      <!-- 10. 약속 3: 바르고 친절하게 -->
       <section class="slide">
-        <div class="eyebrow">● 우리의 약속 ③</div>
-        <h1 class="h1">바르고 친절하게</h1>
+        <div class="eyebrow">우리의 약속 ③</div>
+        <h1 class="h1">바르고 친절하게 쓰기</h1>
         <div class="promise">
-          <div class="big">🙏</div>
+          <div class="pic" aria-hidden="true">
+            <svg viewBox="0 0 120 120">
+              <circle cx="60" cy="60" r="56" fill="#fbe9e7"/>
+              <path d="M60 44 c-8-14-32-10-32 6 c0 14 20 24 32 34 c12-10 32-20 32-34 c0-16-24-20-32-6z" fill="#e05b4a"/>
+              <path d="M46 58 l6 6 l14-14" stroke="#fff" stroke-width="5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </div>
           <div>
             <span class="no">약속 3</span>
             <h2>착한 마음으로 써요</h2>
             <p>AI로 남을 <b>속이거나 나쁘게 쓰지 않아요.</b> 사람에게 하듯이 예의를 지키며 바르게 써요.</p>
           </div>
         </div>
-        <ul class="bullets">
-          <li>😊 고마우면 "고마워" 하고 친절하게 말하기</li>
-          <li>🚫 남을 놀리거나 속이는 데 쓰지 않기</li>
-        </ul>
+        <div class="ox">
+          <div class="oxbox o">
+            <svg class="mk" viewBox="0 0 40 40" aria-hidden="true"><circle cx="20" cy="20" r="18" fill="#bfe3d0"/><path d="M13 21 l5 5 l10-11" stroke="#0b5c55" stroke-width="4" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            <p>이렇게 해요<small>"고마워!" 친절하게, 궁금한 걸 예의 바르게 물어요.</small></p>
+          </div>
+          <div class="oxbox x">
+            <svg class="mk" viewBox="0 0 40 40" aria-hidden="true"><circle cx="20" cy="20" r="18" fill="#f3c9c2"/><path d="M13 13 l14 14 M27 13 l-14 14" stroke="#c1392b" stroke-width="4" fill="none" stroke-linecap="round"/></svg>
+            <p>이건 안 돼요<small>친구를 놀리거나 속이는 데 AI를 쓰지 않아요.</small></p>
+          </div>
+        </div>
+        <div class="ask">
+          <span class="tag">발문</span>
+          <p>"AI에게도 '고마워'라고 말하면 어떤 기분이 들까요?"</p>
+        </div>
       </section>
 
-      <!-- 8. 정리 -->
+      <!-- 11. 우리 반 약속 정하기 (활동) -->
       <section class="slide">
-        <div class="eyebrow">● 정리하기</div>
-        <h1 class="h1">우리 반 AI 약속을 정해요!</h1>
-        <p class="lead">오늘 배운 세 가지 약속을 함께 지켜요. 우리가 바르게 쓰면 AI는 정말 착한 친구가 돼요.</p>
+        <div class="eyebrow">함께하는 활동</div>
+        <h1 class="h1">우리 반 AI 약속 붙이기</h1>
+        <p class="lead">오늘 배운 세 가지 약속을 <b>우리 반 약속</b>으로 만들어요. 칠판에 붙여 매일 함께 지켜요!</p>
+        <div class="steps">
+          <div class="step">
+            <span class="n">1</span>
+            <svg viewBox="0 0 80 50" style="width:100%;height:auto" aria-hidden="true">
+              <rect x="6" y="8" width="30" height="38" rx="4" fill="#fdf7e8" stroke="#f0e2be" stroke-width="2"/>
+              <path d="M40 20 q10-6 14 4" stroke="#0f766e" stroke-width="4" fill="none"/>
+              <path d="M52 20 l4 4 l-8 2z" fill="#0f766e"/>
+            </svg>
+            <h3>약속 카드 쓰기</h3>
+            <p>세 가지 약속을 카드에 예쁘게 써요.</p>
+          </div>
+          <div class="step">
+            <span class="n">2</span>
+            <svg viewBox="0 0 80 50" style="width:100%;height:auto" aria-hidden="true">
+              <rect x="10" y="8" width="60" height="34" rx="4" fill="#0b5c55"/>
+              <rect x="18" y="16" width="20" height="6" rx="3" fill="#f4b740"/><rect x="18" y="26" width="34" height="5" rx="2.5" fill="#7cc7b8"/>
+            </svg>
+            <h3>칠판에 붙이기</h3>
+            <p>친구들과 하나씩 칠판에 붙여요.</p>
+          </div>
+          <div class="step">
+            <span class="n">3</span>
+            <svg viewBox="0 0 80 50" style="width:100%;height:auto" aria-hidden="true">
+              <circle cx="26" cy="26" r="14" fill="#f4b740"/><path d="M20 26 l4 4 l9-10" stroke="#fff" stroke-width="4" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+              <circle cx="52" cy="26" r="14" fill="#e05b4a"/><path d="M46 26 c-3-5-11-3-11 2 c0 4 7 7 11 10 c4-3 11-6 11-10 c0-5-8-7-11-2z" fill="#fff"/>
+            </svg>
+            <h3>다 같이 약속!</h3>
+            <p>"우리 반은 이렇게 지켜요!" 외쳐요.</p>
+          </div>
+        </div>
+        <div class="ask">
+          <span class="tag">우리 반 약속 예시</span>
+          <p>① 내 정보는 지켜요 &nbsp; ② 정말 맞는지 확인해요 &nbsp; ③ 친절하게 써요</p>
+        </div>
+      </section>
+
+      <!-- 12. 정리 + 다음 차시 -->
+      <section class="slide">
+        <div class="eyebrow">오늘 정리하기</div>
+        <h1 class="h1">착한 AI, 우리 손에 달렸어요!</h1>
+        <p class="lead">AI는 실수도 하고 편견도 있어요. 하지만 <b>우리가 바르게 쓰면</b> AI는 정말 착하고 똑똑한 친구가 돼요.</p>
         <div class="cards">
           <div class="card">
-            <div class="ic">🔒</div>
+            <svg class="ic" viewBox="0 0 66 66" aria-hidden="true">
+              <circle cx="33" cy="33" r="31" fill="#eef5f3"/>
+              <rect x="20" y="32" width="26" height="20" rx="4" fill="#f4b740"/>
+              <path d="M25 32 v-6 a8 8 0 0 1 16 0 v6" stroke="#0b5c55" stroke-width="4" fill="none"/>
+            </svg>
             <h3>약속 1</h3>
             <p>개인정보를 지켜요.</p>
           </div>
           <div class="card">
-            <div class="ic">🤔</div>
+            <svg class="ic" viewBox="0 0 66 66" aria-hidden="true">
+              <circle cx="33" cy="33" r="31" fill="#eef5f3"/>
+              <path d="M33 16 c-10 0-17 7-17 16 c0 6 4 9 6 12 h22 c2-3 6-6 6-12 c0-9-7-16-17-16z" fill="#f4b740"/>
+              <rect x="26" y="47" width="14" height="4" rx="2" fill="#0b5c55"/>
+            </svg>
             <h3>약속 2</h3>
             <p>스스로 한 번 더 확인해요.</p>
           </div>
           <div class="card">
-            <div class="ic">🙏</div>
+            <svg class="ic" viewBox="0 0 66 66" aria-hidden="true">
+              <circle cx="33" cy="33" r="31" fill="#fbe9e7"/>
+              <path d="M33 22 c-6-9-21-6-21 5 c0 9 13 15 21 22 c8-7 21-13 21-22 c0-11-15-14-21-5z" fill="#e05b4a"/>
+            </svg>
             <h3>약속 3</h3>
             <p>바르고 친절하게 써요.</p>
           </div>
         </div>
         <div class="next">
-          <span>👉</span>
-          <span><b>다음 차시 예고</b> — 다음엔 「AI와 함께하는 우리 하루」를 배워요!</span>
+          <svg viewBox="0 0 40 40" aria-hidden="true"><circle cx="20" cy="20" r="20" fill="#f4b740"/><path d="M15 12 l10 8 l-10 8z" fill="#0b5c55"/></svg>
+          <span><b>다음 차시 예고</b> — 8차시 「AI와 함께하는 우리 하루」에서 만나요!</span>
         </div>
       </section>
 

@@ -8,6 +8,7 @@
   :root{
     --brand:#0f766e; --brand2:#0b5c55; --gold:#f4b740; --ink:#243b34;
     --muted:#5b6f68; --line:#e3e9e2; --paper:#ffffff;
+    --sky:#bfe4f2; --sky2:#e7f5fb; --sun:#f9c74f; --peach:#ffd9b0;
     --body:system-ui,"Apple SD Gothic Neo","Malgun Gothic",sans-serif;
   }
   *{ box-sizing:border-box; word-break:keep-all; overflow-wrap:break-word; }
@@ -31,104 +32,132 @@
   .counter{ font-size:clamp(11.5px,2.3vw,13px); font-weight:800; font-variant-numeric:tabular-nums; }
 
   .board{ flex:1 1 auto; min-height:0; overflow:auto;
-          padding:clamp(28px,4.6vw,52px); }
-  .slide{ display:none; animation:fade .3s ease; }
+          padding:clamp(24px,4vw,46px); }
+  .slide{ display:none; animation:fade .34s ease; }
   .slide.on{ display:block; }
-  @keyframes fade{ from{ opacity:0; transform:translateY(8px); } to{ opacity:1; transform:none; } }
+  @keyframes fade{ from{ opacity:0; transform:translateY(10px); } to{ opacity:1; transform:none; } }
 
   .eyebrow{ font-size:clamp(12px,2.5vw,14px); font-weight:800; color:var(--brand); letter-spacing:.02em; }
-  .h1{ font-size:clamp(1.6rem,5.4vw,2.5rem); font-weight:800; line-height:1.32; margin:.4rem 0 0; }
-  .lead{ font-size:clamp(1.02rem,2.8vw,1.3rem); font-weight:600; color:var(--muted); line-height:1.6; margin:.9rem 0 0; max-width:52ch; }
+  .h1{ font-size:clamp(1.55rem,5vw,2.4rem); font-weight:800; line-height:1.3; margin:.35rem 0 0; }
+  .lead{ font-size:clamp(1rem,2.7vw,1.26rem); font-weight:600; color:var(--muted); line-height:1.6; margin:.7rem 0 0; max-width:56ch; }
+  .lead b{ color:var(--brand2); }
+
+  /* 2단 레이아웃: 글 + 그림 */
+  .split{ display:grid; grid-template-columns:1.05fr .95fr; gap:clamp(18px,3vw,34px); align-items:center; margin-top:clamp(14px,2.4vw,22px); }
+  .split.rev{ grid-template-columns:.95fr 1.05fr; }
+  @media (max-width:820px){ .split,.split.rev{ grid-template-columns:1fr; } }
+  .scene{ width:100%; border-radius:20px; overflow:hidden; box-shadow:0 10px 26px rgba(30,50,40,.14); background:var(--sky2); }
+  .scene svg{ display:block; width:100%; height:auto; }
+
   .bullets{ margin:1rem 0 0; padding-left:1.2em; }
-  .bullets li{ font-size:clamp(1.02rem,2.8vw,1.26rem); font-weight:600; line-height:1.6; margin-bottom:.7rem; }
+  .bullets li{ font-size:clamp(1rem,2.7vw,1.22rem); font-weight:600; line-height:1.55; margin-bottom:.6rem; }
+  .bullets li b{ color:var(--brand2); }
+
+  .pills{ display:flex; flex-wrap:wrap; gap:.5rem; margin-top:1rem; }
+  .pill{ font-size:clamp(.85rem,2.2vw,1rem); font-weight:800; color:#fff; background:var(--brand);
+         padding:.4em .9em; border-radius:999px; }
+  .pill.g{ background:var(--gold); color:#5a4300; }
 
   /* ===== 표지 ===== */
   .cover{ display:flex; flex-direction:column; align-items:center; justify-content:center;
-          text-align:center; min-height:100%; gap:clamp(14px,2.6vw,22px); }
-  .cover .emojis{ font-size:clamp(3.2rem,12vw,6rem); line-height:1; letter-spacing:.1em; }
-  .cover .title{ font-size:clamp(2rem,7vw,3.4rem); font-weight:800; line-height:1.2; margin:0;
+          text-align:center; min-height:100%; gap:clamp(10px,2vw,18px); }
+  .cover .art{ width:min(560px,74%); }
+  .cover .art svg{ width:100%; height:auto; display:block; }
+  .cover .title{ font-size:clamp(1.9rem,6.6vw,3.3rem); font-weight:800; line-height:1.16; margin:.2rem 0 0;
                  background:linear-gradient(120deg,var(--brand),var(--gold)); -webkit-background-clip:text;
                  background-clip:text; -webkit-text-fill-color:transparent; }
-  .cover .sub{ font-size:clamp(1.05rem,3.2vw,1.5rem); font-weight:700; color:var(--muted); margin:0; max-width:34ch; }
-  .cover .badge{ margin-top:.4rem; font-size:clamp(12px,2.4vw,14px); font-weight:800; color:#fff;
+  .cover .sub{ font-size:clamp(1.02rem,3vw,1.45rem); font-weight:700; color:var(--muted); margin:0; max-width:34ch; }
+  .cover .badge{ margin-top:.2rem; font-size:clamp(12px,2.4vw,14px); font-weight:800; color:#fff;
                  background:var(--brand); padding:.5em 1.1em; border-radius:999px; }
 
   /* ===== 카드 그리드 ===== */
-  .grid{ display:grid; gap:clamp(12px,2vw,18px); margin-top:clamp(16px,2.6vw,24px); }
+  .grid{ display:grid; gap:clamp(12px,2vw,18px); margin-top:clamp(14px,2.4vw,22px); }
   .g2{ grid-template-columns:repeat(2,1fr); }
   .g3{ grid-template-columns:repeat(3,1fr); }
-  .g4{ grid-template-columns:repeat(4,1fr); }
-  @media (max-width:760px){ .g3,.g4{ grid-template-columns:1fr 1fr; } .g2{ grid-template-columns:1fr; } }
+  @media (max-width:760px){ .g3{ grid-template-columns:1fr; } .g2{ grid-template-columns:1fr; } }
 
-  .card{ background:#f7faf8; border:1px solid var(--line); border-radius:16px;
-         padding:clamp(14px,2.4vw,22px); display:flex; flex-direction:column; gap:.5rem; }
-  .card .ico{ font-size:clamp(2rem,6vw,2.7rem); line-height:1; }
-  .card h3{ margin:0; font-size:clamp(1.05rem,2.8vw,1.28rem); font-weight:800; color:var(--brand2); }
-  .card p{ margin:0; font-size:clamp(.95rem,2.4vw,1.1rem); font-weight:600; color:var(--muted); line-height:1.5; }
-  .card .tag{ align-self:flex-start; font-size:clamp(11px,2vw,12.5px); font-weight:800; color:#fff;
+  .card{ background:#f7faf8; border:1px solid var(--line); border-radius:18px;
+         padding:clamp(14px,2.2vw,20px); display:flex; flex-direction:column; gap:.5rem; }
+  .card .pic{ width:100%; border-radius:12px; overflow:hidden; background:#eef6f3; }
+  .card .pic svg{ display:block; width:100%; height:auto; }
+  .card h3{ margin:.2rem 0 0; font-size:clamp(1.02rem,2.7vw,1.24rem); font-weight:800; color:var(--brand2); }
+  .card p{ margin:0; font-size:clamp(.92rem,2.3vw,1.06rem); font-weight:600; color:var(--muted); line-height:1.5; }
+  .card .tag{ align-self:flex-start; font-size:clamp(11px,2vw,12.5px); font-weight:800;
               background:var(--gold); color:#5a4300; padding:.25em .7em; border-radius:999px; }
 
-  /* ===== 타임라인 ===== */
-  .timeline{ display:flex; flex-direction:column; gap:clamp(10px,1.8vw,14px); margin-top:clamp(16px,2.6vw,24px); }
-  .tl-row{ display:flex; align-items:center; gap:clamp(12px,2.4vw,18px);
-           background:#f7faf8; border:1px solid var(--line); border-left:6px solid var(--brand);
-           border-radius:14px; padding:clamp(12px,2vw,18px); }
-  .tl-row .num{ flex:0 0 auto; width:clamp(38px,7vw,52px); height:clamp(38px,7vw,52px); border-radius:50%;
-                background:var(--brand); color:#fff; font-weight:800; display:flex; align-items:center;
-                justify-content:center; font-size:clamp(1rem,3vw,1.3rem); }
-  .tl-row .ico{ font-size:clamp(1.7rem,5vw,2.3rem); line-height:1; }
-  .tl-row .body h3{ margin:0; font-size:clamp(1rem,2.8vw,1.22rem); font-weight:800; }
-  .tl-row .body p{ margin:.2rem 0 0; font-size:clamp(.9rem,2.3vw,1.05rem); font-weight:600; color:var(--muted); }
+  /* ===== 하루 타임라인 (예쁘게) ===== */
+  .daytime{ margin-top:clamp(14px,2.4vw,22px); }
+  .daystrip{ width:100%; border-radius:18px; overflow:hidden; box-shadow:0 10px 26px rgba(30,50,40,.14); }
+  .daystrip svg{ display:block; width:100%; height:auto; }
+  .daylabels{ display:grid; grid-template-columns:repeat(4,1fr); gap:clamp(8px,1.6vw,14px); margin-top:clamp(10px,1.8vw,16px); }
+  @media (max-width:640px){ .daylabels{ grid-template-columns:repeat(2,1fr); } }
+  .dl{ background:#f7faf8; border:1px solid var(--line); border-top:5px solid var(--brand); border-radius:12px; padding:clamp(9px,1.6vw,13px); }
+  .dl h4{ margin:0; font-size:clamp(.95rem,2.4vw,1.1rem); font-weight:800; color:var(--brand2); }
+  .dl p{ margin:.2rem 0 0; font-size:clamp(.82rem,2vw,.98rem); font-weight:600; color:var(--muted); line-height:1.45; }
 
   /* ===== 되돌아보기 체크리스트 ===== */
-  .checks{ display:grid; grid-template-columns:repeat(2,1fr); gap:clamp(10px,1.8vw,14px); margin-top:clamp(16px,2.6vw,24px); }
+  .checks{ display:grid; grid-template-columns:repeat(2,1fr); gap:clamp(9px,1.6vw,13px); margin-top:clamp(14px,2.4vw,22px); }
   @media (max-width:760px){ .checks{ grid-template-columns:1fr; } }
   .check{ display:flex; align-items:center; gap:.7rem; background:#f7faf8; border:1px solid var(--line);
-          border-radius:12px; padding:clamp(11px,1.8vw,16px); }
-  .check .ck{ flex:0 0 auto; width:clamp(28px,5vw,34px); height:clamp(28px,5vw,34px); border-radius:9px;
-              background:var(--brand); color:#fff; display:flex; align-items:center; justify-content:center;
-              font-size:clamp(1rem,3vw,1.25rem); font-weight:800; }
-  .check .txt{ font-size:clamp(.95rem,2.5vw,1.12rem); font-weight:700; }
+          border-radius:12px; padding:clamp(10px,1.7vw,15px); }
+  .check .ck{ flex:0 0 auto; width:clamp(30px,5vw,38px); height:clamp(30px,5vw,38px); border-radius:10px;
+              background:var(--brand); color:#fff; display:flex; align-items:center; justify-content:center; }
+  .check .ck svg{ width:64%; height:64%; }
+  .check .txt{ font-size:clamp(.95rem,2.4vw,1.1rem); font-weight:700; }
   .check .txt b{ color:var(--brand2); }
-  .check .txt span{ display:block; font-size:clamp(.85rem,2.1vw,.98rem); font-weight:600; color:var(--muted); }
+  .check .txt span{ display:block; font-size:clamp(.82rem,2vw,.96rem); font-weight:600; color:var(--muted); }
+  .check.done{ background:#e6f2f0; border-color:var(--brand); }
 
   /* ===== 비교 2칸 ===== */
   .versus{ display:grid; grid-template-columns:1fr auto 1fr; align-items:stretch; gap:clamp(10px,2vw,18px);
-           margin-top:clamp(16px,2.6vw,24px); }
+           margin-top:clamp(14px,2.4vw,22px); }
   @media (max-width:760px){ .versus{ grid-template-columns:1fr; } .versus .vs{ transform:rotate(90deg); } }
-  .col{ border-radius:18px; padding:clamp(16px,2.6vw,26px); }
+  .col{ border-radius:18px; padding:clamp(14px,2.4vw,24px); }
   .col.ai{ background:#e6f2f0; border:2px solid var(--brand); }
   .col.human{ background:#fdf4de; border:2px solid var(--gold); }
   .col .top{ display:flex; align-items:center; gap:.6rem; }
-  .col .top .ico{ font-size:clamp(2rem,6vw,2.6rem); }
-  .col .top h3{ margin:0; font-size:clamp(1.15rem,3.4vw,1.5rem); font-weight:800; }
+  .col .top .badgeimg{ width:clamp(46px,10vw,64px); flex:0 0 auto; }
+  .col .top .badgeimg svg{ width:100%; height:auto; display:block; }
+  .col .top h3{ margin:0; font-size:clamp(1.1rem,3.2vw,1.45rem); font-weight:800; }
   .col.ai .top h3{ color:var(--brand2); }
   .col.human .top h3{ color:#8a6400; }
-  .col ul{ margin:.9rem 0 0; padding-left:1.1em; }
-  .col li{ font-size:clamp(1rem,2.6vw,1.2rem); font-weight:700; line-height:1.55; margin-bottom:.55rem; }
-  .vs{ align-self:center; font-size:clamp(1.3rem,4vw,2rem); font-weight:800; color:var(--muted); }
+  .col ul{ margin:.8rem 0 0; padding-left:1.1em; }
+  .col li{ font-size:clamp(.98rem,2.5vw,1.16rem); font-weight:700; line-height:1.5; margin-bottom:.5rem; }
+  .vs{ align-self:center; font-size:clamp(1.2rem,4vw,1.9rem); font-weight:800; color:var(--muted); }
 
   /* ===== 활동 안내 배너 ===== */
-  .app-banner{ margin-top:clamp(16px,2.6vw,24px); display:flex; align-items:center; gap:clamp(14px,3vw,24px);
+  .app-banner{ margin-top:clamp(14px,2.4vw,22px); display:flex; align-items:center; gap:clamp(14px,3vw,24px);
                background:linear-gradient(120deg,var(--brand),var(--brand2)); color:#fff;
-               border-radius:20px; padding:clamp(20px,3.4vw,32px); }
-  .app-banner .big{ font-size:clamp(3rem,9vw,4.5rem); line-height:1; }
-  .app-banner h3{ margin:0; font-size:clamp(1.3rem,4vw,1.8rem); font-weight:800; }
-  .app-banner p{ margin:.4rem 0 0; font-size:clamp(1rem,2.6vw,1.2rem); font-weight:600; opacity:.95; line-height:1.55; }
+               border-radius:20px; padding:clamp(16px,3vw,28px); }
+  .app-banner .big{ flex:0 0 auto; width:clamp(74px,16vw,116px); }
+  .app-banner .big svg{ width:100%; height:auto; display:block; }
+  .app-banner h3{ margin:0; font-size:clamp(1.2rem,3.6vw,1.7rem); font-weight:800; }
+  .app-banner p{ margin:.4rem 0 0; font-size:clamp(.98rem,2.5vw,1.16rem); font-weight:600; opacity:.96; line-height:1.5; }
 
-  .steps{ display:grid; grid-template-columns:repeat(3,1fr); gap:clamp(10px,2vw,16px); margin-top:clamp(14px,2.4vw,20px); }
+  .steps{ display:grid; grid-template-columns:repeat(3,1fr); gap:clamp(10px,2vw,16px); margin-top:clamp(12px,2vw,18px); }
   @media (max-width:760px){ .steps{ grid-template-columns:1fr; } }
-  .step{ background:#f7faf8; border:1px solid var(--line); border-radius:14px; padding:clamp(13px,2.2vw,18px); }
-  .step .n{ font-size:clamp(11px,2vw,12.5px); font-weight:800; color:var(--gold); }
-  .step p{ margin:.3rem 0 0; font-size:clamp(.95rem,2.4vw,1.1rem); font-weight:700; line-height:1.5; }
+  .step{ background:#f7faf8; border:1px solid var(--line); border-radius:14px; padding:clamp(12px,2vw,17px);
+         display:flex; gap:.7rem; align-items:flex-start; }
+  .step .sn{ flex:0 0 auto; width:clamp(30px,5vw,38px); height:clamp(30px,5vw,38px); border-radius:50%;
+             background:var(--gold); color:#5a4300; font-weight:800; display:flex; align-items:center; justify-content:center;
+             font-size:clamp(1rem,3vw,1.2rem); }
+  .step .sb{ font-size:clamp(11px,2vw,12.5px); font-weight:800; color:var(--brand); }
+  .step p{ margin:.15rem 0 0; font-size:clamp(.95rem,2.3vw,1.08rem); font-weight:700; line-height:1.45; }
+
+  /* 교사 팁 박스 */
+  .tip{ margin-top:clamp(14px,2.2vw,20px); background:#fff8e6; border:1px solid #f2e2b6; border-left:6px solid var(--gold);
+        border-radius:14px; padding:clamp(12px,2vw,18px); }
+  .tip b{ color:#8a6400; }
+  .tip p{ margin:.2rem 0 0; font-size:clamp(.92rem,2.3vw,1.06rem); font-weight:600; color:#6a5a2e; line-height:1.5; }
 
   /* ===== 마무리 ===== */
   .closing{ display:flex; flex-direction:column; align-items:center; justify-content:center;
-            text-align:center; min-height:100%; gap:clamp(16px,3vw,26px); }
-  .closing .emojis{ font-size:clamp(2.8rem,10vw,5rem); letter-spacing:.08em; }
-  .closing .msg{ font-size:clamp(1.4rem,5vw,2.4rem); font-weight:800; line-height:1.4; max-width:22ch; color:var(--ink); }
+            text-align:center; min-height:100%; gap:clamp(12px,2.4vw,22px); }
+  .closing .art{ width:min(500px,66%); }
+  .closing .art svg{ width:100%; height:auto; display:block; }
+  .closing .msg{ font-size:clamp(1.3rem,4.6vw,2.2rem); font-weight:800; line-height:1.4; max-width:24ch; color:var(--ink); }
   .closing .msg b{ color:var(--brand); }
-  .closing .heart{ font-size:clamp(1rem,2.8vw,1.3rem); font-weight:700; color:var(--muted); }
+  .closing .heart{ font-size:clamp(1rem,2.7vw,1.25rem); font-weight:700; color:var(--muted); }
 
   .foot{ flex:0 0 auto; display:flex; align-items:center; gap:clamp(12px,3vw,16px);
          padding:clamp(12px,2.2vw,16px) clamp(16px,3.5vw,24px); border-top:1px solid var(--line); }
@@ -144,71 +173,328 @@
   <div class="deck">
     <div class="topbar">
       <div class="course"><b data-title>초2 · AI 융합수업</b> · 8차시</div>
-      <div class="counter"><span id="cur">1</span> / <span id="total">8</span></div>
+      <div class="counter"><span id="cur">1</span> / <span id="total">12</span></div>
     </div>
 
     <div class="board">
 
-      <!-- 1. 표지 -->
+      <!-- ========== 1. 표지 ========== -->
       <section class="slide on">
         <div class="cover">
-          <div class="emojis">🌞🌙</div>
+          <div class="art">
+            <svg viewBox="0 0 520 300" role="img" aria-label="아이와 AI 로봇 친구가 손을 잡은 그림">
+              <defs>
+                <linearGradient id="skyA" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0" stop-color="#e7f5fb"/><stop offset="1" stop-color="#bfe4f2"/>
+                </linearGradient>
+              </defs>
+              <rect x="0" y="0" width="520" height="300" rx="24" fill="url(#skyA)"/>
+              <!-- 해 -->
+              <circle cx="430" cy="70" r="34" fill="#f9c74f"/>
+              <g stroke="#f9c74f" stroke-width="6" stroke-linecap="round">
+                <line x1="430" y1="14" x2="430" y2="2"/><line x1="486" y1="70" x2="498" y2="70"/>
+                <line x1="470" y1="30" x2="480" y2="20"/><line x1="470" y1="110" x2="480" y2="120"/>
+              </g>
+              <!-- 구름 -->
+              <g fill="#ffffff" opacity=".9">
+                <ellipse cx="120" cy="60" rx="42" ry="20"/><ellipse cx="150" cy="52" rx="30" ry="18"/>
+              </g>
+              <!-- 잔디 -->
+              <path d="M0 240 Q260 210 520 240 L520 300 L0 300 Z" fill="#a7d68f"/>
+              <!-- 아이 -->
+              <g>
+                <circle cx="205" cy="150" r="30" fill="#ffd9b0"/>
+                <path d="M175 148 Q205 108 235 148 Q235 122 205 118 Q175 122 175 148 Z" fill="#5b3d2e"/>
+                <circle cx="196" cy="150" r="3.4" fill="#243b34"/><circle cx="216" cy="150" r="3.4" fill="#243b34"/>
+                <path d="M198 162 Q205 168 212 162" stroke="#c96a4a" stroke-width="3" fill="none" stroke-linecap="round"/>
+                <rect x="182" y="180" width="46" height="60" rx="16" fill="#ef8f5a"/>
+                <rect x="196" y="240" width="12" height="34" rx="6" fill="#3f5a52"/><rect x="212" y="240" width="12" height="34" rx="6" fill="#3f5a52"/>
+              </g>
+              <!-- 로봇 친구 -->
+              <g>
+                <rect x="286" y="118" width="66" height="60" rx="18" fill="#0f766e"/>
+                <line x1="319" y1="118" x2="319" y2="100" stroke="#0b5c55" stroke-width="4"/><circle cx="319" cy="96" r="6" fill="#f4b740"/>
+                <rect x="298" y="134" width="42" height="24" rx="12" fill="#e7f5fb"/>
+                <circle cx="311" cy="146" r="5" fill="#0b5c55"/><circle cx="329" cy="146" r="5" fill="#0b5c55"/>
+                <rect x="292" y="178" width="54" height="56" rx="14" fill="#14a394"/>
+                <rect x="308" y="234" width="12" height="34" rx="6" fill="#0b5c55"/><rect x="322" y="234" width="12" height="34" rx="6" fill="#0b5c55"/>
+              </g>
+              <!-- 맞잡은 손 -->
+              <path d="M228 208 Q258 196 292 208" stroke="#f4b740" stroke-width="10" fill="none" stroke-linecap="round"/>
+              <g fill="#f4b740"><path d="M250 150 l6 12 13 2 -9 10 2 13 -12 -6 -12 6 2 -13 -9 -10 13 -2z"/></g>
+            </svg>
+          </div>
           <h1 class="title" data-title>AI와 함께하는 우리 하루</h1>
-          <p class="sub">우리 곁의 AI를 찾아 미래를 상상해요</p>
+          <p class="sub">아침부터 밤까지, 우리 곁의 AI를 찾고 미래를 상상해요</p>
           <span class="badge">8차시 · 단원 마무리 · 표현과 발표</span>
         </div>
       </section>
 
-      <!-- 2. 하루 여행 타임라인 -->
+      <!-- ========== 2. 학습 목표 ========== -->
       <section class="slide">
-        <div class="eyebrow">● 하루 여행</div>
-        <h1 class="h1">우리 하루 속 AI를 찾아라!</h1>
-        <p class="lead">아침에 눈뜰 때부터 잠들 때까지, AI는 우리와 함께 있어요.</p>
-        <div class="timeline">
-          <div class="tl-row">
-            <div class="num">1</div><div class="ico">⏰</div>
-            <div class="body"><h3>아침</h3><p>알람이 깨워 주고, 오늘 날씨를 알려 줘요 ☀️</p></div>
+        <div class="eyebrow">● 오늘의 학습 목표</div>
+        <h1 class="h1">오늘 우리는 이런 걸 배워요</h1>
+        <div class="split">
+          <div>
+            <ul class="bullets">
+              <li>🔎 생활 속에서 <b>AI를 찾아</b>낼 수 있어요.</li>
+              <li>🧩 1~7차시에 <b>배운 것을 종합</b>해 표현할 수 있어요.</li>
+              <li>💡 내가 만들고 싶은 <b>미래의 AI를 상상</b>하고 발표할 수 있어요.</li>
+            </ul>
+            <div class="pills">
+              <span class="pill">찾기</span><span class="pill">표현하기</span><span class="pill g">상상·발표</span>
+            </div>
           </div>
-          <div class="tl-row">
-            <div class="num">2</div><div class="ico">🚦</div>
-            <div class="body"><h3>등굣길</h3><p>신호등이 척척 바뀌고, 다른 나라 말을 번역해 줘요 🗣️</p></div>
-          </div>
-          <div class="tl-row">
-            <div class="num">3</div><div class="ico">🏫</div>
-            <div class="body"><h3>학교</h3><p>사진을 분류하고, 궁금한 걸 검색해 답을 찾아 줘요 🔍</p></div>
-          </div>
-          <div class="tl-row">
-            <div class="num">4</div><div class="ico">🏠</div>
-            <div class="body"><h3>집</h3><p>보고 싶은 영상을 추천 📺, 청소로봇이 방을 치워 줘요 🤖</p></div>
+          <div class="scene">
+            <svg viewBox="0 0 360 260" role="img" aria-label="목표를 향한 세 개의 깃발 그림">
+              <rect x="0" y="0" width="360" height="260" fill="#e7f5fb"/>
+              <path d="M0 210 Q180 180 360 210 L360 260 L0 260 Z" fill="#cdeede"/>
+              <!-- 언덕 위 세 목표 -->
+              <g>
+                <circle cx="90" cy="150" r="34" fill="#0f766e"/>
+                <path d="M78 150 l8 8 16 -18" stroke="#fff" stroke-width="6" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+                <text x="90" y="205" text-anchor="middle" font-size="18" font-weight="800" fill="#0b5c55">찾기</text>
+              </g>
+              <g>
+                <circle cx="180" cy="120" r="34" fill="#14a394"/>
+                <path d="M165 120 h30 M180 105 v30" stroke="#fff" stroke-width="6" stroke-linecap="round"/>
+                <text x="180" y="176" text-anchor="middle" font-size="18" font-weight="800" fill="#0b5c55">표현</text>
+              </g>
+              <g>
+                <circle cx="272" cy="150" r="34" fill="#f4b740"/>
+                <path d="M272 132 l5 11 12 2 -9 8 2 12 -10 -6 -10 6 2 -12 -9 -8 12 -2z" fill="#fff"/>
+                <text x="272" y="205" text-anchor="middle" font-size="18" font-weight="800" fill="#8a6400">상상</text>
+              </g>
+            </svg>
           </div>
         </div>
       </section>
 
-      <!-- 3. 되돌아보기 -->
+      <!-- ========== 3. 하루 여행 도입 ========== -->
+      <section class="slide">
+        <div class="eyebrow">● 하루 여행의 시작</div>
+        <h1 class="h1">우리 하루 속 AI를 찾아 떠나요!</h1>
+        <div class="split rev">
+          <div class="scene">
+            <svg viewBox="0 0 360 260" role="img" aria-label="아침에 침대에서 알람으로 일어나는 아이">
+              <defs><linearGradient id="morn" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff2d6"/><stop offset="1" stop-color="#ffe0e6"/></linearGradient></defs>
+              <rect x="0" y="0" width="360" height="260" fill="url(#morn)"/>
+              <!-- 창문 & 아침 해 -->
+              <rect x="24" y="26" width="120" height="96" rx="10" fill="#e7f5fb" stroke="#0b5c55" stroke-width="4"/>
+              <line x1="84" y1="26" x2="84" y2="122" stroke="#0b5c55" stroke-width="4"/><line x1="24" y1="74" x2="144" y2="74" stroke="#0b5c55" stroke-width="4"/>
+              <circle cx="114" cy="52" r="16" fill="#f9c74f"/>
+              <!-- 침대 -->
+              <rect x="60" y="176" width="250" height="52" rx="12" fill="#8ec3b6"/>
+              <rect x="60" y="150" width="70" height="34" rx="12" fill="#e7f5fb"/>
+              <!-- 아이 얼굴 -->
+              <circle cx="120" cy="162" r="22" fill="#ffd9b0"/>
+              <path d="M100 160 Q120 132 140 160 Q140 142 120 140 Q100 142 100 160 Z" fill="#5b3d2e"/>
+              <path d="M112 162 q3 -4 6 0 M124 162 q3 -4 6 0" stroke="#243b34" stroke-width="2.6" fill="none" stroke-linecap="round"/>
+              <path d="M114 172 q6 5 12 0" stroke="#c96a4a" stroke-width="2.6" fill="none" stroke-linecap="round"/>
+              <!-- 알람 시계 -->
+              <g>
+                <circle cx="262" cy="120" r="30" fill="#0f766e"/>
+                <circle cx="262" cy="120" r="22" fill="#e7f5fb"/>
+                <line x1="262" y1="120" x2="262" y2="104" stroke="#0b5c55" stroke-width="4" stroke-linecap="round"/>
+                <line x1="262" y1="120" x2="274" y2="120" stroke="#0b5c55" stroke-width="4" stroke-linecap="round"/>
+                <circle cx="246" cy="94" r="8" fill="#0f766e"/><circle cx="278" cy="94" r="8" fill="#0f766e"/>
+                <g stroke="#f4b740" stroke-width="4" stroke-linecap="round"><line x1="300" y1="108" x2="312" y2="102"/><line x1="304" y1="122" x2="318" y2="122"/><line x1="300" y1="136" x2="312" y2="142"/></g>
+              </g>
+            </svg>
+          </div>
+          <div>
+            <p class="lead">아침에 눈을 뜰 때부터 밤에 잠들 때까지, <b>AI는 우리와 하루 종일 함께</b> 있어요. 오늘은 우리 하루를 여행하며 숨어 있는 AI를 하나씩 찾아볼 거예요.</p>
+            <div class="tip">
+              <b>발문</b>
+              <p>"여러분은 오늘 아침에 누가, 무엇이 여러분을 도와줬나요? 그중에 <b>AI 친구</b>는 없었을까요?"</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ========== 4. 아침 속 AI ========== -->
+      <section class="slide">
+        <div class="eyebrow">● 하루 여행 ① 아침</div>
+        <h1 class="h1">아침 속 AI를 찾아라</h1>
+        <div class="split">
+          <div>
+            <ul class="bullets">
+              <li>⏰ <b>알람·스마트 스피커</b>가 나를 깨워 줘요.</li>
+              <li>☀️ 오늘 <b>날씨</b>를 미리 알려 줘요.</li>
+              <li>🗣️ "오늘 몇 시야?" 물으면 <b>음성비서</b>가 대답해요.</li>
+            </ul>
+            <div class="tip"><b>이야기 나누기</b><p>음성비서에게 무엇을 물어봤는지 짝과 이야기해요.</p></div>
+          </div>
+          <div class="scene">
+            <svg viewBox="0 0 360 260" role="img" aria-label="스마트 스피커가 날씨와 시간을 말해주는 장면">
+              <rect x="0" y="0" width="360" height="260" fill="#e7f5fb"/>
+              <rect x="0" y="200" width="360" height="60" fill="#d7ecff"/>
+              <!-- 스마트 스피커 -->
+              <g>
+                <ellipse cx="120" cy="222" rx="52" ry="12" fill="#c4dcea"/>
+                <path d="M84 130 q36 -20 72 0 l-6 84 q-30 12 -60 0z" fill="#0f766e"/>
+                <path d="M92 150 q28 -12 56 0" stroke="#8fe0d4" stroke-width="4" fill="none"/>
+                <path d="M90 168 q30 -12 60 0" stroke="#8fe0d4" stroke-width="4" fill="none"/>
+                <circle cx="120" cy="200" r="10" fill="#f4b740"/>
+              </g>
+              <!-- 말풍선: 날씨 -->
+              <g>
+                <rect x="196" y="60" width="140" height="70" rx="16" fill="#ffffff" stroke="#0f766e" stroke-width="3"/>
+                <path d="M200 118 l-14 14 22 -6z" fill="#ffffff" stroke="#0f766e" stroke-width="3"/>
+                <circle cx="228" cy="92" r="15" fill="#f9c74f"/>
+                <g fill="#bfe4f2"><ellipse cx="270" cy="98" rx="26" ry="14"/><ellipse cx="252" cy="90" rx="16" ry="12"/></g>
+                <text x="300" y="100" text-anchor="middle" font-size="20" font-weight="800" fill="#0b5c55">맑음</text>
+              </g>
+              <!-- 말풍선: 시간 -->
+              <g>
+                <rect x="208" y="150" width="126" height="52" rx="14" fill="#f4b740"/>
+                <path d="M214 196 l-12 14 20 -4z" fill="#f4b740"/>
+                <text x="271" y="184" text-anchor="middle" font-size="22" font-weight="800" fill="#5a4300">7:30 아침이에요</text>
+              </g>
+            </svg>
+          </div>
+        </div>
+      </section>
+
+      <!-- ========== 5. 등굣길·바깥 속 AI ========== -->
+      <section class="slide">
+        <div class="eyebrow">● 하루 여행 ② 등굣길·바깥</div>
+        <h1 class="h1">바깥에서 만나는 AI</h1>
+        <div class="split rev">
+          <div class="scene">
+            <svg viewBox="0 0 360 260" role="img" aria-label="스마트 신호등, 지도, 번역이 있는 등굣길 장면">
+              <rect x="0" y="0" width="360" height="260" fill="#e7f5fb"/>
+              <rect x="0" y="196" width="360" height="64" fill="#8a97a3"/>
+              <line x1="0" y1="228" x2="360" y2="228" stroke="#f4d35e" stroke-width="5" stroke-dasharray="26 20"/>
+              <!-- 스마트 신호등 -->
+              <g>
+                <rect x="52" y="70" width="44" height="112" rx="12" fill="#2c3a3a"/>
+                <circle cx="74" cy="98" r="13" fill="#e74c3c" opacity=".35"/>
+                <circle cx="74" cy="128" r="13" fill="#f4b740" opacity=".35"/>
+                <circle cx="74" cy="158" r="13" fill="#37c26f"/>
+                <rect x="70" y="182" width="8" height="14" fill="#2c3a3a"/>
+                <!-- AI 눈 표시 -->
+                <rect x="46" y="46" width="56" height="20" rx="10" fill="#0f766e"/>
+                <text x="74" y="61" text-anchor="middle" font-size="13" font-weight="800" fill="#fff">AI</text>
+              </g>
+              <!-- 지도 핀 -->
+              <g>
+                <path d="M182 78 c22 0 34 16 34 34 c0 24 -34 52 -34 52 c0 0 -34 -28 -34 -52 c0 -18 12 -34 34 -34z" fill="#0f766e"/>
+                <circle cx="182" cy="112" r="14" fill="#e7f5fb"/>
+                <path d="M182 106 v12 M176 112 h12" stroke="#0f766e" stroke-width="3"/>
+                <text x="182" y="200" text-anchor="middle" font-size="13" font-weight="800" fill="#0b5c55">길찾기 지도</text>
+              </g>
+              <!-- 번역 말풍선 -->
+              <g>
+                <rect x="248" y="86" width="94" height="66" rx="14" fill="#fff" stroke="#f4b740" stroke-width="3"/>
+                <text x="272" y="120" text-anchor="middle" font-size="20" font-weight="800" fill="#0b5c55">안녕</text>
+                <path d="M280 128 h30" stroke="#f4b740" stroke-width="3"/>
+                <path d="M300 118 l10 10 -10 10" stroke="#f4b740" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+                <text x="322" y="120" text-anchor="middle" font-size="16" font-weight="800" fill="#8a6400">Hi</text>
+                <text x="295" y="176" text-anchor="middle" font-size="13" font-weight="800" fill="#8a6400">번역 AI</text>
+              </g>
+            </svg>
+          </div>
+          <div>
+            <ul class="bullets">
+              <li>🚦 <b>스마트 신호등</b>이 차와 사람을 살펴 신호를 바꿔요.</li>
+              <li>🗺️ <b>길찾기 지도</b>가 가장 빠른 길을 알려 줘요.</li>
+              <li>🌏 <b>번역 AI</b>가 다른 나라 말을 바꿔 줘요.</li>
+            </ul>
+            <div class="tip"><b>발문</b><p>"등굣길에서 또 어떤 AI를 만날 수 있을까요?"</p></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ========== 6. 학교·집 속 AI ========== -->
+      <section class="slide">
+        <div class="eyebrow">● 하루 여행 ③ 학교·집</div>
+        <h1 class="h1">학교와 집에서 만나는 AI</h1>
+        <div class="grid g3">
+          <div class="card">
+            <div class="pic">
+              <svg viewBox="0 0 200 130" role="img" aria-label="영상 추천 화면">
+                <rect x="0" y="0" width="200" height="130" fill="#eef6f3"/>
+                <rect x="26" y="22" width="148" height="80" rx="10" fill="#0f766e"/>
+                <path d="M86 46 v34 l30 -17z" fill="#fff"/>
+                <circle cx="52" cy="110" r="6" fill="#f4b740"/><circle cx="76" cy="110" r="6" fill="#cfe6df"/><circle cx="100" cy="110" r="6" fill="#cfe6df"/>
+              </svg>
+            </div>
+            <span class="tag">추천 AI</span>
+            <h3>영상·음악 추천</h3>
+            <p>내가 좋아할 만한 것을 척척 골라 줘요.</p>
+          </div>
+          <div class="card">
+            <div class="pic">
+              <svg viewBox="0 0 200 130" role="img" aria-label="청소 로봇">
+                <rect x="0" y="0" width="200" height="130" fill="#eef6f3"/>
+                <ellipse cx="100" cy="108" rx="60" ry="10" fill="#d5e8e0"/>
+                <ellipse cx="100" cy="82" rx="52" ry="26" fill="#14a394"/>
+                <ellipse cx="100" cy="76" rx="52" ry="22" fill="#0f766e"/>
+                <circle cx="86" cy="74" r="6" fill="#e7f5fb"/><circle cx="114" cy="74" r="6" fill="#e7f5fb"/>
+                <path d="M86 88 q14 8 28 0" stroke="#8fe0d4" stroke-width="4" fill="none" stroke-linecap="round"/>
+                <path d="M40 100 q6 -10 14 -6 M158 100 q-6 -10 -14 -6" stroke="#f4b740" stroke-width="4" fill="none" stroke-linecap="round"/>
+              </svg>
+            </div>
+            <span class="tag">로봇 AI</span>
+            <h3>청소 로봇</h3>
+            <p>스스로 길을 찾아 방을 깨끗이 치워요.</p>
+          </div>
+          <div class="card">
+            <div class="pic">
+              <svg viewBox="0 0 200 130" role="img" aria-label="검색 돋보기">
+                <rect x="0" y="0" width="200" height="130" fill="#eef6f3"/>
+                <rect x="40" y="40" width="120" height="30" rx="15" fill="#fff" stroke="#0f766e" stroke-width="3"/>
+                <circle cx="72" cy="55" r="10" fill="none" stroke="#0f766e" stroke-width="4"/>
+                <line x1="80" y1="63" x2="90" y2="73" stroke="#0f766e" stroke-width="4" stroke-linecap="round"/>
+                <path d="M108 55 h44" stroke="#cfe6df" stroke-width="5" stroke-linecap="round"/>
+                <path d="M60 92 h80 M70 106 h60" stroke="#f4b740" stroke-width="5" stroke-linecap="round"/>
+              </svg>
+            </div>
+            <span class="tag">검색 AI</span>
+            <h3>궁금한 것 검색</h3>
+            <p>물어보면 필요한 답을 빠르게 찾아 줘요.</p>
+          </div>
+        </div>
+        <div class="tip"><b>활동</b><p>오늘 학교와 집에서 만난 AI를 손가락으로 하나씩 세어 봐요. 몇 개나 찾았나요?</p></div>
+      </section>
+
+      <!-- ========== 7. 되돌아보기 타임라인 ========== -->
       <section class="slide">
         <div class="eyebrow">● 되돌아보기</div>
-        <h1 class="h1">1~7차시, 우리가 배운 것</h1>
-        <p class="lead">한 걸음씩 걸어온 AI 여행을 되돌아봐요.</p>
+        <h1 class="h1">1~7차시, 우리가 걸어온 AI 여행</h1>
+        <p class="lead">한 걸음씩 배워 온 것을 함께 되짚어 봐요. 모두 <b>참 잘했어요!</b></p>
         <div class="checks">
-          <div class="check"><div class="ck">1</div><div class="txt"><b>AI 이해</b><span>AI와의 첫 만남 🤝</span></div></div>
-          <div class="check"><div class="ck">2</div><div class="txt"><b>소리</b><span>소리로 소통하는 나와 AI 🎤</span></div></div>
-          <div class="check"><div class="ck">3</div><div class="txt"><b>보는 AI</b><span>자연을 관찰하는 AI의 눈 👁️</span></div></div>
-          <div class="check"><div class="ck">4</div><div class="txt"><b>데이터</b><span>데이터가 뭐예요? 📦</span></div></div>
-          <div class="check"><div class="ck">5</div><div class="txt"><b>그래프</b><span>그래프 탐정 📊</span></div></div>
-          <div class="check"><div class="ck">6</div><div class="txt"><b>만들기</b><span>내가 AI를 만들어요 🛠️</span></div></div>
-          <div class="check"><div class="ck">7</div><div class="txt"><b>착한 AI</b><span>바르고 착하게 쓰는 AI 💚</span></div></div>
-          <div class="check"><div class="ck">8</div><div class="txt"><b>오늘</b><span>AI와 함께하는 우리 하루 🌞</span></div></div>
+          <div class="check done"><div class="ck"><svg viewBox="0 0 24 24"><path d="M4 12 l5 5 11 -12" stroke="#fff" stroke-width="4" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></div><div class="txt"><b>1차시 · AI 이해</b><span>AI와의 첫 만남</span></div></div>
+          <div class="check done"><div class="ck"><svg viewBox="0 0 24 24"><path d="M4 12 l5 5 11 -12" stroke="#fff" stroke-width="4" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></div><div class="txt"><b>2차시 · 소리</b><span>소리로 소통하는 나와 AI</span></div></div>
+          <div class="check done"><div class="ck"><svg viewBox="0 0 24 24"><path d="M4 12 l5 5 11 -12" stroke="#fff" stroke-width="4" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></div><div class="txt"><b>3차시 · 보는 AI</b><span>자연을 관찰하는 AI의 눈</span></div></div>
+          <div class="check done"><div class="ck"><svg viewBox="0 0 24 24"><path d="M4 12 l5 5 11 -12" stroke="#fff" stroke-width="4" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></div><div class="txt"><b>4차시 · 데이터</b><span>데이터가 뭐예요?</span></div></div>
+          <div class="check done"><div class="ck"><svg viewBox="0 0 24 24"><path d="M4 12 l5 5 11 -12" stroke="#fff" stroke-width="4" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></div><div class="txt"><b>5차시 · 그래프</b><span>그래프 탐정</span></div></div>
+          <div class="check done"><div class="ck"><svg viewBox="0 0 24 24"><path d="M4 12 l5 5 11 -12" stroke="#fff" stroke-width="4" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></div><div class="txt"><b>6차시 · 만들기</b><span>내가 AI를 만들어요</span></div></div>
+          <div class="check done"><div class="ck"><svg viewBox="0 0 24 24"><path d="M4 12 l5 5 11 -12" stroke="#fff" stroke-width="4" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></div><div class="txt"><b>7차시 · 착한 AI</b><span>바르고 착하게 쓰는 AI</span></div></div>
+          <div class="check"><div class="ck" style="background:var(--gold)"><svg viewBox="0 0 24 24"><path d="M12 3 l2.5 6 6.5 .5 -5 4.3 1.6 6.2 -5.6 -3.4 -5.6 3.4 1.6 -6.2 -5 -4.3 6.5 -.5z" fill="#fff"/></svg></div><div class="txt"><b>8차시 · 오늘</b><span>AI와 함께하는 우리 하루</span></div></div>
         </div>
       </section>
 
-      <!-- 4. 비교 -->
+      <!-- ========== 8. 비교 ========== -->
       <section class="slide">
         <div class="eyebrow">● 생각해 보기</div>
         <h1 class="h1">AI가 잘하는 일 vs 사람이 더 잘하는 일</h1>
-        <p class="lead">AI는 참 똑똑하지만, 사람만이 할 수 있는 소중한 일도 있어요.</p>
+        <p class="lead">AI는 참 똑똑하지만, <b>사람만이 할 수 있는 소중한 일</b>도 있어요.</p>
         <div class="versus">
           <div class="col ai">
-            <div class="top"><span class="ico">🤖</span><h3>AI가 잘하는 일</h3></div>
+            <div class="top">
+              <span class="badgeimg">
+                <svg viewBox="0 0 80 80" role="img" aria-label="로봇 얼굴">
+                  <rect x="16" y="20" width="48" height="42" rx="12" fill="#0f766e"/>
+                  <line x1="40" y1="20" x2="40" y2="8" stroke="#0b5c55" stroke-width="4"/><circle cx="40" cy="6" r="5" fill="#f4b740"/>
+                  <rect x="24" y="32" width="32" height="18" rx="9" fill="#e7f5fb"/>
+                  <circle cx="34" cy="41" r="4" fill="#0b5c55"/><circle cx="46" cy="41" r="4" fill="#0b5c55"/>
+                  <rect x="30" y="58" width="20" height="4" rx="2" fill="#0b5c55"/>
+                </svg>
+              </span>
+              <h3>AI가 잘하는 일</h3>
+            </div>
             <ul>
               <li>⚡ 아주 빠른 계산</li>
               <li>🧠 많은 것을 정확히 기억</li>
@@ -217,7 +503,18 @@
           </div>
           <div class="vs">VS</div>
           <div class="col human">
-            <div class="top"><span class="ico">🧑</span><h3>사람이 더 잘하는 일</h3></div>
+            <div class="top">
+              <span class="badgeimg">
+                <svg viewBox="0 0 80 80" role="img" aria-label="사람 얼굴">
+                  <circle cx="40" cy="34" r="20" fill="#ffd9b0"/>
+                  <path d="M20 32 Q40 4 60 32 Q60 14 40 12 Q20 14 20 32 Z" fill="#5b3d2e"/>
+                  <circle cx="33" cy="34" r="3" fill="#243b34"/><circle cx="47" cy="34" r="3" fill="#243b34"/>
+                  <path d="M32 44 q8 7 16 0" stroke="#c96a4a" stroke-width="3" fill="none" stroke-linecap="round"/>
+                  <path d="M40 58 v14" stroke="#ef8f5a" stroke-width="12" stroke-linecap="round"/>
+                </svg>
+              </span>
+              <h3>사람이 더 잘하는 일</h3>
+            </div>
             <ul>
               <li>💛 따뜻한 마음</li>
               <li>🎨 새로운 생각(창의)</li>
@@ -228,80 +525,162 @@
         </div>
       </section>
 
-      <!-- 5. 상상하기 -->
+      <!-- ========== 9. 상상하기 ========== -->
       <section class="slide">
         <div class="eyebrow">● 상상하기</div>
         <h1 class="h1">내가 만들고 싶은 AI는?</h1>
-        <p class="lead">세상을 더 좋게 만드는 나만의 AI를 상상해 봐요.</p>
+        <p class="lead">세상을 더 좋게 만드는 <b>나만의 AI</b>를 상상해 봐요.</p>
         <div class="grid g3">
           <div class="card">
-            <span class="ico">🩹</span>
+            <div class="pic">
+              <svg viewBox="0 0 200 130" role="img" aria-label="아픈 친구를 돕는 AI">
+                <rect x="0" y="0" width="200" height="130" fill="#eef6f3"/>
+                <rect x="60" y="30" width="80" height="70" rx="16" fill="#0f766e"/>
+                <rect x="90" y="52" width="20" height="6" rx="3" fill="#fff"/><rect x="97" y="45" width="6" height="20" rx="3" fill="#fff"/>
+                <circle cx="80" cy="80" r="5" fill="#e7f5fb"/><circle cx="120" cy="80" r="5" fill="#e7f5fb"/>
+                <path d="M46 60 q-8 8 0 16 q8 -8 0 -16z" fill="#e74c3c"/>
+              </svg>
+            </div>
             <span class="tag">돕는 AI</span>
-            <h3>아픈 친구 도우미 AI</h3>
-            <p>몸이 아픈 친구를 살펴 주고 필요한 걸 알려 줘요.</p>
+            <h3>아픈 친구 도우미</h3>
+            <p>몸이 아픈 친구를 살펴 필요한 걸 알려 줘요.</p>
           </div>
           <div class="card">
-            <span class="ico">♻️</span>
+            <div class="pic">
+              <svg viewBox="0 0 200 130" role="img" aria-label="쓰레기를 분리하는 지구 AI">
+                <rect x="0" y="0" width="200" height="130" fill="#eef6f3"/>
+                <circle cx="100" cy="60" r="34" fill="#37c26f"/>
+                <path d="M70 60 q16 -12 30 0 q14 12 30 0" stroke="#0b5c55" stroke-width="4" fill="none"/>
+                <path d="M100 30 v-6 M100 96 v6" stroke="#0b5c55" stroke-width="4" stroke-linecap="round"/>
+                <path d="M120 44 l6 -3 -1 7z" fill="#0f766e"/>
+                <path d="M114 40 a30 30 0 1 1 -28 -6" stroke="#0f766e" stroke-width="4" fill="none"/>
+              </svg>
+            </div>
             <span class="tag">지구 AI</span>
-            <h3>쓰레기 줄이기 AI</h3>
-            <p>쓰레기를 척척 분리하고 지구를 깨끗하게 지켜요.</p>
+            <h3>쓰레기 줄이기</h3>
+            <p>쓰레기를 척척 분리해 지구를 지켜요.</p>
           </div>
           <div class="card">
-            <span class="ico">🐶</span>
+            <div class="pic">
+              <svg viewBox="0 0 200 130" role="img" aria-label="강아지 말을 통역하는 AI">
+                <rect x="0" y="0" width="200" height="130" fill="#eef6f3"/>
+                <ellipse cx="78" cy="76" rx="30" ry="26" fill="#c98a4b"/>
+                <path d="M52 58 q-10 -18 4 -22 q8 8 6 22z" fill="#a56b34"/>
+                <path d="M104 58 q10 -18 -4 -22 q-8 8 -6 22z" fill="#a56b34"/>
+                <circle cx="70" cy="72" r="3.5" fill="#243b34"/><circle cx="86" cy="72" r="3.5" fill="#243b34"/>
+                <ellipse cx="78" cy="84" rx="6" ry="4" fill="#243b34"/>
+                <rect x="118" y="44" width="66" height="40" rx="12" fill="#fff" stroke="#f4b740" stroke-width="3"/>
+                <path d="M128 90 l-6 12 16 -8z" fill="#fff" stroke="#f4b740" stroke-width="3"/>
+                <text x="151" y="70" text-anchor="middle" font-size="16" font-weight="800" fill="#0b5c55">좋아!</text>
+              </svg>
+            </div>
             <span class="tag">통역 AI</span>
-            <h3>강아지 말 통역 AI</h3>
-            <p>멍멍 소리를 알아듣고 강아지 마음을 알려 줘요.</p>
+            <h3>강아지 말 통역</h3>
+            <p>멍멍 소리를 알아듣고 마음을 알려 줘요.</p>
           </div>
         </div>
       </section>
 
-      <!-- 6. 활동 안내 -->
+      <!-- ========== 10. 활동 안내 ========== -->
       <section class="slide">
         <div class="eyebrow">● 활동 안내</div>
         <h1 class="h1">꿈의 AI 만들기</h1>
-        <p class="lead">학생 웹앱을 열어 나만의 AI를 직접 디자인해요.</p>
+        <p class="lead">학생 웹앱을 열어 <b>나만의 AI를 직접 디자인</b>해요.</p>
         <div class="app-banner">
-          <div class="big">💡🤖</div>
+          <div class="big">
+            <svg viewBox="0 0 120 120" role="img" aria-label="반짝이는 아이디어 로봇">
+              <circle cx="60" cy="60" r="54" fill="#ffffff" opacity=".12"/>
+              <rect x="34" y="46" width="52" height="44" rx="14" fill="#ffffff"/>
+              <line x1="60" y1="46" x2="60" y2="32" stroke="#f4b740" stroke-width="5"/><circle cx="60" cy="28" r="7" fill="#f4b740"/>
+              <rect x="44" y="58" width="32" height="18" rx="9" fill="#0f766e"/>
+              <circle cx="54" cy="67" r="4" fill="#fff"/><circle cx="66" cy="67" r="4" fill="#fff"/>
+              <g fill="#f4b740"><path d="M24 40 l3 7 7 3 -7 3 -3 7 -3 -7 -7 -3 7 -3z"/><path d="M96 34 l2 5 5 2 -5 2 -2 5 -2 -5 -5 -2 5 -2z"/></g>
+            </svg>
+          </div>
           <div>
             <h3>학생 웹앱 · 「꿈의 AI 만들기」</h3>
             <p>이름을 짓고, 하는 일을 정하고, 얼굴을 꾸며 나만의 AI를 완성해요!</p>
           </div>
         </div>
         <div class="steps">
-          <div class="step"><div class="n">STEP 1</div><p>내 AI 이름 짓기 ✏️</p></div>
-          <div class="step"><div class="n">STEP 2</div><p>어떤 일을 할지 정하기 🎯</p></div>
-          <div class="step"><div class="n">STEP 3</div><p>얼굴과 색을 꾸미기 🎨</p></div>
+          <div class="step"><div class="sn">1</div><div><div class="sb">STEP 1</div><p>내 AI 이름 짓기 ✏️</p></div></div>
+          <div class="step"><div class="sn">2</div><div><div class="sb">STEP 2</div><p>어떤 일을 할지 정하기 🎯</p></div></div>
+          <div class="step"><div class="sn">3</div><div><div class="sb">STEP 3</div><p>얼굴과 색을 꾸미기 🎨</p></div></div>
         </div>
       </section>
 
-      <!-- 7. 발표 나눔 -->
+      <!-- ========== 11. 발표·나눔 ========== -->
       <section class="slide">
         <div class="eyebrow">● 발표와 나눔</div>
-        <h1 class="h1">친구들에게 내 AI를 소개해요</h1>
-        <p class="lead">내가 만든 AI를 자신 있게 발표하고, 친구의 아이디어도 응원해요.</p>
+        <h1 class="h1">우리 반 AI 전시회</h1>
+        <p class="lead">내가 만든 AI를 자신 있게 발표하고, <b>친구의 아이디어도 응원</b>해요.</p>
         <div class="grid g3">
           <div class="card">
-            <span class="ico">🎤</span>
+            <div class="pic">
+              <svg viewBox="0 0 200 130" role="img" aria-label="마이크로 발표하는 모습">
+                <rect x="0" y="0" width="200" height="130" fill="#eef6f3"/>
+                <rect x="92" y="40" width="16" height="42" rx="8" fill="#0f766e"/>
+                <rect x="96" y="82" width="8" height="20" fill="#0b5c55"/>
+                <rect x="80" y="102" width="40" height="8" rx="4" fill="#0b5c55"/>
+                <path d="M100 30 q-20 6 -20 26 M100 30 q20 6 20 26" stroke="#f4b740" stroke-width="3" fill="none"/>
+              </svg>
+            </div>
             <h3>소개하기</h3>
             <p>"내 AI는 ○○예요. ○○한 일을 해요!"</p>
           </div>
           <div class="card">
-            <span class="ico">📌</span>
+            <div class="pic">
+              <svg viewBox="0 0 200 130" role="img" aria-label="전시 보드에 붙인 카드들">
+                <rect x="0" y="0" width="200" height="130" fill="#eef6f3"/>
+                <rect x="26" y="24" width="148" height="82" rx="8" fill="#fff" stroke="#0f766e" stroke-width="3"/>
+                <rect x="40" y="40" width="34" height="34" rx="6" fill="#bfe4f2"/>
+                <rect x="84" y="40" width="34" height="34" rx="6" fill="#ffd9b0"/>
+                <rect x="128" y="40" width="34" height="34" rx="6" fill="#a7d68f"/>
+                <circle cx="57" cy="38" r="5" fill="#f4b740"/><circle cx="101" cy="38" r="5" fill="#f4b740"/><circle cx="145" cy="38" r="5" fill="#f4b740"/>
+                <path d="M40 86 h120" stroke="#cfe6df" stroke-width="4" stroke-linecap="round"/>
+              </svg>
+            </div>
             <h3>전시하기</h3>
-            <p>활동보드에 내 AI를 붙여 함께 나눠요.</p>
+            <p>전시 보드에 내 AI를 붙여 함께 나눠요.</p>
           </div>
           <div class="card">
-            <span class="ico">👏</span>
+            <div class="pic">
+              <svg viewBox="0 0 200 130" role="img" aria-label="박수치며 응원하는 손">
+                <rect x="0" y="0" width="200" height="130" fill="#eef6f3"/>
+                <path d="M78 96 q-10 -30 4 -46 q6 -2 8 4 l2 20 4 -26 q7 -2 9 5 l-1 22 6 -18 q7 0 7 8 l-3 30 q-4 16 -20 16 q-16 0 -23 -15z" fill="#ffd9b0"/>
+                <g stroke="#f4b740" stroke-width="3" stroke-linecap="round"><line x1="120" y1="40" x2="132" y2="32"/><line x1="128" y1="56" x2="142" y2="52"/><line x1="122" y1="72" x2="134" y2="72"/></g>
+                <path d="M150 88 l4 8 8 1 -6 6 2 8 -8 -4 -8 4 2 -8 -6 -6 8 -1z" fill="#f4b740"/>
+              </svg>
+            </div>
             <h3>응원하기</h3>
             <p>친구의 멋진 아이디어에 박수와 칭찬을!</p>
           </div>
         </div>
+        <div class="tip"><b>발표 약속</b><p>친구가 발표할 때는 눈을 보고 들어요. 발표가 끝나면 "○○가 좋았어!" 하고 칭찬 한 가지를 말해 줘요.</p></div>
       </section>
 
-      <!-- 8. 정리 -->
+      <!-- ========== 12. 마무리 ========== -->
       <section class="slide">
         <div class="closing">
-          <div class="emojis">🌞🤝🌙</div>
+          <div class="art">
+            <svg viewBox="0 0 480 240" role="img" aria-label="아이들과 AI 로봇이 함께 손잡고 해와 달 아래 서 있는 그림">
+              <defs><linearGradient id="cl" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#e7f5fb"/><stop offset="1" stop-color="#fff0dc"/></linearGradient></defs>
+              <rect x="0" y="0" width="480" height="240" rx="22" fill="url(#cl)"/>
+              <circle cx="80" cy="56" r="26" fill="#f9c74f"/>
+              <path d="M392 40 a24 24 0 1 0 20 40 a30 30 0 1 1 -20 -40z" fill="#f4b740"/>
+              <path d="M0 186 Q240 156 480 186 L480 240 L0 240 Z" fill="#a7d68f"/>
+              <!-- 아이1 -->
+              <g><circle cx="150" cy="126" r="24" fill="#ffd9b0"/><path d="M126 124 Q150 94 174 124 Q174 104 150 100 Q126 104 126 124 Z" fill="#5b3d2e"/><circle cx="142" cy="126" r="3" fill="#243b34"/><circle cx="158" cy="126" r="3" fill="#243b34"/><path d="M143 136 q7 6 14 0" stroke="#c96a4a" stroke-width="3" fill="none" stroke-linecap="round"/><rect x="130" y="150" width="40" height="44" rx="14" fill="#ef8f5a"/></g>
+              <!-- 로봇 -->
+              <g><rect x="214" y="104" width="54" height="48" rx="14" fill="#0f766e"/><line x1="241" y1="104" x2="241" y2="90" stroke="#0b5c55" stroke-width="4"/><circle cx="241" cy="86" r="6" fill="#f4b740"/><rect x="226" y="118" width="34" height="18" rx="9" fill="#e7f5fb"/><circle cx="236" cy="127" r="4" fill="#0b5c55"/><circle cx="250" cy="127" r="4" fill="#0b5c55"/><rect x="220" y="152" width="42" height="42" rx="12" fill="#14a394"/></g>
+              <!-- 아이2 -->
+              <g><circle cx="330" cy="126" r="24" fill="#ffd9b0"/><path d="M306 122 Q330 96 354 122 Q356 100 330 98 Q306 100 306 122 Z" fill="#3a2a20"/><circle cx="322" cy="126" r="3" fill="#243b34"/><circle cx="338" cy="126" r="3" fill="#243b34"/><path d="M323 136 q7 6 14 0" stroke="#c96a4a" stroke-width="3" fill="none" stroke-linecap="round"/><rect x="310" y="150" width="40" height="44" rx="14" fill="#6aa9d8"/></g>
+              <!-- 맞잡은 손 -->
+              <path d="M170 176 Q192 166 214 176" stroke="#f4b740" stroke-width="9" fill="none" stroke-linecap="round"/>
+              <path d="M262 176 Q290 166 310 176" stroke="#f4b740" stroke-width="9" fill="none" stroke-linecap="round"/>
+              <g fill="#f4b740"><path d="M110 78 l4 9 10 1 -8 7 3 10 -9 -5 -9 5 3 -10 -8 -7 10 -1z"/></g>
+            </svg>
+          </div>
           <p class="msg">AI는 <b>도구</b>예요.<br>잘 배우고, 바르게 쓰고,<br>함께 잘 살아가요!</p>
           <p class="heart">💚 한 학기 동안 정말 수고했어요, 우리 친구들!</p>
         </div>
