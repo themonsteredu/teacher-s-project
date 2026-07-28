@@ -20,7 +20,7 @@
 </script>
 <style>
   :root{
-    --teal:#17b6a0; --teal-deep:#0e8f7e; --teal-light:#41e3ce;
+    --teal:#17b6a0; --teal-deep:#0a6f61; --teal-light:#41e3ce;
     --accent:#ff8a3d; --accent-deep:#e5701f;
     --ink:#12302c; --muted:#5d706c; --line:#e4ecea; --alt:#f4f9f8; --mint:#eef8f6;
     --maxw:1180px; --r:16px;
@@ -57,11 +57,11 @@
   .btn:hover{transform:translateY(-1px)}
   .btn.sm{min-height:38px;padding:0 17px;font-size:.9rem}
   .btn.lg{min-height:50px;padding:0 26px;font-size:1rem}
-  .btn-accent{background:var(--accent);color:#fff}
+  .btn-accent{background:var(--accent);color:var(--ink)}
   .btn-accent:hover{box-shadow:0 10px 24px rgba(255,138,61,.35)}
   .btn-ghost{background:transparent;color:#fff;border:1.5px solid rgba(255,255,255,.45)}
   .btn-ghost:hover{border-color:#fff}
-  .btn-solid{background:var(--accent);color:#fff;box-shadow:0 12px 28px rgba(255,138,61,.24)}
+  .btn-solid{background:var(--accent);color:var(--ink);box-shadow:0 12px 28px rgba(255,138,61,.24)}
   .btn-line{background:#fff;color:var(--ink);border:1px solid var(--line)}
   .btn-line:hover{border-color:var(--accent);color:var(--accent-deep)}
   .hamb{display:none;width:40px;height:40px;margin-left:auto;border:1px solid rgba(255,255,255,.4);
@@ -137,12 +137,12 @@
   .join{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:18px;margin-top:36px}
   .step{background:#fff;border:1px solid var(--line);border-radius:var(--r);padding:24px 22px}
   .step b{display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;
-    border-radius:50%;background:var(--accent);color:#fff;font-size:.85rem;margin-bottom:12px}
+    border-radius:50%;background:var(--accent);color:var(--ink);font-size:.85rem;margin-bottom:12px}
   .step h3{font-size:1rem}
   .step p{margin-top:7px;color:var(--muted);font-size:.92rem}
 
   /* 마무리 CTA */
-  .cta-band{background:linear-gradient(135deg,var(--teal) 0%,var(--teal-deep) 100%);color:#fff;
+  .cta-band{background:linear-gradient(135deg,#0d8071 0%,#096055 100%);color:#fff;
     border-radius:var(--r);padding:clamp(32px,5vw,56px);text-align:center}
   .cta-band h2{font-size:clamp(24px,3.2vw,34px)}
   .cta-band p{margin-top:12px;color:rgba(255,255,255,.88)}
