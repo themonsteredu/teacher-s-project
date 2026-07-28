@@ -1,7 +1,7 @@
 {
   "name": "lesson-hub",
   "version": "1.0.0",
-  "description": "학교 선생님용 수업프로그램 허브 (링크 모음 · 첨부자료 · 웹앱 · 영상)",
+  "description": "모아허브(MoaHub) — 학교 선생님용 수업프로그램 허브 (링크 모음 · 첨부자료 · 웹앱 · 영상)",
   "main": "server.js",
   "scripts": {
     "start": "node --no-warnings server.js"
