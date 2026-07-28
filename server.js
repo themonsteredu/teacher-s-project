@@ -17,7 +17,10 @@ const MIME = {
 };
 
 function serveStatic(res, pathname) {
-  let file = pathname === '/' ? '/index.html' : pathname;
+  // '/' 는 모아허브 랜딩(index.html), '/app' 이하는 허브 SPA(app.html).
+  // vercel.json 의 rewrites 와 같은 규칙을 로컬·타 호스팅에서도 재현한다.
+  const isApp = pathname === '/app' || pathname.startsWith('/app/');
+  let file = pathname === '/' ? '/index.html' : isApp ? '/app.html' : pathname;
   const full = path.join(PUBLIC_DIR, path.normalize(file));
   if (!full.startsWith(PUBLIC_DIR) || !fs.existsSync(full) || !fs.statSync(full).isFile()) {
     // SPA 라우팅: 알 수 없는 경로는 index.html로
@@ -82,5 +85,5 @@ const server = http.createServer(async (req, res) => {
 });
 
 server.listen(PORT, () => {
-  console.log(`수업프로그램 허브 실행 중: http://localhost:${PORT}`);
+  console.log(`모아허브 실행 중: http://localhost:${PORT}`);
 });

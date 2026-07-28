@@ -1,7 +1,7 @@
 'use strict';
 
 /* =====================================================
- * 수업프로그램 허브 — SPA
+ * 모아허브(MoaHub) — SPA
  * 학교 선생님용 수업프로그램 모음: 링크 · 첨부자료 · 웹앱 · 영상
  * ===================================================== */
 
@@ -206,13 +206,13 @@ function menuItems() {
 function shell(title, contentHtml) {
   const u = state.me;
   const hash = (location.hash || '#/').split('/').slice(0, 2).join('/');
-  document.title = `${title} — 수업프로그램 허브`;
+  document.title = `${title} — 모아허브`;
   $app.innerHTML = `
     <div class="site">
       <header class="topbar" id="topbar">
         <a class="tb-brand" href="#/">
           <span class="tb-mark">수업</span>
-          <span class="tb-name">수업프로그램 허브</span>
+          <span class="tb-name">모아허브</span>
         </a>
         <button class="tb-burger" id="btn-hamburger" aria-label="메뉴">${icon('menu')}</button>
         <nav class="tb-nav" id="tb-nav">
@@ -257,7 +257,7 @@ route(/^#\/login$/, () => {
       <div class="login-wrap">
         <form class="login-card" id="login-form">
           <div class="lmark">수업</div>
-          <div class="logo">수업프로그램 허브</div>
+          <div class="logo">모아허브</div>
           <div class="sub">선생님용 수업자료 · 학생 활동 보드</div>
           <div class="tabs" style="margin-bottom:4px">
             <button type="button" data-ltab="join" class="${tab === 'join' ? 'active' : ''}">학생 참여</button>
@@ -864,7 +864,7 @@ route(/^#\/board\/([A-Za-z0-9]{4,10})$/, async (code) => {
       </div></div>`;
     return;
   }
-  document.title = `${data.board.title} — 수업프로그램 허브`;
+  document.title = `${data.board.title} — 모아허브`;
   const savedName = (() => { try { return localStorage.getItem('studentName') || ''; } catch { return ''; } })();
   $app.innerHTML = `
     <div class="sboard">
@@ -1991,7 +1991,7 @@ route(/^#\/settings$/, async () => {
       <div class="card">
         <h2>서비스 정보</h2>
         <div class="preview-kv" style="grid-template-columns:110px 1fr">
-          <span class="k">서비스</span><span class="v">수업프로그램 허브</span>
+          <span class="k">서비스</span><span class="v">모아허브 (MoaHub)</span>
         </div>
         <p class="small muted mt" style="line-height:1.9">
           같은 학교 선생님들을 위한 수업프로그램 모음 사이트입니다.
