@@ -1,0 +1,31 @@
+name: MoaHub UI
+
+on:
+  pull_request:
+    branches:
+      - claude/wonderful-babbage-ihufst
+    paths:
+      - "public/index.html"
+      - "public/app.js"
+      - "public/style.css"
+      - "tests/**"
+      - "package.json"
+      - "package-lock.json"
+      - ".github/workflows/hub-ui.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run check
