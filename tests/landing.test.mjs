@@ -3,35 +3,55 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
 const html = readFileSync(new URL('../public/index.html', import.meta.url), 'utf8');
+const field = html.match(/<div class="hub-field" aria-hidden="true">([\s\S]*?)<\/div>/)?.[1] || '';
+const particleEngine = html.match(/<script id="hub-particle-engine">([\s\S]*?)<\/script>/)?.[1] || '';
 
 test('keeps the public landing contract and destinations', () => {
-  assert.match(html, /<h1>수업에 쓸 것들을 모아,<br><em>링크 하나<\/em>로 나눕니다\.<\/h1>/);
+  assert.match(html, /<h1>수업에 쓸 것들을 모아, <em>링크 하나<\/em>로 나눕니다\.<\/h1>/);
+  assert.doesNotMatch(html, /<h1>[\s\S]*?<br>/);
   for (const id of ['what', 'board', 'control', 'start']) {
     assert.match(html, new RegExp(`id=["']${id}["']`));
   }
   assert.match(html, /href="\/app#\/login"/);
   assert.match(html, /href="https:\/\/moakit\.ai"/);
   assert.match(html, /사업자등록번호 443-05-03835/);
+  assert.match(html, /font-family:'S-Core Dream'/);
+  assert.match(html, /\/fonts\/SCDreamRegular\.woff2/);
   assert.match(html, /if \(h\.indexOf\('#\/'\) === 0\) location\.replace\('\/app' \+ h\)/);
 });
 
-test('renders a decorative static connectivity field', () => {
+test('renders a decorative line-free particle convergence field', () => {
   assert.match(html, /class="hub-field" aria-hidden="true"/);
-  assert.ok((html.match(/class="trace"/g) || []).length >= 8);
-  assert.ok((html.match(/pathLength="1"/g) || []).length >= 8);
+  assert.match(field, /<canvas class="hub-particles" aria-hidden="true"><\/canvas>/);
+  assert.doesNotMatch(field, /<svg|<path|<line|class="trace"|pathLength/i);
+  assert.match(html, /var sources = \[\[\.08,\.22\]/);
+  assert.match(html, /var target = \[\.43,\.53\]/);
   assert.match(html, /role="img" aria-label="초등 2학년 AI 수업을 찾아/);
   assert.match(html, /수업자료 찾기/);
   assert.match(html, /찾은 자료를 수업 한 벌로 연결/);
 });
 
-test('stays dependency-free, finite, and motion-safe', () => {
-  assert.doesNotMatch(html, /<canvas/i);
-  assert.doesNotMatch(html, /three(?:\.js)?|webgl|requestAnimationFrame/i);
-  assert.doesNotMatch(html, /<script[^>]+src=/i);
+test('stays dependency-free, line-free, and motion-safe', () => {
+  assert.doesNotThrow(() => new Function(particleEngine));
+  assert.match(html, /requestAnimationFrame\(tick\)/);
+  assert.match(html, /cancelAnimationFrame\(frame\)/);
+  assert.match(html, /ResizeObserver/);
+  assert.match(html, /IntersectionObserver/);
+  assert.match(html, /prefers-reduced-motion: reduce/);
+  assert.match(html, /document\.hidden/);
+  assert.doesNotMatch(html, /three(?:\.js)?|webgl|<script[^>]+src=/i);
+  assert.doesNotMatch(particleEngine, /\b(?:lineTo|moveTo|stroke|strokeStyle|bezierCurveTo|quadraticCurveTo)\b/i);
   assert.doesNotMatch(html, /animation[^;}]*infinite/i);
   assert.match(html, /@media\(prefers-reduced-motion:reduce\)/);
-  assert.match(html, /\.hub-field \.trace\{stroke-dashoffset:0;animation:none\}/);
+  assert.match(html, /\.hub-particles\{opacity:\.76\}/);
   assert.match(html, /\.stage\{animation:none\}/);
+});
+
+test('uses terracotta for one primary action only', () => {
+  assert.equal((html.match(/class="btn btn-solid lg"/g) || []).length, 1);
+  assert.match(html, /class="btn btn-teal sm" href="\/app#\/login">로그인<\/a>/);
+  assert.doesNotMatch(html, /btn-accent/);
+  assert.doesNotMatch(html, /\.btn-line:hover\{[^}]*accent/);
 });
 
 test('keeps the story before the product visualization on mobile', () => {
