@@ -19,10 +19,14 @@ test('keeps the public landing contract and destinations', () => {
   assert.match(html, /if \(h\.indexOf\('#\/'\) === 0\) location\.replace\('\/app' \+ h\)/);
 });
 
-test('renders one calm real-product frame instead of particles or stacked windows', () => {
+test('renders one real-product frame with a gate reveal instead of particles or stacked windows', () => {
   assert.doesNotMatch(html, /hub-field|hub-particles|hub-particle-engine|stage-stack|stack-layer|<canvas/i);
   assert.match(html, /class="stage-focus" id="hub-stage-focus"/);
   assert.equal((html.match(/src="\/brand\/moahub-product\.jpg"/g) || []).length, 1);
+  assert.equal((html.match(/class="reveal-gate/g) || []).length, 2);
+  assert.match(html, /<span>MOA<\/span>/);
+  assert.match(html, /<span>HUB<\/span>/);
+  assert.match(html, /class="reveal-seam"/);
   assert.match(html, /class="stage" aria-label="실제 모아허브의 초등 2학년 인공지능 융합수업 상세 화면"/);
   assert.match(html, /실제 MoaHub 화면/);
   assert.match(html, /수업 한 벌이 실제로 이렇게 모입니다/);
@@ -40,11 +44,15 @@ test('keeps the pointer focus dependency-free, user-driven, and motion-safe', ()
   assert.doesNotMatch(focusEngine, /setInterval|setTimeout|requestAnimationFrame/);
   assert.doesNotMatch(html, /three(?:\.js)?|webgl|requestAnimationFrame|<script[^>]+src=/i);
   assert.doesNotMatch(html, /animation[^;}]*infinite/i);
-  assert.match(html, /@keyframes hub-product-reveal/);
-  assert.match(html, /@keyframes hub-reveal-sweep/);
-  assert.match(html, /\.stage-focus\.is-revealed \.product-shot::before\{animation:hub-reveal-sweep 1\.35s/);
+  assert.match(html, /@keyframes hub-screen-rise/);
+  assert.match(html, /@keyframes hub-gate-left/);
+  assert.match(html, /@keyframes hub-gate-right/);
+  assert.match(html, /@keyframes hub-gate-seam/);
+  assert.match(html, /\.stage-focus\.is-revealed \.reveal-gate\.left\{animation:hub-gate-left 1\.18s/);
+  assert.match(html, /\.stage-focus\.is-revealed \.reveal-gate\.right\{animation:hub-gate-right 1\.18s/);
   assert.match(html, /@media\(prefers-reduced-motion:reduce\)/);
-  assert.match(html, /\.stage-focus,\.stage,\.product-shot::before,\.product-shot::after,\.product-shot img\{animation:none;transition:none\}/);
+  assert.match(html, /\.stage-focus,\.stage,\.reveal-gate,\.reveal-seam,\.product-shot img\{animation:none;transition:none\}/);
+  assert.match(html, /\.reveal-gate,\.reveal-seam\{display:none\}/);
 });
 
 test('uses terracotta for one primary action only', () => {
