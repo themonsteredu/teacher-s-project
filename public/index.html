@@ -104,10 +104,24 @@
   .hero .btn-line:hover{border-color:rgba(255,255,255,.65);color:#fff}
   .hero .trust{margin-top:22px;font-size:13px;color:rgba(255,255,255,.5)}
 
-  /* 장식 입자장 — 선 없이 흩어진 수업 요소가 한 프로그램으로 모인다 */
-  .hub-field{position:absolute;inset:0;z-index:0;pointer-events:none;overflow:hidden;mix-blend-mode:screen}
-  .hub-particles{display:block;width:100%;height:100%;opacity:.96}
+  /* 실제 수업 화면 뒤로 자료 페이지가 차분히 교대되는 스택 */
   @keyframes hub-stage-in{0%{opacity:0;transform:translateY(14px)}100%{opacity:1;transform:none}}
+  .stage-stack{
+    position:relative;z-index:2;isolation:isolate;padding:20px 8px 18px;
+    animation:hub-stage-in .72s .16s both;
+  }
+  .stack-layer{
+    position:absolute;inset:18px 16px 70px;z-index:-1;overflow:hidden;border-radius:24px;
+    background:rgba(245,240,231,.88);border:1px solid rgba(255,255,255,.2);
+    box-shadow:0 28px 58px rgba(0,0,0,.26);
+    transition:transform 1.15s cubic-bezier(.22,.78,.24,1),opacity 1.15s ease;
+    transform-origin:center;
+  }
+  .stack-layer img{width:100%;height:100%;object-fit:cover;object-position:top center;filter:saturate(.6) brightness(.62)}
+  .stack-layer.one{transform:translate(-28px,18px) rotate(-2.6deg) scale(.965);opacity:.42}
+  .stack-layer.two{z-index:-2;transform:translate(32px,-14px) rotate(2.2deg) scale(.975);opacity:.25}
+  .stage-stack.is-flipped .stack-layer.one{transform:translate(32px,-14px) rotate(2.2deg) scale(.975);opacity:.25}
+  .stage-stack.is-flipped .stack-layer.two{transform:translate(-28px,18px) rotate(-2.6deg) scale(.965);opacity:.42}
 
   /* 히어로 우측 — 실제 모아허브 수업 화면 */
   .stage{
@@ -115,8 +129,9 @@
     background:linear-gradient(155deg,rgba(255,255,255,.16),rgba(255,255,255,.065));
     border:1px solid rgba(255,255,255,.18);
     box-shadow:0 36px 80px rgba(0,0,0,.34),inset 0 1px 0 rgba(255,255,255,.08);
-    backdrop-filter:blur(18px);animation:hub-stage-in .72s .16s both;
+    backdrop-filter:blur(18px);transition:transform 1.15s cubic-bezier(.22,.78,.24,1);
   }
+  .stage-stack.is-flipped .stage{transform:translateY(-5px)}
   .stage-chrome{display:flex;align-items:center;gap:7px;min-height:34px;padding:0 4px 9px}
   .stage-chrome i{width:7px;height:7px;border-radius:50%;background:rgba(255,255,255,.24);display:block}
   .stage-chrome i:first-child{background:#ff8b6b}
@@ -203,7 +218,8 @@
     .navcta .btn-ghost{display:none}
     header{position:relative}
     .hero .wrap{grid-template-columns:1fr;min-height:auto}
-    .stage{width:100%;max-width:680px;margin:0 auto}
+    .stage-stack{width:100%;max-width:680px;margin:0 auto}
+    .stage{width:100%}
     .band{grid-template-columns:1fr}
   }
   @media(max-width:600px){
@@ -211,6 +227,11 @@
     .hero .row .btn{width:100%}
     .navcta .btn{min-height:36px;padding:0 14px;font-size:.85rem}
     .stage{padding:9px;border-radius:19px}
+    .stage-stack{padding:14px 6px 12px}
+    .stack-layer{inset:13px 12px 58px;transition:none}
+    .stack-layer.one,.stage-stack.is-flipped .stack-layer.one{transform:translate(-10px,8px) rotate(-1.5deg) scale(.98);opacity:.36}
+    .stack-layer.two,.stage-stack.is-flipped .stack-layer.two{transform:translate(11px,-6px) rotate(1.3deg) scale(.985);opacity:.2}
+    .stage-stack.is-flipped .stage{transform:none}
     .product-shot{border-radius:12px}
     .stage-notes{position:static;margin-top:10px;justify-content:flex-start;overflow:hidden}
     .stage-notes span:last-child{display:none}
@@ -220,8 +241,7 @@
   @media(prefers-reduced-motion:reduce){
     html{scroll-behavior:auto}
     .btn:hover{transform:none}
-    .hub-particles{opacity:.76}
-    .stage{animation:none}
+    .stage-stack,.stack-layer,.stage{animation:none;transition:none}
   }
 </style>
 </head>
@@ -252,9 +272,6 @@
 </header>
 
 <section class="hero">
-  <div class="hub-field" aria-hidden="true">
-    <canvas class="hub-particles" aria-hidden="true"></canvas>
-  </div>
   <div class="wrap">
     <div class="hero-copy">
       <div class="eyebrow">Lesson Hub</div>
@@ -268,15 +285,19 @@
       <p class="trust">모아킷의 교육 AI 제품군 · 학교 현장에서 쓰며 만들었습니다</p>
     </div>
 
-    <figure class="stage" aria-label="실제 모아허브의 초등 2학년 인공지능 융합수업 상세 화면">
-      <div class="stage-chrome" aria-hidden="true"><i></i><i></i><i></i><b>실제 MoaHub 화면</b></div>
-      <div class="product-shot">
-        <img src="/brand/moahub-product.jpg" width="1348" height="926"
-          alt="모아허브에서 초등 2학년 인공지능 융합수업의 8개 차시와 교사용·학생용 웹앱을 한 화면에서 관리하는 실제 모습" />
-      </div>
-      <div class="stage-notes" aria-hidden="true"><span>8개 차시를 한곳에</span><span>교사·학생 웹앱을 함께</span></div>
-      <figcaption class="stage-caption"><strong>수업 한 벌이 실제로 이렇게 모입니다</strong><span>LIVE PRODUCT</span></figcaption>
-    </figure>
+    <div class="stage-stack" id="hub-stage-stack">
+      <div class="stack-layer one" aria-hidden="true"><img src="/brand/moahub-product.jpg" alt="" /></div>
+      <div class="stack-layer two" aria-hidden="true"><img src="/brand/moahub-product.jpg" alt="" /></div>
+      <figure class="stage" aria-label="실제 모아허브의 초등 2학년 인공지능 융합수업 상세 화면">
+        <div class="stage-chrome" aria-hidden="true"><i></i><i></i><i></i><b>실제 MoaHub 화면</b></div>
+        <div class="product-shot">
+          <img src="/brand/moahub-product.jpg" width="1348" height="926"
+            alt="모아허브에서 초등 2학년 인공지능 융합수업의 8개 차시와 교사용·학생용 웹앱을 한 화면에서 관리하는 실제 모습" />
+        </div>
+        <div class="stage-notes" aria-hidden="true"><span>8개 차시를 한곳에</span><span>교사·학생 웹앱을 함께</span></div>
+        <figcaption class="stage-caption"><strong>수업 한 벌이 실제로 이렇게 모입니다</strong><span>LIVE PRODUCT</span></figcaption>
+      </figure>
+    </div>
   </div>
 </section>
 
@@ -389,149 +410,34 @@
   </div>
 </footer>
 
-<script id="hub-particle-engine">
+<script id="hub-stack-engine">
 (function () {
-  var canvas = document.querySelector('.hub-particles');
-  var host = canvas && canvas.parentElement;
-  if (!canvas || !host) return;
-  var context = canvas.getContext('2d');
-  if (!context) return;
-
-  var sources = [[.08,.22],[.04,.57],[.16,.84],[.3,.12],[.32,.78],[.88,.16],[.94,.72]];
-  var target = [.43,.53];
-  var particles = [];
-  var width = 1, height = 1, ratio = 1, frame = 0, lastPaint = 0, lastTime = 0;
+  var stack = document.getElementById('hub-stage-stack');
+  if (!stack) return;
+  var motionOff = window.matchMedia('(max-width: 600px), (prefers-reduced-motion: reduce)');
+  var timer = 0;
   var visible = true;
-  var reduced = window.matchMedia('(prefers-reduced-motion: reduce)');
-
-  function seeded(index, salt) {
-    var value = Math.sin(index * 91.17 + salt * 17.31) * 43758.5453;
-    return value - Math.floor(value);
+  function cycle() {
+    stack.classList.toggle('is-flipped');
   }
-
-  function resetParticles() {
-    var count = width < 600 ? 24 : 44;
-    particles = Array.from({ length: count }, function (_, index) {
-      return {
-        source: index % sources.length,
-        phase: seeded(index, 1),
-        speed: .000035 + seeded(index, 2) * .000032,
-        curve: (seeded(index, 3) - .5) * Math.min(width, height) * .32,
-        size: .75 + seeded(index, 4) * 1.35,
-        warm: index % 7 === 0
-      };
-    });
+  function stop() {
+    window.clearInterval(timer);
+    timer = 0;
   }
-
-  function resize(bounds) {
-    bounds = bounds || host.getBoundingClientRect();
-    var nextWidth = Math.max(1, bounds.width);
-    var nextHeight = Math.max(1, bounds.height);
-    var nextRatio = Math.min(window.devicePixelRatio || 1, nextWidth < 600 ? 1.5 : 2);
-    if (Math.abs(nextWidth - width) < .5 && Math.abs(nextHeight - height) < .5 && nextRatio === ratio) return false;
-    width = nextWidth;
-    height = nextHeight;
-    ratio = nextRatio;
-    canvas.width = Math.max(1, Math.round(width * ratio));
-    canvas.height = Math.max(1, Math.round(height * ratio));
-    context.setTransform(canvas.width / width, 0, 0, canvas.height / height, 0, 0);
-    resetParticles();
-    return true;
-  }
-
-  function point(fromX, fromY, toX, toY, curve, progress) {
-    var dx = toX - fromX, dy = toY - fromY;
-    var length = Math.max(1, Math.hypot(dx, dy));
-    var controlX = (fromX + toX) / 2 - dy / length * curve;
-    var controlY = (fromY + toY) / 2 + dx / length * curve;
-    var inverse = 1 - progress;
-    return {
-      x: inverse * inverse * fromX + 2 * inverse * progress * controlX + progress * progress * toX,
-      y: inverse * inverse * fromY + 2 * inverse * progress * controlY + progress * progress * toY
-    };
-  }
-
-  function glow(x, y, radius, warm, alpha) {
-    var rgb = warm ? '255,139,107' : '65,227,206';
-    var gradient = context.createRadialGradient(x, y, 0, x, y, radius);
-    gradient.addColorStop(0, 'rgba(236,255,249,' + alpha + ')');
-    gradient.addColorStop(.2, 'rgba(' + rgb + ',' + alpha * .72 + ')');
-    gradient.addColorStop(1, 'rgba(' + rgb + ',0)');
-    context.fillStyle = gradient;
-    context.beginPath();
-    context.arc(x, y, radius, 0, Math.PI * 2);
-    context.fill();
-  }
-
-  function render(time) {
-    context.clearRect(0, 0, width, height);
-    context.globalCompositeOperation = 'lighter';
-    var targetX = target[0] * width, targetY = target[1] * height;
-
-    sources.forEach(function (source, index) {
-      var pulse = .82 + Math.sin(time * .0015 + index) * .18;
-      glow(source[0] * width, source[1] * height, 12 * pulse, index % 7 === 0, .18);
-    });
-
-    particles.forEach(function (particle) {
-      var source = sources[particle.source] || sources[0];
-      var progress = (particle.phase + time * particle.speed) % 1;
-      var eased = 1 - Math.pow(1 - progress, 1.32);
-      var position = point(source[0] * width, source[1] * height, targetX, targetY, particle.curve, eased);
-      var arrival = Math.max(0, (progress - .72) / .28);
-      var alpha = Math.min(1, progress * 5) * (1 - arrival * .78);
-      context.globalAlpha = alpha * .28;
-      context.fillStyle = particle.warm ? '#ff8b6b' : '#41e3ce';
-      context.beginPath();
-      context.arc(position.x, position.y, particle.size * (3.5 + arrival * 2), 0, Math.PI * 2);
-      context.fill();
-      context.globalAlpha = alpha;
-      context.fillStyle = particle.warm ? '#ffb097' : '#ecfff9';
-      context.beginPath();
-      context.arc(position.x, position.y, particle.size, 0, Math.PI * 2);
-      context.fill();
-    });
-
-    var bloom = .88 + Math.sin(time * .002) * .12;
-    context.globalAlpha = 1;
-    glow(targetX, targetY, 58 * bloom, false, .32);
-    glow(targetX, targetY, 25 * bloom, true, .16);
-    context.globalCompositeOperation = 'source-over';
-    lastTime = time;
-  }
-
-  function tick(time) {
-    var interval = width < 600 ? 1000 / 30 : 1000 / 45;
-    if (time - lastPaint >= interval) {
-      render(time);
-      lastPaint = time;
-    }
-    if (visible && !document.hidden && !reduced.matches) frame = requestAnimationFrame(tick);
-  }
-
   function start() {
-    cancelAnimationFrame(frame);
-    frame = 0;
-    if (!visible || document.hidden) return;
-    if (reduced.matches) render(lastTime);
-    else frame = requestAnimationFrame(tick);
+    stop();
+    stack.classList.remove('is-flipped');
+    if (!visible || document.hidden || motionOff.matches) return;
+    timer = window.setInterval(cycle, 5000);
   }
-
-  var resizeObserver = new ResizeObserver(function (entries) {
-    var entry = entries[0];
-    if (entry && resize(entry.contentRect)) render(lastTime);
-  });
   var visibilityObserver = new IntersectionObserver(function (entries) {
     var entry = entries[0];
     if (!entry) return;
     visible = entry.isIntersecting;
     start();
   }, { rootMargin: '100px' });
-
-  resize();
-  resizeObserver.observe(host);
-  visibilityObserver.observe(canvas);
-  reduced.addEventListener('change', start);
+  visibilityObserver.observe(stack);
+  motionOff.addEventListener('change', start);
   document.addEventListener('visibilitychange', start);
   start();
 })();
