@@ -30,6 +30,9 @@ test('renders one calm real-product frame instead of particles or stacked window
 
 test('keeps the pointer focus dependency-free, user-driven, and motion-safe', () => {
   assert.doesNotThrow(() => new Function(focusEngine));
+  assert.match(focusEngine, /IntersectionObserver/);
+  assert.match(focusEngine, /classList\.add\('is-revealed'\)/);
+  assert.match(focusEngine, /revealObserver\.disconnect\(\)/);
   assert.match(focusEngine, /addEventListener\('pointermove'/);
   assert.match(focusEngine, /addEventListener\('pointerleave', reset\)/);
   assert.match(focusEngine, /\(hover: hover\) and \(pointer: fine\)/);
@@ -37,8 +40,11 @@ test('keeps the pointer focus dependency-free, user-driven, and motion-safe', ()
   assert.doesNotMatch(focusEngine, /setInterval|setTimeout|requestAnimationFrame/);
   assert.doesNotMatch(html, /three(?:\.js)?|webgl|requestAnimationFrame|<script[^>]+src=/i);
   assert.doesNotMatch(html, /animation[^;}]*infinite/i);
+  assert.match(html, /@keyframes hub-product-reveal/);
+  assert.match(html, /@keyframes hub-reveal-sweep/);
+  assert.match(html, /\.stage-focus\.is-revealed \.product-shot::before\{animation:hub-reveal-sweep 1\.35s/);
   assert.match(html, /@media\(prefers-reduced-motion:reduce\)/);
-  assert.match(html, /\.stage-focus,\.stage,\.product-shot::after\{animation:none;transition:none\}/);
+  assert.match(html, /\.stage-focus,\.stage,\.product-shot::before,\.product-shot::after,\.product-shot img\{animation:none;transition:none\}/);
 });
 
 test('uses terracotta for one primary action only', () => {
