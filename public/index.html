@@ -109,53 +109,34 @@
   .hub-particles{display:block;width:100%;height:100%;opacity:.96}
   @keyframes hub-stage-in{0%{opacity:0;transform:translateY(14px)}100%{opacity:1;transform:none}}
 
-  /* 히어로 우측 — 검색 결과가 수업 한 벌로 묶이는 장면 */
+  /* 히어로 우측 — 실제 모아허브 수업 화면 */
   .stage{
-    position:relative;z-index:2;padding:18px;border-radius:22px;
-    background:linear-gradient(155deg,rgba(255,255,255,.12),rgba(255,255,255,.055));
+    position:relative;z-index:2;margin:0;padding:12px;border-radius:24px;
+    background:linear-gradient(155deg,rgba(255,255,255,.16),rgba(255,255,255,.065));
     border:1px solid rgba(255,255,255,.18);
     box-shadow:0 36px 80px rgba(0,0,0,.34),inset 0 1px 0 rgba(255,255,255,.08);
     backdrop-filter:blur(18px);animation:hub-stage-in .72s .16s both;
   }
-  .stage-search{
-    display:flex;align-items:center;gap:10px;min-height:48px;padding:0 14px;
-    border:1px solid rgba(255,255,255,.16);border-radius:14px;
-    background:rgba(3,12,10,.58);color:rgba(255,255,255,.88);
+  .stage-chrome{display:flex;align-items:center;gap:7px;min-height:34px;padding:0 4px 9px}
+  .stage-chrome i{width:7px;height:7px;border-radius:50%;background:rgba(255,255,255,.24);display:block}
+  .stage-chrome i:first-child{background:#ff8b6b}
+  .stage-chrome i:nth-child(2){background:#f0c95d}
+  .stage-chrome i:nth-child(3){background:var(--teal-light)}
+  .stage-chrome b{margin-left:auto;display:inline-flex;align-items:center;gap:7px;color:#d9fff8;font-size:.73rem;letter-spacing:.02em}
+  .stage-chrome b::before{content:"";width:6px;height:6px;border-radius:50%;background:var(--teal-light);box-shadow:0 0 14px var(--teal-light)}
+  .product-shot{
+    position:relative;overflow:hidden;border-radius:16px;background:#f5f0e7;
+    border:1px solid rgba(255,255,255,.22);box-shadow:0 22px 46px rgba(0,0,0,.28);
   }
-  .stage-search svg{flex:0 0 auto;color:var(--teal-light)}
-  .stage-search b{font-size:.9rem}
-  .stage-search .query{margin-left:auto;display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
-  .stage-search .query span{
-    padding:3px 8px;border-radius:999px;background:rgba(23,182,160,.13);
-    color:#9ff3e6;font-size:.7rem;font-weight:750;
-  }
-  .stage-flow{display:flex;align-items:center;gap:8px;margin:13px 2px 10px;color:rgba(255,255,255,.48);font-size:.72rem}
-  .stage-flow::before,.stage-flow::after{content:"";height:1px;flex:1;background:linear-gradient(90deg,transparent,rgba(65,227,206,.38))}
-  .stage-flow::after{transform:scaleX(-1)}
-  .stage-top{display:flex;align-items:center;gap:8px;padding:0 3px 12px}
-  .stage-top i{width:7px;height:7px;border-radius:50%;background:rgba(255,255,255,.18);display:block}
-  .stage-top i:first-child{background:var(--teal)}
-  .stage-top b{margin-left:5px;font-size:.87rem;color:rgba(255,255,255,.8);font-weight:700}
-  .plist{display:grid;gap:9px}
-  .prow{
-    display:flex;align-items:center;gap:12px;padding:11px 13px;
-    border:1px solid rgba(255,255,255,.1);border-radius:13px;background:rgba(255,255,255,.055);
-  }
-  .prow.on{background:rgba(23,182,160,.12);border-color:rgba(65,227,206,.45);
-    box-shadow:0 12px 28px -18px rgba(65,227,206,.7)}
-  .prow .ic{flex:0 0 auto;width:34px;height:34px;border-radius:9px;display:grid;place-items:center;
-    background:rgba(23,182,160,.14);color:#8df0e1}
-  .prow.on .ic{background:rgba(65,227,206,.2);color:#c4fff6}
-  .prow .tx{min-width:0}
-  .prow .tx b{display:block;font-size:.93rem;line-height:1.35;color:#fff}
-  .prow .tx span{display:block;font-size:.78rem;color:rgba(255,255,255,.5)}
-  .prow .tag{margin-left:auto;flex:0 0 auto;font-size:.69rem;font-weight:800;padding:4px 8px;
-    border-radius:999px;background:rgba(23,182,160,.13);color:#9ff3e6}
-  .prow.on .tag{background:rgba(65,227,206,.2);color:#d3fff8}
-  .share{margin-top:13px;display:flex;align-items:center;gap:10px;padding:11px 13px;
-    border:1px dashed rgba(255,255,255,.16);border-radius:12px;font-size:.82rem;color:rgba(255,255,255,.55)}
-  .share::before{content:"↗";color:var(--teal-light);font-weight:900}
-  .share b{color:#fff;font-weight:700}
+  .product-shot img{width:100%;height:auto;aspect-ratio:1.456/1;object-fit:cover;object-position:top center}
+  .stage-caption{display:flex;align-items:center;gap:12px;padding:14px 5px 4px;color:rgba(255,255,255,.66)}
+  .stage-caption strong{color:#fff;font-size:.88rem;line-height:1.45}
+  .stage-caption span{margin-left:auto;flex:0 0 auto;padding:5px 9px;border-radius:999px;
+    background:rgba(23,182,160,.14);color:#aaf7eb;font-size:.68rem;font-weight:800}
+  .stage-notes{position:absolute;left:-18px;right:-18px;bottom:58px;display:flex;justify-content:space-between;gap:10px;pointer-events:none}
+  .stage-notes span{padding:8px 11px;border:1px solid rgba(255,255,255,.18);border-radius:999px;
+    background:rgba(5,22,19,.9);box-shadow:0 14px 30px rgba(0,0,0,.28);backdrop-filter:blur(12px);
+    color:#dffcf7;font-size:.72rem;font-weight:750;white-space:nowrap}
 
   /* 섹션 공통 */
   section.sec{padding:clamp(56px,7vw,92px) 0}
@@ -229,6 +210,12 @@
     .hero .row{display:grid;grid-template-columns:1fr;gap:10px}
     .hero .row .btn{width:100%}
     .navcta .btn{min-height:36px;padding:0 14px;font-size:.85rem}
+    .stage{padding:9px;border-radius:19px}
+    .product-shot{border-radius:12px}
+    .stage-notes{position:static;margin-top:10px;justify-content:flex-start;overflow:hidden}
+    .stage-notes span:last-child{display:none}
+    .stage-caption{padding:11px 3px 2px}
+    .stage-caption span{display:none}
   }
   @media(prefers-reduced-motion:reduce){
     html{scroll-behavior:auto}
@@ -281,38 +268,15 @@
       <p class="trust">모아킷의 교육 AI 제품군 · 학교 현장에서 쓰며 만들었습니다</p>
     </div>
 
-    <div class="stage" role="img" aria-label="초등 2학년 AI 수업을 찾아 링크, 웹앱, 영상, 첨부자료와 학생 활동 보드가 한 프로그램으로 묶이는 예시">
-      <div class="stage-search">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 4 4"/></svg>
-        <b>수업자료 찾기</b>
-        <span class="query"><span>초2</span><span>AI</span><span>웹앱·자료</span></span>
+    <figure class="stage" aria-label="실제 모아허브의 초등 2학년 인공지능 융합수업 상세 화면">
+      <div class="stage-chrome" aria-hidden="true"><i></i><i></i><i></i><b>실제 MoaHub 화면</b></div>
+      <div class="product-shot">
+        <img src="/brand/moahub-product.jpg" width="1348" height="926"
+          alt="모아허브에서 초등 2학년 인공지능 융합수업의 8개 차시와 교사용·학생용 웹앱을 한 화면에서 관리하는 실제 모습" />
       </div>
-      <div class="stage-flow">찾은 자료를 수업 한 벌로 연결</div>
-      <div class="stage-top"><i></i><i></i><i></i><b>2학년 · AI와 우리 생활</b></div>
-      <div class="plist">
-        <div class="prow">
-          <span class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.5 1.5"/><path d="M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7L12 19"/></svg></span>
-          <span class="tx"><b>수업 링크</b><span>젭 · 패들렛 · AI 도구</span></span>
-          <span class="tag">4개</span>
-        </div>
-        <div class="prow">
-          <span class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="14" rx="2.5"/><path d="M8 21h8"/><path d="M12 18v3"/></svg></span>
-          <span class="tx"><b>웹앱 · 영상</b><span>상세 화면에서 바로 재생</span></span>
-          <span class="tag">3개</span>
-        </div>
-        <div class="prow">
-          <span class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M21.5 11.5 12 21a5.5 5.5 0 0 1-7.8-7.8l9-9a3.7 3.7 0 0 1 5.2 5.2l-9 9a1.9 1.9 0 0 1-2.6-2.6l8.3-8.3"/></svg></span>
-          <span class="tx"><b>첨부자료</b><span>PPT · PDF · 한글 · 이미지</span></span>
-          <span class="tag">보기 전용</span>
-        </div>
-        <div class="prow on">
-          <span class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2.5"/><path d="M9 3v18"/><path d="M13 8h5"/><path d="M13 13h5"/></svg></span>
-          <span class="tx"><b>학생 활동 보드</b><span>참여 코드 <b style="display:inline">482913</b></span></span>
-          <span class="tag">열림</span>
-        </div>
-      </div>
-      <p class="share"><b>공유 링크 하나</b>로 같은 학교 선생님에게 그대로 넘어갑니다.</p>
-    </div>
+      <div class="stage-notes" aria-hidden="true"><span>8개 차시를 한곳에</span><span>교사·학생 웹앱을 함께</span></div>
+      <figcaption class="stage-caption"><strong>수업 한 벌이 실제로 이렇게 모입니다</strong><span>LIVE PRODUCT</span></figcaption>
+    </figure>
   </div>
 </section>
 

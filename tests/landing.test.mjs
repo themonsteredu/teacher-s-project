@@ -26,9 +26,10 @@ test('renders a decorative line-free particle convergence field', () => {
   assert.doesNotMatch(field, /<svg|<path|<line|class="trace"|pathLength/i);
   assert.match(html, /var sources = \[\[\.08,\.22\]/);
   assert.match(html, /var target = \[\.43,\.53\]/);
-  assert.match(html, /role="img" aria-label="초등 2학년 AI 수업을 찾아/);
-  assert.match(html, /수업자료 찾기/);
-  assert.match(html, /찾은 자료를 수업 한 벌로 연결/);
+  assert.match(html, /class="stage" aria-label="실제 모아허브의 초등 2학년 인공지능 융합수업 상세 화면"/);
+  assert.match(html, /src="\/brand\/moahub-product\.jpg"/);
+  assert.match(html, /실제 MoaHub 화면/);
+  assert.match(html, /수업 한 벌이 실제로 이렇게 모입니다/);
 });
 
 test('stays dependency-free, line-free, and motion-safe', () => {
