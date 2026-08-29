@@ -19,6 +19,9 @@
 })();
 </script>
 <style>
+  @font-face{font-family:'S-Core Dream';src:url('/fonts/SCDreamRegular.woff2') format('woff2');font-weight:400;font-style:normal;font-display:swap}
+  @font-face{font-family:'S-Core Dream';src:url('/fonts/SCDreamBold.woff2') format('woff2');font-weight:700;font-style:normal;font-display:swap}
+  @font-face{font-family:'S-Core Dream';src:url('/fonts/SCDreamExtraBold.woff2') format('woff2');font-weight:800;font-style:normal;font-display:swap}
   :root{
     --teal:#17b6a0; --teal-deep:#0a6f61; --teal-light:#41e3ce;
     --accent:#b04a12; --accent-deep:#8f3a0d;
@@ -29,7 +32,7 @@
   *{box-sizing:border-box}
   html{scroll-behavior:smooth}
   body{margin:0;background:#fff;color:var(--ink);
-    font-family:'Pretendard',system-ui,-apple-system,'Apple SD Gothic Neo','Malgun Gothic',sans-serif;
+    font-family:'S-Core Dream','Pretendard',system-ui,-apple-system,'Apple SD Gothic Neo','Malgun Gothic',sans-serif;
     line-height:1.7;letter-spacing:-.01em;-webkit-font-smoothing:antialiased}
   h1,h2,h3{margin:0;font-weight:800;line-height:1.22;letter-spacing:-.02em}
   h1,h2,h3,.sub,.lead{word-break:keep-all}
@@ -57,13 +60,13 @@
   .btn:hover{transform:translateY(-1px)}
   .btn.sm{min-height:38px;padding:0 17px;font-size:.9rem}
   .btn.lg{min-height:50px;padding:0 26px;font-size:1rem}
-  .btn-accent{background:var(--accent);color:#fff}
-  .btn-accent:hover{box-shadow:0 10px 24px rgba(176,74,18,.35)}
+  .btn-teal{background:var(--teal-deep);color:#fff}
+  .btn-teal:hover{background:#075b50;box-shadow:0 10px 24px rgba(10,111,97,.3)}
   .btn-ghost{background:transparent;color:#fff;border:1.5px solid rgba(255,255,255,.45)}
   .btn-ghost:hover{border-color:#fff}
   .btn-solid{background:var(--accent);color:#fff;box-shadow:0 12px 28px rgba(176,74,18,.24)}
   .btn-line{background:#fff;color:var(--ink);border:1px solid var(--line)}
-  .btn-line:hover{border-color:var(--accent);color:var(--accent-deep)}
+  .btn-line:hover{border-color:var(--teal-deep);color:var(--teal-deep)}
   .hamb{display:none;width:40px;height:40px;margin-left:auto;border:1px solid rgba(255,255,255,.4);
     border-radius:10px;background:none;cursor:pointer;flex-direction:column;gap:4px;
     align-items:center;justify-content:center}
@@ -101,22 +104,9 @@
   .hero .btn-line:hover{border-color:rgba(255,255,255,.65);color:#fff}
   .hero .trust{margin-top:22px;font-size:13px;color:rgba(255,255,255,.5)}
 
-  /* 장식 연결망 — 외부 런타임 없이 한 번만 드러난다 */
-  .hub-field{position:absolute;inset:0;z-index:0;pointer-events:none;overflow:hidden}
-  .hub-field svg{width:100%;height:100%;display:block}
-  .hub-field .trace{
-    fill:none;stroke:url(#hub-line);stroke-width:1.1;vector-effect:non-scaling-stroke;
-    stroke-linecap:round;opacity:.56;
-    stroke-dasharray:1;stroke-dashoffset:1;animation:hub-trace 1.35s cubic-bezier(.2,.75,.25,1) forwards;
-    animation-delay:var(--delay,0s)
-  }
-  .hub-field .node{
-    fill:#41e3ce;opacity:0;transform-box:fill-box;transform-origin:center;
-    animation:hub-node .48s ease-out forwards;animation-delay:calc(var(--delay,0s) + .72s)
-  }
-  .hub-field .node-soft{fill:#17b6a0;opacity:.24}
-  @keyframes hub-trace{to{stroke-dashoffset:0}}
-  @keyframes hub-node{0%{opacity:0;transform:scale(.35)}100%{opacity:.72;transform:scale(1)}}
+  /* 장식 입자장 — 선 없이 흩어진 수업 요소가 한 프로그램으로 모인다 */
+  .hub-field{position:absolute;inset:0;z-index:0;pointer-events:none;overflow:hidden;mix-blend-mode:screen}
+  .hub-particles{display:block;width:100%;height:100%;opacity:.96}
   @keyframes hub-stage-in{0%{opacity:0;transform:translateY(14px)}100%{opacity:1;transform:none}}
 
   /* 히어로 우측 — 검색 결과가 수업 한 벌로 묶이는 장면 */
@@ -243,8 +233,7 @@
   @media(prefers-reduced-motion:reduce){
     html{scroll-behavior:auto}
     .btn:hover{transform:none}
-    .hub-field .trace{stroke-dashoffset:0;animation:none}
-    .hub-field .node{opacity:.58;animation:none}
+    .hub-particles{opacity:.76}
     .stage{animation:none}
   }
 </style>
@@ -267,7 +256,7 @@
     </nav>
     <div class="navcta">
       <a class="btn btn-ghost sm" href="https://moakit.ai">모아킷 홈</a>
-      <a class="btn btn-accent sm" href="/app#/login">로그인</a>
+      <a class="btn btn-teal sm" href="/app#/login">로그인</a>
     </div>
     <button class="hamb" id="hamb" aria-label="메뉴" aria-expanded="false" aria-controls="menu">
       <span></span><span></span><span></span>
@@ -277,38 +266,12 @@
 
 <section class="hero">
   <div class="hub-field" aria-hidden="true">
-    <svg viewBox="0 0 1440 760" preserveAspectRatio="xMidYMid slice">
-      <defs>
-        <linearGradient id="hub-line" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0" stop-color="#17b6a0" stop-opacity="0" />
-          <stop offset=".52" stop-color="#41e3ce" stop-opacity=".72" />
-          <stop offset="1" stop-color="#17b6a0" stop-opacity=".08" />
-        </linearGradient>
-      </defs>
-      <path class="trace" style="--delay:.05s" pathLength="1" d="M595 388 C760 260 845 185 1002 122" />
-      <path class="trace" style="--delay:.12s" pathLength="1" d="M595 388 C790 315 950 290 1178 298" />
-      <path class="trace" style="--delay:.18s" pathLength="1" d="M595 388 C790 420 963 455 1240 494" />
-      <path class="trace" style="--delay:.24s" pathLength="1" d="M595 388 C770 492 895 575 1057 654" />
-      <path class="trace" style="--delay:.3s" pathLength="1" d="M595 388 C516 242 456 170 334 94" />
-      <path class="trace" style="--delay:.36s" pathLength="1" d="M595 388 C433 344 315 340 172 370" />
-      <path class="trace" style="--delay:.42s" pathLength="1" d="M595 388 C462 492 353 566 216 654" />
-      <path class="trace" style="--delay:.48s" pathLength="1" d="M1002 122 C1105 175 1157 220 1178 298" />
-      <path class="trace" style="--delay:.54s" pathLength="1" d="M1178 298 C1230 354 1252 414 1240 494" />
-      <path class="trace" style="--delay:.6s" pathLength="1" d="M1240 494 C1194 575 1134 622 1057 654" />
-      <circle class="node" style="--delay:.05s" cx="595" cy="388" r="5" />
-      <circle class="node" style="--delay:.12s" cx="1002" cy="122" r="4" />
-      <circle class="node" style="--delay:.18s" cx="1178" cy="298" r="4" />
-      <circle class="node" style="--delay:.24s" cx="1240" cy="494" r="4" />
-      <circle class="node" style="--delay:.3s" cx="1057" cy="654" r="4" />
-      <circle class="node node-soft" cx="334" cy="94" r="3.5" />
-      <circle class="node node-soft" cx="172" cy="370" r="3.5" />
-      <circle class="node node-soft" cx="216" cy="654" r="3.5" />
-    </svg>
+    <canvas class="hub-particles" aria-hidden="true"></canvas>
   </div>
   <div class="wrap">
     <div class="hero-copy">
       <div class="eyebrow">Lesson Hub</div>
-      <h1>수업에 쓸 것들을 모아,<br><em>링크 하나</em>로 나눕니다.</h1>
+      <h1>수업에 쓸 것들을 모아, <em>링크 하나</em>로 나눕니다.</h1>
       <p class="sub">수업 링크·자료·영상·학생 활동 보드를 프로그램 하나에 담습니다.
         같은 학교 선생님은 그 링크만 열면 되고, 학생은 계정 없이 6자리 코드로 들어옵니다.</p>
       <div class="row">
@@ -461,6 +424,154 @@
     </div>
   </div>
 </footer>
+
+<script id="hub-particle-engine">
+(function () {
+  var canvas = document.querySelector('.hub-particles');
+  var host = canvas && canvas.parentElement;
+  if (!canvas || !host) return;
+  var context = canvas.getContext('2d');
+  if (!context) return;
+
+  var sources = [[.08,.22],[.04,.57],[.16,.84],[.3,.12],[.32,.78],[.88,.16],[.94,.72]];
+  var target = [.43,.53];
+  var particles = [];
+  var width = 1, height = 1, ratio = 1, frame = 0, lastPaint = 0, lastTime = 0;
+  var visible = true;
+  var reduced = window.matchMedia('(prefers-reduced-motion: reduce)');
+
+  function seeded(index, salt) {
+    var value = Math.sin(index * 91.17 + salt * 17.31) * 43758.5453;
+    return value - Math.floor(value);
+  }
+
+  function resetParticles() {
+    var count = width < 600 ? 24 : 44;
+    particles = Array.from({ length: count }, function (_, index) {
+      return {
+        source: index % sources.length,
+        phase: seeded(index, 1),
+        speed: .000035 + seeded(index, 2) * .000032,
+        curve: (seeded(index, 3) - .5) * Math.min(width, height) * .32,
+        size: .75 + seeded(index, 4) * 1.35,
+        warm: index % 7 === 0
+      };
+    });
+  }
+
+  function resize(bounds) {
+    bounds = bounds || host.getBoundingClientRect();
+    var nextWidth = Math.max(1, bounds.width);
+    var nextHeight = Math.max(1, bounds.height);
+    var nextRatio = Math.min(window.devicePixelRatio || 1, nextWidth < 600 ? 1.5 : 2);
+    if (Math.abs(nextWidth - width) < .5 && Math.abs(nextHeight - height) < .5 && nextRatio === ratio) return false;
+    width = nextWidth;
+    height = nextHeight;
+    ratio = nextRatio;
+    canvas.width = Math.max(1, Math.round(width * ratio));
+    canvas.height = Math.max(1, Math.round(height * ratio));
+    context.setTransform(canvas.width / width, 0, 0, canvas.height / height, 0, 0);
+    resetParticles();
+    return true;
+  }
+
+  function point(fromX, fromY, toX, toY, curve, progress) {
+    var dx = toX - fromX, dy = toY - fromY;
+    var length = Math.max(1, Math.hypot(dx, dy));
+    var controlX = (fromX + toX) / 2 - dy / length * curve;
+    var controlY = (fromY + toY) / 2 + dx / length * curve;
+    var inverse = 1 - progress;
+    return {
+      x: inverse * inverse * fromX + 2 * inverse * progress * controlX + progress * progress * toX,
+      y: inverse * inverse * fromY + 2 * inverse * progress * controlY + progress * progress * toY
+    };
+  }
+
+  function glow(x, y, radius, warm, alpha) {
+    var rgb = warm ? '255,139,107' : '65,227,206';
+    var gradient = context.createRadialGradient(x, y, 0, x, y, radius);
+    gradient.addColorStop(0, 'rgba(236,255,249,' + alpha + ')');
+    gradient.addColorStop(.2, 'rgba(' + rgb + ',' + alpha * .72 + ')');
+    gradient.addColorStop(1, 'rgba(' + rgb + ',0)');
+    context.fillStyle = gradient;
+    context.beginPath();
+    context.arc(x, y, radius, 0, Math.PI * 2);
+    context.fill();
+  }
+
+  function render(time) {
+    context.clearRect(0, 0, width, height);
+    context.globalCompositeOperation = 'lighter';
+    var targetX = target[0] * width, targetY = target[1] * height;
+
+    sources.forEach(function (source, index) {
+      var pulse = .82 + Math.sin(time * .0015 + index) * .18;
+      glow(source[0] * width, source[1] * height, 12 * pulse, index % 7 === 0, .18);
+    });
+
+    particles.forEach(function (particle) {
+      var source = sources[particle.source] || sources[0];
+      var progress = (particle.phase + time * particle.speed) % 1;
+      var eased = 1 - Math.pow(1 - progress, 1.32);
+      var position = point(source[0] * width, source[1] * height, targetX, targetY, particle.curve, eased);
+      var arrival = Math.max(0, (progress - .72) / .28);
+      var alpha = Math.min(1, progress * 5) * (1 - arrival * .78);
+      context.globalAlpha = alpha * .28;
+      context.fillStyle = particle.warm ? '#ff8b6b' : '#41e3ce';
+      context.beginPath();
+      context.arc(position.x, position.y, particle.size * (3.5 + arrival * 2), 0, Math.PI * 2);
+      context.fill();
+      context.globalAlpha = alpha;
+      context.fillStyle = particle.warm ? '#ffb097' : '#ecfff9';
+      context.beginPath();
+      context.arc(position.x, position.y, particle.size, 0, Math.PI * 2);
+      context.fill();
+    });
+
+    var bloom = .88 + Math.sin(time * .002) * .12;
+    context.globalAlpha = 1;
+    glow(targetX, targetY, 58 * bloom, false, .32);
+    glow(targetX, targetY, 25 * bloom, true, .16);
+    context.globalCompositeOperation = 'source-over';
+    lastTime = time;
+  }
+
+  function tick(time) {
+    var interval = width < 600 ? 1000 / 30 : 1000 / 45;
+    if (time - lastPaint >= interval) {
+      render(time);
+      lastPaint = time;
+    }
+    if (visible && !document.hidden && !reduced.matches) frame = requestAnimationFrame(tick);
+  }
+
+  function start() {
+    cancelAnimationFrame(frame);
+    frame = 0;
+    if (!visible || document.hidden) return;
+    if (reduced.matches) render(lastTime);
+    else frame = requestAnimationFrame(tick);
+  }
+
+  var resizeObserver = new ResizeObserver(function (entries) {
+    var entry = entries[0];
+    if (entry && resize(entry.contentRect)) render(lastTime);
+  });
+  var visibilityObserver = new IntersectionObserver(function (entries) {
+    var entry = entries[0];
+    if (!entry) return;
+    visible = entry.isIntersecting;
+    start();
+  }, { rootMargin: '100px' });
+
+  resize();
+  resizeObserver.observe(host);
+  visibilityObserver.observe(canvas);
+  reduced.addEventListener('change', start);
+  document.addEventListener('visibilitychange', start);
+  start();
+})();
+</script>
 
 <script>
   var hamb = document.getElementById('hamb'), menu = document.getElementById('menu');
