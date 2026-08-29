@@ -106,6 +106,17 @@
 
   /* 실제 수업 화면 한 장에만 시선이 머무는 포커스 프레임 */
   @keyframes hub-stage-in{0%{opacity:0;transform:translateY(14px)}100%{opacity:1;transform:none}}
+  @keyframes hub-product-reveal{
+    0%{filter:saturate(.15) brightness(.68) contrast(.9);transform:scale(1.025)}
+    58%{filter:saturate(.68) brightness(.9) contrast(.96)}
+    100%{filter:none;transform:none}
+  }
+  @keyframes hub-reveal-sweep{
+    0%{opacity:0;transform:translateX(-145%) skewX(-10deg)}
+    18%{opacity:.92}
+    72%{opacity:.78}
+    100%{opacity:0;transform:translateX(355%) skewX(-10deg)}
+  }
   .stage-focus{
     --rx:0deg;--ry:0deg;--gx:50%;--gy:45%;
     position:relative;z-index:2;isolation:isolate;padding:18px 8px;
@@ -139,13 +150,20 @@
     position:relative;overflow:hidden;border-radius:16px;background:#f5f0e7;
     border:1px solid rgba(255,255,255,.22);box-shadow:0 22px 46px rgba(0,0,0,.28);
   }
+  .product-shot::before{
+    content:"";position:absolute;z-index:2;top:-8%;bottom:-8%;left:-34%;width:38%;pointer-events:none;opacity:0;
+    background:linear-gradient(90deg,transparent,rgba(73,238,214,.15) 28%,rgba(255,255,255,.72) 52%,rgba(73,238,214,.18) 74%,transparent);
+    filter:blur(2px);mix-blend-mode:screen;
+  }
   .product-shot::after{
-    content:"";position:absolute;inset:0;pointer-events:none;opacity:0;
+    content:"";position:absolute;z-index:3;inset:0;pointer-events:none;opacity:0;
     background:radial-gradient(circle 150px at var(--gx) var(--gy),rgba(255,255,255,.18),transparent 70%);
     transition:opacity .3s ease;
   }
   .stage-focus.is-active .product-shot::after{opacity:1}
-  .product-shot img{width:100%;height:auto;aspect-ratio:1.456/1;object-fit:cover;object-position:top center}
+  .stage-focus.is-revealed .product-shot::before{animation:hub-reveal-sweep 1.35s .18s cubic-bezier(.2,.7,.2,1) both}
+  .stage-focus.is-revealed .product-shot img{animation:hub-product-reveal 1.45s .12s cubic-bezier(.2,.72,.24,1) both}
+  .product-shot img{display:block;width:100%;height:auto;aspect-ratio:1.456/1;object-fit:cover;object-position:top center;transform-origin:center}
   .stage-caption{display:flex;align-items:center;gap:12px;padding:14px 5px 4px;color:rgba(255,255,255,.66)}
   .stage-caption strong{color:#fff;font-size:.88rem;line-height:1.45}
   .stage-caption span{margin-left:auto;flex:0 0 auto;padding:5px 9px;border-radius:999px;
@@ -241,7 +259,7 @@
   @media(prefers-reduced-motion:reduce){
     html{scroll-behavior:auto}
     .btn:hover{transform:none}
-    .stage-focus,.stage,.product-shot::after{animation:none;transition:none}
+    .stage-focus,.stage,.product-shot::before,.product-shot::after,.product-shot img{animation:none;transition:none}
   }
 </style>
 </head>
@@ -414,6 +432,13 @@
   if (!focus) return;
   var canTilt = window.matchMedia('(hover: hover) and (pointer: fine)');
   var motionOff = window.matchMedia('(prefers-reduced-motion: reduce)');
+  var revealObserver = new IntersectionObserver(function (entries) {
+    var entry = entries[0];
+    if (!entry || !entry.isIntersecting) return;
+    focus.classList.add('is-revealed');
+    revealObserver.disconnect();
+  }, { threshold: .28 });
+  revealObserver.observe(focus);
   function reset() {
     focus.classList.remove('is-active');
     focus.style.setProperty('--rx', '0deg');
