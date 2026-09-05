@@ -42,6 +42,7 @@ test('Hub board creates a browser UUID and passes it only to assigned Career Log
   assert.match(careerStudent, /randomUUID/);
   assert.match(careerStudent, /sessionStorage/);
   assert.match(hubApi, /careerStudentId: crypto\.randomUUID\(\)/);
+  assert.match(hubApi, /Cache-Control', 'no-store'/);
   assert.match(scienceApp, /\^\[a-z0-9\]\{4,10\}\$/i);
   assert.match(scienceApp, /hub_code'\)\|\|'\'\)\.trim\(\)\.toLowerCase\(\)/);
 });
