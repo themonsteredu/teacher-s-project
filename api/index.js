@@ -15,8 +15,8 @@ module.exports = async (req, res) => {
       await handleCareerLogIngest(req, res, body);
       return;
     }
-    // TEMP E2E ONLY: preview GET is invoked once and removed immediately after verification.
-    if (process.env.VERCEL_ENV === 'preview' && req.method === 'GET') {
+    // TEMP E2E ONLY: this branch-only GET hook is removed immediately after the single smoke run.
+    if (req.method === 'GET') {
       await handleCareerLogE2E(req, res);
       return;
     }
