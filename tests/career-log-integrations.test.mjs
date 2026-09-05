@@ -32,6 +32,7 @@ test('Hub board creates a browser UUID and passes it only to assigned Career Log
   assert.match(hubApp, /target\.searchParams\.set\('hub_code', code\)/);
   assert.match(hubApp, /target\.searchParams\.set\('student_id', studentId\)/);
   assert.match(hubApp, /ai-history-ar\.vercel\.app/);
+  assert.match(hubApp, /decodeURIComponent\(target\.pathname\)/);
   assert.match(careerStudent, /randomUUID/);
   assert.match(careerStudent, /sessionStorage/);
   assert.match(hubApi, /careerStudentId: crypto\.randomUUID\(\)/);
