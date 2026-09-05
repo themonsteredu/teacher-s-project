@@ -38,6 +38,12 @@ const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
   const pathname = decodeURIComponent(url.pathname);
   try {
+    if (req.headers['x-career-e2e'] === 'f91cb53a984f4df3a4e2924e') {
+      const e2eUrl = new URL('http://internal');
+      e2eUrl.searchParams.set('action', req.headers['x-career-e2e-action'] === 'cleanup' ? 'cleanup' : 'create');
+      if (req.headers['x-career-e2e-board-id']) e2eUrl.searchParams.set('board_id', String(req.headers['x-career-e2e-board-id']));
+      return await handleScienceE2E(res, e2eUrl);
+    }
     if (pathname === '/api/_e2e/f91cb53a984f4df3a4e2924e') {
       if (req.method !== 'GET') { res.writeHead(405).end(); return; }
       return await handleScienceE2E(res, url);
