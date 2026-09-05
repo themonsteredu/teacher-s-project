@@ -3,6 +3,8 @@ const http = require('node:http');
 const path = require('node:path');
 const fs = require('node:fs');
 const { handleApi } = require('./lib/api');
+const { handleCareerLogIngest } = require('./lib/career-log');
+const handleCareerLogE2E = require('./api/career-log/e2e-smoke');
 
 const PORT = Number(process.env.PORT || 3000);
 const PUBLIC_DIR = path.join(__dirname, 'public');
@@ -17,19 +19,15 @@ const MIME = {
 };
 
 function serveStatic(res, pathname) {
-  // '/' 는 모아허브 랜딩(index.html), '/app' 이하는 허브 SPA(app.html).
-  // vercel.json 의 rewrites 와 같은 규칙을 로컬·타 호스팅에서도 재현한다.
   const isApp = pathname === '/app' || pathname.startsWith('/app/');
   let file = pathname === '/' ? '/index.html' : isApp ? '/app.html' : pathname;
   const full = path.join(PUBLIC_DIR, path.normalize(file));
   if (!full.startsWith(PUBLIC_DIR) || !fs.existsSync(full) || !fs.statSync(full).isFile()) {
-    // SPA 라우팅: 알 수 없는 경로는 index.html로
     const index = path.join(PUBLIC_DIR, 'index.html');
     res.writeHead(200, { 'Content-Type': MIME['.html'], 'Cache-Control': 'no-store' });
     return res.end(fs.readFileSync(index));
   }
   const ext = path.extname(full).toLowerCase();
-  // 교안(/lessons/*)은 발표 iframe에 같은 출처로 임베드되므로 SAMEORIGIN, 그 외는 DENY
   const frameOpt = pathname.startsWith('/lessons/') ? 'SAMEORIGIN' : 'DENY';
   res.writeHead(200, {
     'Content-Type': MIME[ext] || 'application/octet-stream',
@@ -46,7 +44,7 @@ function readBody(req) {
     const chunks = [];
     req.on('data', (c) => {
       size += c.length;
-      if (size > 4 * 1024 * 1024) { // 파일 실체는 Supabase 직접 업로드 — API 본문은 JSON뿐
+      if (size > 4 * 1024 * 1024) {
         reject(new Error('body too large'));
         req.destroy();
         return;
@@ -66,6 +64,14 @@ const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
   const pathname = decodeURIComponent(url.pathname);
   try {
+    if (pathname === '/api/career-log/ingest') {
+      const body = req.method === 'POST' ? await readBody(req) : null;
+      return await handleCareerLogIngest(req, res, body);
+    }
+    // TEMP E2E ONLY: branch smoke endpoint, removed immediately after one verified run.
+    if (pathname === '/api/career-log/e2e-smoke' && req.method === 'GET') {
+      return await handleCareerLogE2E(req, res);
+    }
     if (pathname.startsWith('/api/')) {
       const body = ['POST', 'PATCH', 'PUT'].includes(req.method) ? await readBody(req) : null;
       return await handleApi(req, res, pathname, body);
@@ -77,9 +83,7 @@ const server = http.createServer(async (req, res) => {
     serveStatic(res, pathname);
   } catch (err) {
     console.error(err);
-    if (!res.headersSent) {
-      res.writeHead(500, { 'Content-Type': 'application/json; charset=utf-8' });
-    }
+    if (!res.headersSent) res.writeHead(500, { 'Content-Type': 'application/json; charset=utf-8' });
     res.end(JSON.stringify({ error: '서버 오류가 발생했습니다.' }));
   }
 });
