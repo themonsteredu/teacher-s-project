@@ -8,7 +8,8 @@ module.exports = async (req, res) => {
   try {
     const url = new URL(req.url, 'http://internal');
     const pathname = decodeURIComponent(url.pathname);
-    const route = url.searchParams.get('route');
+    const routeValue = req.query?.route ?? url.searchParams.get('route');
+    const route = Array.isArray(routeValue) ? routeValue[0] : routeValue;
     // Vercel은 JSON 본문을 req.body로 파싱해 준다. 문자열로 오는 경우도 대비.
     let body = req.body ?? null;
     if (typeof body === 'string') {
@@ -25,9 +26,7 @@ module.exports = async (req, res) => {
     await handleApi(req, res, pathname, body);
   } catch (err) {
     console.error(err);
-    if (!res.headersSent) {
-      res.writeHead(500, { 'Content-Type': 'application/json; charset=utf-8' });
-    }
+    if (!res.headersSent) res.writeHead(500, { 'Content-Type': 'application/json; charset=utf-8' });
     res.end(JSON.stringify({ error: '서버 오류가 발생했습니다.' }));
   }
 };
