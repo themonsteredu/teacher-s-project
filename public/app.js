@@ -801,13 +801,16 @@ function postCardHtml(p, { forTeacher = false, manageable = false } = {}) {
 
 function careerMaterialUrl(link, code, studentId) {
   const original = String(link.url || '');
-  if (!studentId || link.kind !== 'aiapp' || !/3차시-학생용-감각짝맞추기\.html$/i.test(original)) return original;
+  if (!studentId || link.kind !== 'aiapp') return original;
   try {
     const target = new URL(original, location.origin);
-    if (target.origin !== location.origin) return original;
+    const scienceApp = target.origin === location.origin && /3차시-학생용-감각짝맞추기\.html$/i.test(target.pathname);
+    const historyApp = target.origin === 'https://ai-history-ar.vercel.app'
+      || /^https:\/\/ai-history-[a-z0-9-]+-themonsteredu\.vercel\.app$/.test(target.origin);
+    if (!scienceApp && !historyApp) return original;
     target.searchParams.set('hub_code', code);
     target.searchParams.set('student_id', studentId);
-    return `${target.pathname}${target.search}${target.hash}`;
+    return target.origin === location.origin ? `${target.pathname}${target.search}${target.hash}` : target.toString();
   } catch { return original; }
 }
 
@@ -878,10 +881,8 @@ route(/^#\/board\/([A-Za-z0-9]{4,10})$/, async (code) => {
   }
   document.title = `${data.board.title} — 모아허브`;
   const savedName = (() => { try { return localStorage.getItem('studentName') || ''; } catch { return ''; } })();
-  const careerStudentId = (() => {
-    const value = (new URLSearchParams(location.search).get('student_id') || '').trim().toLowerCase();
-    return /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(value) ? value : '';
-  })();
+  const candidateStudentId = (new URLSearchParams(location.search).get('student_id') || '').trim();
+  const careerStudentId = window.MoakitCareerStudent?.getOrCreate({ candidate: candidateStudentId }) || '';
   $app.innerHTML = `
     <div class="sboard">
       <header class="sb-head">
