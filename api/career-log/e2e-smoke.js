@@ -41,12 +41,9 @@ module.exports = async (req, res) => {
 
     const host = process.env.VERCEL_URL;
     if (!host) throw new Error('VERCEL_URL missing');
-    const response = await fetch(`https://${host}/api/career-log/ingest`, {
+    const response = await fetch(`https://${host}/api?route=career-log-ingest`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Origin: 'https://ai-history-ar.vercel.app',
-      },
+      headers: { 'Content-Type': 'application/json', Origin: 'https://ai-history-ar.vercel.app' },
       body: JSON.stringify({
         board_code: boardCode,
         student_id: studentId,
@@ -74,8 +71,6 @@ module.exports = async (req, res) => {
     res.setHeader('Content-Type', 'application/json; charset=utf-8');
     return res.end(JSON.stringify({ error: String(error?.message || error), student_id: studentId, source_event_id: sourceEventId }));
   } finally {
-    if (programId != null) {
-      await q('DELETE FROM programs WHERE id = $1', [programId]).catch((error) => console.error('E2E cleanup failed', error));
-    }
+    if (programId != null) await q('DELETE FROM programs WHERE id = $1', [programId]).catch((error) => console.error('E2E cleanup failed', error));
   }
 };
