@@ -6,17 +6,11 @@ const { q } = require('../../lib/db');
 const ONE_TIME_TOKEN = 'TBogqA64pFomdxK6c0apbJdMQBhYfBRa';
 
 module.exports = async (req, res) => {
-  if (process.env.VERCEL_ENV !== 'preview') {
-    res.statusCode = 404;
-    return res.end('not found');
-  }
+  if (process.env.VERCEL_ENV !== 'preview') { res.statusCode = 404; return res.end('not found'); }
   const url = new URL(req.url, 'http://internal');
   const tokenValue = req.query?.token ?? url.searchParams.get('token');
   const token = Array.isArray(tokenValue) ? tokenValue[0] : tokenValue;
-  if (token !== ONE_TIME_TOKEN) {
-    res.statusCode = 403;
-    return res.end('forbidden');
-  }
+  if (token !== ONE_TIME_TOKEN) { res.statusCode = 403; return res.end('forbidden'); }
 
   const studentId = crypto.randomUUID();
   const sourceEventId = `history-ai-01:e2e:${crypto.randomUUID()}`;
@@ -31,10 +25,11 @@ module.exports = async (req, res) => {
 
     const host = process.env.VERCEL_URL;
     if (!host) throw new Error('VERCEL_URL missing');
-    const response = await fetch(`https://${host}/api?route=career-log-ingest`, {
+    const response = await fetch(`https://${host}/api`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Origin: 'https://ai-history-ar.vercel.app' },
       body: JSON.stringify({
+        career_log_route: 'ingest',
         board_code: boardCode,
         student_id: studentId,
         process: '삼국·가야 문화유산을 관찰하고 모둠에서 조사할 데이터 질문을 정함',
