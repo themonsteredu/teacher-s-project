@@ -9,6 +9,10 @@
       "source": "/api/career-log/ingest"
     },
     {
+      "destination": "/api/index",
+      "source": "/api/:path*"
+    },
+    {
       "destination": "/app.html",
       "source": "/app"
     },
