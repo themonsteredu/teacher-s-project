@@ -11,7 +11,9 @@ module.exports = async (req, res) => {
     return res.end('not found');
   }
   const url = new URL(req.url, 'http://internal');
-  if (url.searchParams.get('token') !== ONE_TIME_TOKEN) {
+  const tokenValue = req.query?.token ?? url.searchParams.get('token');
+  const token = Array.isArray(tokenValue) ? tokenValue[0] : tokenValue;
+  if (token !== ONE_TIME_TOKEN) {
     res.statusCode = 403;
     return res.end('forbidden');
   }
@@ -22,22 +24,10 @@ module.exports = async (req, res) => {
   let programId = null;
 
   try {
-    const programs = await q(
-      `INSERT INTO programs (title, category, grade, description, published, sort_order)
-       VALUES ($1, $2, $3, $4, true, 9999) RETURNING id`,
-      ['Career Log E2E · 역사 AI 1차시', 'AI 역사', '초5', 'E2E 검증 후 자동 삭제되는 임시 프로그램'],
-    );
+    const programs = await q(`INSERT INTO programs (title, category, grade, description, published, sort_order) VALUES ($1, $2, $3, $4, true, 9999) RETURNING id`, ['Career Log E2E · 역사 AI 1차시', 'AI 역사', '초5', 'E2E 검증 후 자동 삭제되는 임시 프로그램']);
     programId = programs[0].id;
-    await q(
-      `INSERT INTO program_links (program_id, position, kind, label, url)
-       VALUES ($1, 0, 'aiapp', $2, $3)`,
-      [programId, '역사 AI 1차시', 'https://ai-history-ar.vercel.app/three-kingdoms/lesson/1'],
-    );
-    const boards = await q(
-      `INSERT INTO boards (program_id, title, code, is_open, class_date, roster, created_by)
-       VALUES ($1, $2, $3, true, CURRENT_DATE, '', NULL) RETURNING id`,
-      [programId, 'Career Log E2E', boardCode],
-    );
+    await q(`INSERT INTO program_links (program_id, position, kind, label, url) VALUES ($1, 0, 'aiapp', $2, $3)`, [programId, '역사 AI 1차시', 'https://ai-history-ar.vercel.app/three-kingdoms/lesson/1']);
+    const boards = await q(`INSERT INTO boards (program_id, title, code, is_open, class_date, roster, created_by) VALUES ($1, $2, $3, true, CURRENT_DATE, '', NULL) RETURNING id`, [programId, 'Career Log E2E', boardCode]);
 
     const host = process.env.VERCEL_URL;
     if (!host) throw new Error('VERCEL_URL missing');
@@ -51,14 +41,7 @@ module.exports = async (req, res) => {
         artifact: '모둠 데이터 질문 · 첨성대: 문화유산을 서로 비교하려면 어떤 정보를 모아야 할까?',
         reflection: '사진을 관찰한 뒤 자료로 확인할 질문을 정했다.',
         source_event_id: sourceEventId,
-        raw_data: {
-          lesson: 1,
-          era: 'three-kingdoms',
-          selected_heritage: '첨성대',
-          data_question: '문화유산을 서로 비교하려면 어떤 정보를 모아야 할까?',
-          activity: 'heritage-question-card',
-          e2e: true,
-        },
+        raw_data: { lesson: 1, era: 'three-kingdoms', selected_heritage: '첨성대', data_question: '문화유산을 서로 비교하려면 어떤 정보를 모아야 할까?', activity: 'heritage-question-card', e2e: true },
       }),
     });
     const result = await response.json().catch(() => ({ error: `HTTP ${response.status}` }));
