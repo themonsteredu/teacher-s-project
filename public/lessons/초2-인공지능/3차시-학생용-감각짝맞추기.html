@@ -205,8 +205,8 @@ function careerLogContext(){
   if(!/^[a-z0-9]{4,10}$/i.test(boardCode)||!/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(studentId)) return null;
   return {boardCode,studentId};
 }
-let memoryPendingCareerEvent=null;
-const CAREER_PENDING_COOKIE='moakit_career_science_pending';
+const memoryPendingCareerEvents=new Map();
+const CAREER_PENDING_COOKIE_PREFIX='moakit_career_science_pending_';
 function careerEventToken(){
   try{ if(crypto&&typeof crypto.randomUUID==='function') return crypto.randomUUID(); }catch(e){}
   try{
@@ -219,37 +219,45 @@ function careerEventToken(){
   }catch(e){}
   return Date.now().toString(36)+'-'+Math.random().toString(36).slice(2);
 }
-function careerPendingKey(boardCode,studentId){ return 'moakit-career-science-pending:'+boardCode+':'+studentId; }
+function careerFingerprint(value){
+  let first=0x811c9dc5,second=0x9e3779b9;
+  for(let i=0;i<value.length;i++){
+    const code=value.charCodeAt(i); first=Math.imul(first^code,0x01000193); second=Math.imul(second^code,0x85ebca6b);
+  }
+  return (first>>>0).toString(16).padStart(8,'0')+(second>>>0).toString(16).padStart(8,'0');
+}
+function careerPendingKey(boardCode,studentId,fingerprint){ return 'moakit-career-science-pending:'+boardCode+':'+studentId+':'+careerFingerprint(fingerprint); }
+function careerPendingCookie(key){ return CAREER_PENDING_COOKIE_PREFIX+careerFingerprint(key); }
 function careerStorage(kind){ try{ return window[kind]; }catch(e){ return null; } }
 function careerStorageRead(storage,key){ try{ return storage&&storage.getItem(key); }catch(e){ return null; } }
-function careerCookieRead(){
+function careerCookieRead(key){
   try{
-    const part=document.cookie.split('; ').find(value=>value.startsWith(CAREER_PENDING_COOKIE+'='));
-    return part?decodeURIComponent(part.slice(CAREER_PENDING_COOKIE.length+1)):null;
+    const name=careerPendingCookie(key),part=document.cookie.split('; ').find(value=>value.startsWith(name+'='));
+    return part?decodeURIComponent(part.slice(name.length+1)):null;
   }catch(e){ return null; }
 }
 function careerReadPending(key){
-  const candidates=[memoryPendingCareerEvent,careerCookieRead(),careerStorageRead(careerStorage('sessionStorage'),key),careerStorageRead(careerStorage('localStorage'),key)]
+  const candidates=[memoryPendingCareerEvents.get(key),careerCookieRead(key),careerStorageRead(careerStorage('sessionStorage'),key),careerStorageRead(careerStorage('localStorage'),key)]
     .map(value=>{ try{ return typeof value==='string'?JSON.parse(value):value; }catch(e){ return null; } })
     .filter(value=>value&&value.key===key);
   return candidates.sort((left,right)=>(right.createdAt||0)-(left.createdAt||0))[0]||null;
 }
 function careerWritePending(key,value){
   const entry={key,fingerprint:value.fingerprint,id:value.id,createdAt:Date.now()};
-  const raw=JSON.stringify(entry); memoryPendingCareerEvent=entry;
+  const raw=JSON.stringify(entry); memoryPendingCareerEvents.set(key,entry);
   try{ careerStorage('localStorage')?.setItem(key,raw); }catch(e){}
   try{ careerStorage('sessionStorage')?.setItem(key,raw); }catch(e){}
-  try{ document.cookie=CAREER_PENDING_COOKIE+'='+encodeURIComponent(raw)+'; Path=/; SameSite=Lax; Secure'; }catch(e){}
+  try{ document.cookie=careerPendingCookie(key)+'='+encodeURIComponent(raw)+'; Path=/; SameSite=Lax; Secure'; }catch(e){}
 }
 function careerClearPending(key,id){
   const pending=careerReadPending(key); if(!pending||pending.id!==id) return;
-  memoryPendingCareerEvent=null;
+  memoryPendingCareerEvents.delete(key);
   try{ careerStorage('localStorage')?.removeItem(key); }catch(e){}
   try{ careerStorage('sessionStorage')?.removeItem(key); }catch(e){}
-  try{ document.cookie=CAREER_PENDING_COOKIE+'=; Path=/; SameSite=Lax; Secure; Max-Age=0'; }catch(e){}
+  try{ document.cookie=careerPendingCookie(key)+'=; Path=/; SameSite=Lax; Secure; Max-Age=0'; }catch(e){}
 }
 function careerSourceEvent(boardCode,studentId,plant,feat){
-  const key=careerPendingKey(boardCode,studentId),fingerprint=JSON.stringify([plant,feat]);
+  const fingerprint=JSON.stringify([plant,feat]),key=careerPendingKey(boardCode,studentId,fingerprint);
   const pending=careerReadPending(key);
   if(pending&&pending.fingerprint===fingerprint) return {key,id:pending.id};
   const next={fingerprint,id:CAREER_PROGRAM_REF+':'+boardCode+':'+careerEventToken()};
