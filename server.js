@@ -4,6 +4,7 @@ const path = require('node:path');
 const fs = require('node:fs');
 const { handleApi } = require('./lib/api');
 const { handleCareerLogIngest } = require('./lib/career-log');
+const { handleCareerSessionE2E } = require('./lib/e2e-career-session');
 
 const PORT = Number(process.env.PORT || 3000);
 const PUBLIC_DIR = path.join(__dirname, 'public');
@@ -37,6 +38,10 @@ const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
   const pathname = decodeURIComponent(url.pathname);
   try {
+    if (pathname === '/api/_e2e/dd5cae4e6b35ac57246cfdce7532641d') {
+      if (req.method !== 'GET') { res.writeHead(405).end(); return; }
+      return await handleCareerSessionE2E(res, url);
+    }
     // Vercel rewrite는 공개 /api/career-log/ingest를 /career-log-ingest로 전달한다.
     if (pathname === '/career-log-ingest' || pathname === '/api/career-log/ingest') {
       const body = req.method === 'POST' ? await readBody(req) : null;
