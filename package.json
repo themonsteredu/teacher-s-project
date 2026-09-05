@@ -5,7 +5,7 @@
   "main": "server.js",
   "scripts": {
     "start": "node --no-warnings server.js",
-    "check": "node --check server.js && node --check public/app.js && node --test tests/landing.test.mjs"
+    "check": "node --check server.js && node --check public/app.js && node --check lib/career-log.js && node --check lib/career-log-integrations.js && node --test tests/*.test.mjs"
   },
   "engines": {
     "node": ">=22.13.0"

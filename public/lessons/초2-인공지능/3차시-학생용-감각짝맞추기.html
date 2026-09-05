@@ -130,6 +130,7 @@
       <div class="mascot">🌟</div>
       <h1 class="title">저장했어요!</h1>
       <p class="sub" id="savedMsg"></p>
+      <p class="note hide" id="careerLogStatus" aria-live="polite"></p>
       <button class="go" id="downloadBtn">그림으로 다시 받기 🖼️</button>
       <button class="go gold" id="sHomeBtn" style="margin-top:12px;">🏠 처음으로</button>
     </section>
@@ -197,6 +198,37 @@ function openLens(){ try{ window.open('https://lens.google.com/','_blank'); }cat
 function roundRect(ctx,x,y,w,h,r){ ctx.beginPath(); ctx.moveTo(x+r,y); ctx.arcTo(x+w,y,x+w,y+h,r);
   ctx.arcTo(x+w,y+h,x,y+h,r); ctx.arcTo(x,y+h,x,y,r); ctx.arcTo(x,y,x+w,y,r); ctx.closePath(); }
 let lastObs={name:'',plant:'',feat:''};
+const CAREER_PROGRAM_REF='science-observation-ai-03';
+function careerLogContext(){
+  const params=new URLSearchParams(location.search), boardCode=(params.get('hub_code')||'').trim();
+  const studentId=(params.get('student_id')||'').trim().toLowerCase();
+  if(!/^\d{6}$/.test(boardCode)||!/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(studentId)) return null;
+  return {boardCode,studentId};
+}
+function careerSourceEventId(boardCode){
+  const key='moakit-career-'+CAREER_PROGRAM_REF+'-event:'+boardCode;
+  let value=localStorage.getItem(key);
+  if(!value){ value=CAREER_PROGRAM_REF+':'+boardCode+':'+crypto.randomUUID(); localStorage.setItem(key,value); }
+  return value;
+}
+async function saveCareerObservation(plant,feat){
+  const context=careerLogContext();
+  if(!context) return;
+  const status=document.getElementById('careerLogStatus');
+  status.textContent='Career Log에 관찰 기록을 저장하는 중이에요…'; status.classList.remove('hide');
+  try{
+    const response=await fetch('/api/career-log/ingest',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
+      board_code:context.boardCode, student_id:context.studentId, program_ref:CAREER_PROGRAM_REF,
+      process:plant+' 식물을 관찰하고 눈에 보이는 특징을 기록함',
+      artifact:'식물 관찰 카드 · '+plant+(feat?': '+feat:''), reflection:null,
+      source_event_id:careerSourceEventId(context.boardCode),
+      raw_data:{lesson:3,activity:'plant-observation',observation:{plant_name:plant,features:feat||null}}
+    })});
+    const result=await response.json().catch(()=>({}));
+    if(!response.ok) throw new Error(result.error||('HTTP '+response.status));
+    status.textContent=result.duplicate?'이미 Career Log에 저장된 관찰 기록이에요.':'Career Log에도 관찰 기록을 저장했어요!';
+  }catch(error){ console.error('Career Log save failed',error); status.textContent='Career Log 저장에 실패했어요. 수업 코드를 확인하고 다시 시도해 주세요.'; }
+}
 function drawCard(o){
   const cv=document.getElementById('cardCanvas'), ctx=cv.getContext('2d'), W=cv.width, H=cv.height;
   const g=ctx.createLinearGradient(0,0,0,H); g.addColorStop(0,'#149079'); g.addColorStop(1,'#0C5647');
@@ -229,6 +261,7 @@ async function saveObs(){
   document.getElementById('savedMsg').textContent=(name?name+' 어린이가 ':'')+'‘'+plant+'’을(를) 관찰했어요!';
   show(V.saved); say('저장했어요! '+plant+'을 관찰했어요. 잘했어요!');
   for(let i=0;i<10;i++) setTimeout(confetti,i*100);
+  await saveCareerObservation(plant,feat);
 }
 
 /* ===== 메뉴/이동 버튼 ===== */
