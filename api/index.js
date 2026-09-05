@@ -1,6 +1,7 @@
 'use strict';
 // Vercel 서버리스 함수 진입점 — 모든 /api/* 요청이 여기로 라우팅된다 (vercel.json rewrites 참고)
 const { handleApi } = require('../lib/api');
+const { handleCareerLogIngest } = require('../lib/career-log');
 
 module.exports = async (req, res) => {
   try {
@@ -10,6 +11,10 @@ module.exports = async (req, res) => {
     let body = req.body ?? null;
     if (typeof body === 'string') {
       try { body = JSON.parse(body); } catch { body = null; }
+    }
+    if (pathname === '/api/career-log/ingest') {
+      await handleCareerLogIngest(req, res, body);
+      return;
     }
     await handleApi(req, res, pathname, body);
   } catch (err) {
