@@ -799,8 +799,20 @@ function postCardHtml(p, { forTeacher = false, manageable = false } = {}) {
     </div>`;
 }
 
+function careerMaterialUrl(link, code, studentId) {
+  const original = String(link.url || '');
+  if (!studentId || link.kind !== 'aiapp' || !/3차시-학생용-감각짝맞추기\.html$/i.test(original)) return original;
+  try {
+    const target = new URL(original, location.origin);
+    if (target.origin !== location.origin) return original;
+    target.searchParams.set('hub_code', code);
+    target.searchParams.set('student_id', studentId);
+    return `${target.pathname}${target.search}${target.hash}`;
+  } catch { return original; }
+}
+
 // 학생 화면: 오늘의 수업자료 렌더 (교사가 공유한 링크·웹앱·영상·파일)
-function studentMaterialsHtml(materials, code) {
+function studentMaterialsHtml(materials, code, studentId = '') {
   const links = (materials && materials.links) || [];
   const files = (materials && materials.files) || [];
   if (!links.length && !files.length) return '';
@@ -810,7 +822,7 @@ function studentMaterialsHtml(materials, code) {
     }
     const tag = l.kind === 'aiapp' ? '🖥 웹앱' : '🔗 링크';
     const label = l.label || (l.kind === 'aiapp' ? '웹앱 열기' : '링크 열기');
-    return `<a class="mat-link" href="${esc(l.url)}" target="_blank" rel="noopener">${tag} <b>${esc(label)}</b><span class="mat-go">열기 →</span></a>`;
+    return `<a class="mat-link" href="${esc(careerMaterialUrl(l, code, studentId))}" target="_blank" rel="noopener">${tag} <b>${esc(label)}</b><span class="mat-go">열기 →</span></a>`;
   };
   const fileItem = (f) => {
     const isHtml = /\.html?$/i.test(f.name) || f.mime === 'text/html';
@@ -866,6 +878,10 @@ route(/^#\/board\/([A-Za-z0-9]{4,10})$/, async (code) => {
   }
   document.title = `${data.board.title} — 모아허브`;
   const savedName = (() => { try { return localStorage.getItem('studentName') || ''; } catch { return ''; } })();
+  const careerStudentId = (() => {
+    const value = (new URLSearchParams(location.search).get('student_id') || '').trim().toLowerCase();
+    return /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(value) ? value : '';
+  })();
   $app.innerHTML = `
     <div class="sboard">
       <header class="sb-head">
@@ -875,7 +891,7 @@ route(/^#\/board\/([A-Za-z0-9]{4,10})$/, async (code) => {
         </div>
         <a class="btn btn-ghost btn-sm" href="#/login">나가기</a>
       </header>
-      ${studentMaterialsHtml(data.materials, code)}
+      ${studentMaterialsHtml(data.materials, code, careerStudentId)}
       <div class="card sb-form">
         <div class="form-grid" style="grid-template-columns:150px 1fr">
           <div><label>이름</label><input id="sb-name" maxlength="20" value="${esc(savedName)}" placeholder="이름"></div>

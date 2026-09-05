@@ -6,6 +6,7 @@ import { readFileSync } from 'node:fs';
 const require = createRequire(import.meta.url);
 const { originAllowed, resolveIntegration } = require('../lib/career-log-integrations');
 const scienceApp = readFileSync(new URL('../public/lessons/초2-인공지능/3차시-학생용-감각짝맞추기.html', import.meta.url), 'utf8');
+const hubApp = readFileSync(new URL('../public/app.js', import.meta.url), 'utf8');
 
 test('keeps History AI compatible while selecting the science observation integration explicitly', () => {
   assert.equal(resolveIntegration().programRef, 'history-ai-01');
@@ -20,6 +21,14 @@ test('science observation UI sends only the real observation through the shared 
   assert.match(scienceApp, /observation:\{plant_name:plant,features:feat\|\|null\}/);
   assert.match(scienceApp, /reflection:null/);
   assert.doesNotMatch(scienceApp, /career_lens|fit_score|ability_score|career_recommendation/i);
+});
+
+test('Hub board passes its code and linked student UUID only to the assigned science app', () => {
+  assert.match(hubApp, /careerMaterialUrl\(l, code, studentId\)/);
+  assert.match(hubApp, /target\.searchParams\.set\('hub_code', code\)/);
+  assert.match(hubApp, /target\.searchParams\.set\('student_id', studentId\)/);
+  assert.match(hubApp, /target\.origin !== location\.origin/);
+  assert.match(scienceApp, /\^\[a-z0-9\]\{4,10\}\$/i);
 });
 
 test('scopes each integration to its app origin and assigned Hub link', () => {
