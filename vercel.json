@@ -2,6 +2,7 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "regions": ["icn1"],
   "rewrites": [
+    { "source": "/api/career-log/ingest", "destination": "/career-log-ingest" },
     { "source": "/api/:path*", "destination": "/api/index" },
     { "source": "/app", "destination": "/app.html" },
     { "source": "/app/:path*", "destination": "/app.html" }
