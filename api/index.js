@@ -1,5 +1,5 @@
 'use strict';
-// Vercel 서버리스 함수 진입점 — 모든 /api/* 요청이 여기로 라우팅된다 (vercel.json rewrites 참고)
+// 레거시 함수 진입점. 현재 Vercel Node 런타임의 공개 API 진입점은 server.js다.
 const { handleApi } = require('../lib/api');
 
 module.exports = async (req, res) => {

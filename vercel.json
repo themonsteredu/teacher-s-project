@@ -1,5 +1,6 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": "node",
   "regions": [
     "icn1"
   ],
@@ -7,10 +8,6 @@
     {
       "destination": "/career-log-ingest",
       "source": "/api/career-log/ingest"
-    },
-    {
-      "destination": "/api/index",
-      "source": "/api/:path*"
     },
     {
       "destination": "/app.html",

@@ -68,7 +68,9 @@ test('Career Log ingest follows the Hub site, board, and program access switches
   assert.match(careerRoute, /!board\.published/);
   assert.match(careerRoute, /JOIN program_links pl ON pl\.id = bi\.link_id/);
   assert.match(careerRoute, /bi\.board_id = \$1/);
-  assert.match(vercelConfig, /"source": "\/api\/:path\*"/);
+  assert.deepEqual(JSON.parse(vercelConfig).rewrites[0], {
+    destination: '/career-log-ingest', source: '/api/career-log/ingest',
+  });
 });
 
 test('scopes each integration to its app origin and assigned Hub link', () => {

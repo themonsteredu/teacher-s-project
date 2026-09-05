@@ -42,6 +42,7 @@ const server = http.createServer(async (req, res) => {
       const body = req.method === 'POST' ? await readBody(req) : null;
       return await handleCareerLogIngest(req, res, body);
     }
+    // Vercel Node 런타임도 이 서버를 사용한다. 일반 API는 rewrite 없이 공개 pathname을 유지한다.
     if (pathname.startsWith('/api/')) {
       const body = ['POST', 'PATCH', 'PUT'].includes(req.method) ? await readBody(req) : null;
       return await handleApi(req, res, pathname, body);
