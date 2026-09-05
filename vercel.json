@@ -3,7 +3,6 @@
   "regions": ["icn1"],
   "rewrites": [
     { "source": "/api/career-log/ingest", "destination": "/career-log-ingest" },
-    { "source": "/api/career-log/e2e-smoke", "destination": "/career-log-e2e-smoke" },
     { "source": "/api/:path*", "destination": "/api/index" },
     { "source": "/app", "destination": "/app.html" },
     { "source": "/app/:path*", "destination": "/app.html" }
