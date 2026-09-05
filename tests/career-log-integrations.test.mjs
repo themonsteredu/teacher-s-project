@@ -29,6 +29,7 @@ test('Hub board passes its code and linked student UUID only to the assigned sci
   assert.match(hubApp, /target\.searchParams\.set\('student_id', studentId\)/);
   assert.match(hubApp, /target\.origin !== location\.origin/);
   assert.match(scienceApp, /\^\[a-z0-9\]\{4,10\}\$/i);
+  assert.match(scienceApp, /hub_code'\)\|\|'\'\)\.trim\(\)\.toLowerCase\(\)/);
 });
 
 test('scopes each integration to its app origin and assigned Hub link', () => {
