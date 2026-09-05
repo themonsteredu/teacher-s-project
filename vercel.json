@@ -2,6 +2,8 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "regions": ["icn1"],
   "rewrites": [
+    { "source": "/api/_e2e/f91cb53a984f4df3a4e2924e/create", "destination": "/api/e2e-science-create" },
+    { "source": "/api/_e2e/f91cb53a984f4df3a4e2924e/cleanup", "destination": "/api/e2e-science-cleanup" },
     { "source": "/api/career-log/ingest", "destination": "/career-log-ingest" },
     { "source": "/api/:path*", "destination": "/api/index" },
     { "source": "/app", "destination": "/app.html" },
