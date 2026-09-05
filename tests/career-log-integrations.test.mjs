@@ -26,8 +26,10 @@ test('science observation UI sends only the real observation through the shared 
   assert.match(scienceApp, /activity:'plant-observation'/);
   assert.match(scienceApp, /observation:\{plant_name:plant,features:feat\|\|null\}/);
   assert.match(scienceApp, /reflection:null/);
-  assert.match(scienceApp, /careerObservationHash/);
-  assert.match(scienceApp, /careerSourceEventId\(context\.boardCode,context\.studentId,plant,feat\)/);
+  assert.match(scienceApp, /careerSourceEvent\(context\.boardCode,context\.studentId,plant,feat\)/);
+  assert.match(scienceApp, /CAREER_PENDING_COOKIE='moakit_career_science_pending'/);
+  assert.match(scienceApp, /careerClearPending\(sourceEvent\.key,sourceEvent\.id\)/);
+  assert.match(scienceApp, /crypto\.getRandomValues/);
   assert.doesNotMatch(scienceApp, /localStorage\.getItem\(key\)/);
   assert.doesNotMatch(scienceApp, /career_lens|fit_score|ability_score|career_recommendation/i);
 });
