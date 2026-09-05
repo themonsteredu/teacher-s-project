@@ -9,6 +9,7 @@ const scienceApp = readFileSync(new URL('../public/lessons/초2-인공지능/3�
 const hubApp = readFileSync(new URL('../public/app.js', import.meta.url), 'utf8');
 const careerStudent = readFileSync(new URL('../public/career-student-id.js', import.meta.url), 'utf8');
 const careerRoute = readFileSync(new URL('../lib/career-log.js', import.meta.url), 'utf8');
+const hubApi = readFileSync(new URL('../lib/api.js', import.meta.url), 'utf8');
 
 test('keeps History AI compatible while selecting the science observation integration explicitly', () => {
   assert.equal(resolveIntegration().programRef, 'history-ai-01');
@@ -33,6 +34,7 @@ test('Hub board creates a browser UUID and passes it only to assigned Career Log
   assert.match(hubApp, /ai-history-ar\.vercel\.app/);
   assert.match(careerStudent, /randomUUID/);
   assert.match(careerStudent, /sessionStorage/);
+  assert.match(hubApi, /careerStudentId: crypto\.randomUUID\(\)/);
   assert.match(scienceApp, /\^\[a-z0-9\]\{4,10\}\$/i);
   assert.match(scienceApp, /hub_code'\)\|\|'\'\)\.trim\(\)\.toLowerCase\(\)/);
 });

@@ -881,7 +881,7 @@ route(/^#\/board\/([A-Za-z0-9]{4,10})$/, async (code) => {
   }
   document.title = `${data.board.title} — 모아허브`;
   const savedName = (() => { try { return localStorage.getItem('studentName') || ''; } catch { return ''; } })();
-  const candidateStudentId = (new URLSearchParams(location.search).get('student_id') || '').trim();
+  const candidateStudentId = (new URLSearchParams(location.search).get('student_id') || data.careerStudentId || '').trim();
   const careerStudentId = window.MoakitCareerStudent?.getOrCreate({ candidate: candidateStudentId }) || '';
   $app.innerHTML = `
     <div class="sboard">
