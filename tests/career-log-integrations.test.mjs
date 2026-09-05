@@ -5,6 +5,7 @@ import { readFileSync } from 'node:fs';
 
 const require = createRequire(import.meta.url);
 const { originAllowed, resolveIntegration } = require('../lib/career-log-integrations');
+const { parseCookies } = require('../lib/cookies');
 const scienceApp = readFileSync(new URL('../public/lessons/초2-인공지능/3차시-학생용-감각짝맞추기.html', import.meta.url), 'utf8');
 const hubApp = readFileSync(new URL('../public/app.js', import.meta.url), 'utf8');
 const careerStudent = readFileSync(new URL('../public/career-student-id.js', import.meta.url), 'utf8');
@@ -27,7 +28,8 @@ test('science observation UI sends only the real observation through the shared 
   assert.match(scienceApp, /observation:\{plant_name:plant,features:feat\|\|null\}/);
   assert.match(scienceApp, /reflection:null/);
   assert.match(scienceApp, /careerSourceEvent\(context\.boardCode,context\.studentId,plant,feat\)/);
-  assert.match(scienceApp, /CAREER_PENDING_COOKIE='moakit_career_science_pending'/);
+  assert.match(scienceApp, /CAREER_PENDING_COOKIE_PREFIX='moakit_career_science_pending_'/);
+  assert.match(scienceApp, /careerPendingKey\(boardCode,studentId,fingerprint\)/);
   assert.match(scienceApp, /careerClearPending\(sourceEvent\.key,sourceEvent\.id\)/);
   assert.match(scienceApp, /crypto\.getRandomValues/);
   assert.doesNotMatch(scienceApp, /localStorage\.getItem\(key\)/);
@@ -41,6 +43,7 @@ test('Hub board creates a browser UUID and passes it only to assigned Career Log
   assert.match(hubApp, /target\.searchParams\.set\('student_id', studentId\)/);
   assert.match(hubApp, /ai-history-ar\.vercel\.app/);
   assert.match(hubApp, /decodeURIComponent\(target\.pathname\)/);
+  assert.match(hubApp, /target\.origin === 'https:\/\/hub\.moakit\.ai'/);
   assert.match(careerStudent, /randomUUID/);
   assert.match(careerStudent, /sessionStorage/);
   assert.match(hubApi, /moakit_career_student_id/);
@@ -49,6 +52,13 @@ test('Hub board creates a browser UUID and passes it only to assigned Career Log
   assert.match(hubApi, /HttpOnly; SameSite=Lax/);
   assert.match(scienceApp, /\^\[a-z0-9\]\{4,10\}\$/i);
   assert.match(scienceApp, /hub_code'\)\|\|'\'\)\.trim\(\)\.toLowerCase\(\)/);
+});
+
+test('malformed unrelated cookies do not block public board identity parsing', () => {
+  assert.deepEqual(parseCookies({ headers: { cookie: 'broken=%E0%A4%A; moakit_career_student_id=11111111-1111-4111-8111-111111111111' } }), {
+    broken: '%E0%A4%A',
+    moakit_career_student_id: '11111111-1111-4111-8111-111111111111',
+  });
 });
 
 test('Career Log ingest follows the Hub site, board, and program access switches', () => {

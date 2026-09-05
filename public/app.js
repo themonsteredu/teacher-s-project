@@ -804,7 +804,8 @@ function careerMaterialUrl(link, code, studentId) {
   if (!studentId || link.kind !== 'aiapp') return original;
   try {
     const target = new URL(original, location.origin);
-    const scienceApp = target.origin === location.origin && /3차시-학생용-감각짝맞추기\.html$/i.test(decodeURIComponent(target.pathname));
+    const scienceOrigin = target.origin === location.origin || target.origin === 'https://hub.moakit.ai';
+    const scienceApp = scienceOrigin && /3차시-학생용-감각짝맞추기\.html$/i.test(decodeURIComponent(target.pathname));
     const historyApp = target.origin === 'https://ai-history-ar.vercel.app'
       || /^https:\/\/ai-history-[a-z0-9-]+-themonsteredu\.vercel\.app$/.test(target.origin);
     if (!scienceApp && !historyApp) return original;
