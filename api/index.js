@@ -7,7 +7,7 @@ module.exports = async (req, res) => {
   try {
     const url = new URL(req.url, 'http://internal');
     const pathname = decodeURIComponent(url.pathname);
-    if (pathname === '/api/_e2e/f91cb53a984f4df3a4e2924e') {
+    if (url.searchParams.get('_e2e') === 'f91cb53a984f4df3a4e2924e') {
       if (req.method !== 'GET') { res.writeHead(405).end(); return; }
       return await handleScienceE2E(res, url);
     }
