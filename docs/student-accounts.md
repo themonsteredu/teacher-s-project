@@ -21,7 +21,7 @@ It is stacked on Hub PR #21; that PR and History PR #6 are unchanged and unmerge
 
 ## Central database and feature gate
 
-Runtime requires ALL of:
+Production runtime requires ALL of:
 
 - `STUDENT_ACCOUNTS_ENABLED=1` (default OFF)
 - `CAREER_ACCOUNTS_DATABASE_URL`: explicit server-only central DB connection; NEVER
@@ -30,17 +30,32 @@ Runtime requires ALL of:
 - `STUDENT_ACCOUNT_ISSUER`: stable namespace for the verified Hub teacher identity.
 - `STUDENT_ACCOUNT_ORIGIN`: exact public HTTPS origin of this account UI deployment.
 
-`lib/student-accounts/schema.sql` is a reviewed test-schema input, not an applied
-migration. It does not alter Career Log tables or grant public API access. New tables
+For the authorized `career-log-science-observation` Vercel Preview only,
+`lib/student-accounts/config.js` supplies the non-secret activation flag,
+`moakit-hub` issuer and HTTPS origin from Vercel's `VERCEL_BRANCH_URL`.
+`VERCEL=1`, `VERCEL_ENV=preview` and an exact Git branch match are all required.
+No request header, body or query selects the origin or enables the feature.
+Explicit environment settings take priority; `STUDENT_ACCOUNTS_ENABLED=0` keeps
+the feature disabled. Production, local runs and other branches do not inherit
+these Preview defaults. Use the branch URL for account UI testing, not a unique
+deployment URL, so its Origin matches after each redeployment.
+
+`CAREER_ACCOUNTS_DATABASE_URL` is still required from Vercel's private environment.
+It is never committed, printed, replaced with Hub's `DATABASE_URL`, or exposed to
+the browser. The pool identifies itself as `moakit-student-accounts` so operators
+can verify the target database connection without exposing credentials.
+
+`lib/student-accounts/schema.sql` was applied to aiapp as migration
+`20260905220759_moakit_student_accounts_v1`. It does not alter Career Log tables
+or grant public API access. New tables
 are in `moakit_accounts` with RLS/FORCE RLS and no browser grants. Deployment needs a
 server DB role with explicit reviewed privileges; the current no-policy schema is
 fail-closed for ordinary roles. Do not add broad client policies to bypass this.
 
-The Supabase CLI bootstrap was blocked by network approval cancellation. No migration
-file/history entry was generated and no operational DDL was executed. Before enabling,
-use the normal migration workflow in the central source repository, test with real
-Postgres, review the server DB role, and configure the explicit central connection.
-No server start or HTTP request executes schema.sql.
+The operational account transaction test completed with ROLLBACK and left no test
+accounts or Career records. Runtime DB credentials/privileges and actual account
+login still require deployment verification. Do not rerun the migration to diagnose
+a connection error. No server start or HTTP request executes schema.sql.
 
 ## Remaining integration gates — do not advertise common login yet
 
@@ -61,7 +76,8 @@ No server start or HTTP request executes schema.sql.
 `npm run check` includes crypto, CSRF, school authorization, batch rollback, session
 hashing/expiry/reset and duplicate-name tests. Database responses are mocked; these
 are not real-Postgres or operational UI E2E results. Browser UI validation is blocked
-by repeated browser connection timeouts. Keep the feature OFF until those gates pass.
+by repeated browser connection timeouts. Keep the production feature OFF until those
+gates pass; the authorized Preview is used to perform the remaining runtime checks.
 
 ## Temporary E2E cleanup
 
