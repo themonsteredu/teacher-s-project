@@ -1,8 +1,8 @@
 (function (root, factory) {
-  const api = factory();
+  const api = factory(root);
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   if (root) root.MoakitCareerStudent = api;
-})(typeof window !== 'undefined' ? window : null, function () {
+})(typeof window !== 'undefined' ? window : null, function (root) {
   'use strict';
 
   const STORAGE_KEY = 'moakit-career-student-id-v1';
