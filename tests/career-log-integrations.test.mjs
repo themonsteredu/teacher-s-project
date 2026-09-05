@@ -15,6 +15,8 @@ test('keeps History AI compatible while selecting the science observation integr
   assert.equal(resolveIntegration().programRef, 'history-ai-01');
   assert.equal(resolveIntegration('science-observation-ai-03').programRef, 'science-observation-ai-03');
   assert.equal(resolveIntegration('unknown-program'), null);
+  assert.equal(resolveIntegration('constructor'), null);
+  assert.equal(resolveIntegration('__proto__'), null);
 });
 
 test('science observation UI sends only the real observation through the shared Career Log route', () => {
@@ -23,6 +25,10 @@ test('science observation UI sends only the real observation through the shared 
   assert.match(scienceApp, /activity:'plant-observation'/);
   assert.match(scienceApp, /observation:\{plant_name:plant,features:feat\|\|null\}/);
   assert.match(scienceApp, /reflection:null/);
+  assert.match(scienceApp, /let pendingCareerEvent=null/);
+  assert.match(scienceApp, /crypto\.getRandomValues/);
+  assert.match(scienceApp, /careerSourceEventId\(context\.boardCode,plant,feat\)/);
+  assert.doesNotMatch(scienceApp, /localStorage\.getItem\(key\)/);
   assert.doesNotMatch(scienceApp, /career_lens|fit_score|ability_score|career_recommendation/i);
 });
 

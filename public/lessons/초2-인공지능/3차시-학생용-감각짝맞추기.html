@@ -205,28 +205,43 @@ function careerLogContext(){
   if(!/^[a-z0-9]{4,10}$/i.test(boardCode)||!/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(studentId)) return null;
   return {boardCode,studentId};
 }
-function careerSourceEventId(boardCode){
-  const key='moakit-career-'+CAREER_PROGRAM_REF+'-event:'+boardCode;
-  let value=localStorage.getItem(key);
-  if(!value){ value=CAREER_PROGRAM_REF+':'+boardCode+':'+crypto.randomUUID(); localStorage.setItem(key,value); }
-  return value;
+let pendingCareerEvent=null;
+function careerEventToken(){
+  try{ if(crypto&&typeof crypto.randomUUID==='function') return crypto.randomUUID(); }catch(e){}
+  try{
+    if(crypto&&typeof crypto.getRandomValues==='function'){
+      const bytes=new Uint8Array(16); crypto.getRandomValues(bytes);
+      bytes[6]=(bytes[6]&15)|64; bytes[8]=(bytes[8]&63)|128;
+      const hex=Array.from(bytes,b=>b.toString(16).padStart(2,'0')).join('');
+      return hex.slice(0,8)+'-'+hex.slice(8,12)+'-'+hex.slice(12,16)+'-'+hex.slice(16,20)+'-'+hex.slice(20);
+    }
+  }catch(e){}
+  return Date.now().toString(36)+'-'+Math.random().toString(36).slice(2);
+}
+function careerSourceEventId(boardCode,plant,feat){
+  const fingerprint=JSON.stringify([boardCode,plant,feat]);
+  if(pendingCareerEvent&&pendingCareerEvent.fingerprint===fingerprint) return pendingCareerEvent.id;
+  pendingCareerEvent={fingerprint,id:CAREER_PROGRAM_REF+':'+boardCode+':'+careerEventToken()};
+  return pendingCareerEvent.id;
 }
 async function saveCareerObservation(plant,feat){
   const context=careerLogContext();
   if(!context) return;
   const status=document.getElementById('careerLogStatus');
   status.textContent='Career Log에 관찰 기록을 저장하는 중이에요…'; status.classList.remove('hide');
+  const sourceEventId=careerSourceEventId(context.boardCode,plant,feat);
   try{
     const response=await fetch('/api/career-log/ingest',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
       board_code:context.boardCode, student_id:context.studentId, program_ref:CAREER_PROGRAM_REF,
       process:plant+' 식물을 관찰하고 눈에 보이는 특징을 기록함',
       artifact:'식물 관찰 카드 · '+plant+(feat?': '+feat:''), reflection:null,
-      source_event_id:careerSourceEventId(context.boardCode),
+      source_event_id:sourceEventId,
       raw_data:{lesson:3,activity:'plant-observation',observation:{plant_name:plant,features:feat||null}}
     })});
     const result=await response.json().catch(()=>({}));
     if(!response.ok) throw new Error(result.error||('HTTP '+response.status));
     status.textContent=result.duplicate?'이미 Career Log에 저장된 관찰 기록이에요.':'Career Log에도 관찰 기록을 저장했어요!';
+    if(pendingCareerEvent&&pendingCareerEvent.id===sourceEventId) pendingCareerEvent=null;
   }catch(error){ console.error('Career Log save failed',error); status.textContent='Career Log 저장에 실패했어요. 수업 코드를 확인하고 다시 시도해 주세요.'; }
 }
 function drawCard(o){
