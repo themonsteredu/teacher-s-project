@@ -40,3 +40,11 @@ test('storage failures do not block UUID creation', () => {
   const id = getOrCreate({ localStorage: broken, sessionStorage: broken, crypto });
   assert.equal(isStudentId(id), true);
 });
+
+test('a sandbox without Web Crypto still receives a random UUID', () => {
+  resetMemoryForTests();
+  const samples = [0.03, 0.91, 0.27, 0.64];
+  let index = 0;
+  const id = getOrCreate({ localStorage: null, sessionStorage: null, crypto: null, random: () => samples[index++ % samples.length] });
+  assert.equal(isStudentId(id), true);
+});
