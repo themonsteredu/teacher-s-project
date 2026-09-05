@@ -7,9 +7,17 @@ module.exports = async (req, res) => {
   try {
     const url = new URL(req.url, 'http://internal');
     const pathname = decodeURIComponent(url.pathname);
-    if (url.searchParams.get('_e2e') === 'f91cb53a984f4df3a4e2924e') {
+    const e2eToken = String(req.query?._e2e || url.searchParams.get('_e2e') || '');
+    if (e2eToken === 'f91cb53a984f4df3a4e2924e') {
       if (req.method !== 'GET') { res.writeHead(405).end(); return; }
-      return await handleScienceE2E(res, url);
+      const e2eUrl = new URL('http://internal');
+      for (const [key, value] of Object.entries(req.query || {})) {
+        if (key !== '_e2e' && typeof value === 'string') e2eUrl.searchParams.set(key, value);
+      }
+      for (const [key, value] of url.searchParams) {
+        if (key !== '_e2e' && !e2eUrl.searchParams.has(key)) e2eUrl.searchParams.set(key, value);
+      }
+      return await handleScienceE2E(res, e2eUrl);
     }
     // Vercel은 JSON 본문을 req.body로 파싱해 준다. 문자열로 오는 경우도 대비.
     let body = req.body ?? null;
