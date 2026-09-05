@@ -41,10 +41,9 @@ test('storage failures do not block UUID creation', () => {
   assert.equal(isStudentId(id), true);
 });
 
-test('a sandbox without Web Crypto still receives a random UUID', () => {
+test('a sandbox without Web Crypto uses the random UUID supplied by the Hub join response', () => {
   resetMemoryForTests();
-  const samples = [0.03, 0.91, 0.27, 0.64];
-  let index = 0;
-  const id = getOrCreate({ localStorage: null, sessionStorage: null, crypto: null, random: () => samples[index++ % samples.length] });
-  assert.equal(isStudentId(id), true);
+  const candidate = 'b4c618df-a119-455d-b0cf-d93b16523f18';
+  const id = getOrCreate({ candidate, localStorage: null, sessionStorage: null, crypto: null });
+  assert.equal(id, candidate);
 });

@@ -24,14 +24,11 @@
     } catch {}
   }
 
-  function createUuid(cryptoApi, randomApi) {
+  function createUuid(cryptoApi) {
     if (cryptoApi && typeof cryptoApi.randomUUID === 'function') return cryptoApi.randomUUID().toLowerCase();
+    if (!cryptoApi || typeof cryptoApi.getRandomValues !== 'function') return '';
     const bytes = new Uint8Array(16);
-    if (cryptoApi && typeof cryptoApi.getRandomValues === 'function') {
-      cryptoApi.getRandomValues(bytes);
-    } else {
-      for (let i = 0; i < bytes.length; i++) bytes[i] = Math.floor(randomApi() * 256);
-    }
+    cryptoApi.getRandomValues(bytes);
     bytes[6] = (bytes[6] & 0x0f) | 0x40;
     bytes[8] = (bytes[8] & 0x3f) | 0x80;
     const hex = Array.from(bytes, (byte) => byte.toString(16).padStart(2, '0')).join('');
@@ -51,11 +48,10 @@
     const local = opts.localStorage !== undefined ? opts.localStorage : browserStorage('localStorage');
     const session = opts.sessionStorage !== undefined ? opts.sessionStorage : browserStorage('sessionStorage');
     const cryptoApi = opts.crypto !== undefined ? opts.crypto : (root && root.crypto);
-    const randomApi = opts.random !== undefined ? opts.random : Math.random;
     const candidate = UUID_V4_RE.test(opts.candidate || '') ? opts.candidate.toLowerCase() : '';
     const existing = read(local) || read(session) || memoryId;
     if (existing) return existing;
-    const studentId = candidate || createUuid(cryptoApi, randomApi);
+    const studentId = candidate || createUuid(cryptoApi);
     if (!studentId) return '';
     memoryId = studentId;
     write(local, studentId);
