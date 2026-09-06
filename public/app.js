@@ -1162,8 +1162,8 @@ async function loadShareCard(el, boardId) {
   let d;
   try { d = await api('GET', `/api/boards/${boardId}/items`); }
   catch (e) { el.innerHTML = `<div class="small muted">${esc(e.message)}</div>`; return; }
-  const sharedL = new Set(d.sharedLinkIds);
-  const sharedF = new Set(d.sharedFileIds);
+  const sharedL = new Set(d.sharedLinkIds.map(String));
+  const sharedF = new Set(d.sharedFileIds.map(String));
   const total = d.links.length + d.files.length;
   if (!total) {
     el.innerHTML = `<h2 style="margin:0 0 6px">학생에게 보여줄 수업자료</h2>
@@ -1185,22 +1185,28 @@ async function loadShareCard(el, boardId) {
       <button class="btn btn-primary btn-sm" id="share-save">저장</button>
     </div>
     <div class="share-list" style="margin-top:12px">
-      ${d.links.map((l) => row(sharedL.has(l.id), 'link', l.id, KIND_TAG[l.kind] || '🔗 링크', l.label || l.url, '')).join('')}
-      ${d.files.map((f) => row(sharedF.has(f.id), 'file', f.id, '📎 자료', f.name, (f.size / 1024 / 1024).toFixed(1) + 'MB')).join('')}
+      ${d.links.map((l) => row(sharedL.has(String(l.id)), 'link', l.id, KIND_TAG[l.kind] || '🔗 링크', l.label || l.url, '')).join('')}
+      ${d.files.map((f) => row(sharedF.has(String(f.id)), 'file', f.id, '📎 자료', f.name, (f.size / 1024 / 1024).toFixed(1) + 'MB')).join('')}
     </div>
     <div class="msg" id="share-msg" style="margin-top:8px"></div>`;
   document.getElementById('share-save').onclick = async () => {
     const link_ids = []; const file_ids = [];
     el.querySelectorAll('[data-share]:checked').forEach((c) => {
       const [t, i] = c.dataset.share.split(':');
-      (t === 'link' ? link_ids : file_ids).push(Number(i));
+      (t === 'link' ? link_ids : file_ids).push(i);
     });
     const msg = document.getElementById('share-msg');
     msg.textContent = '저장 중…'; msg.className = 'msg';
     try {
-      await api('PUT', `/api/boards/${boardId}/items`, { link_ids, file_ids });
-      msg.textContent = `저장됐어요 — 학생에게 ${link_ids.length + file_ids.length}개 자료가 보입니다.`;
-      msg.className = 'msg ok';
+      const saved = await api('PUT', `/api/boards/${boardId}/items`, { link_ids, file_ids });
+      const expected = new Set(link_ids).size + new Set(file_ids).size;
+      if (saved.count !== expected) {
+        msg.textContent = `선택한 ${expected}개 중 ${saved.count}개가 저장됐어요. 자료 목록을 새로고침하고 다시 확인해 주세요.`;
+        msg.className = 'msg err';
+      } else {
+        msg.textContent = `저장됐어요 — 학생에게 ${saved.count}개 자료가 보입니다.`;
+        msg.className = 'msg ok';
+      }
     } catch (e) { if (!e.handled) { msg.textContent = e.message; msg.className = 'msg err'; } }
   };
 }

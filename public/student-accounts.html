@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="referrer" content="no-referrer"><title>학생 계정 · 모아허브</title><link rel="stylesheet" href="/style.css"><style>
+@font-face{font-family:SCore;src:url('/fonts/SCDreamRegular.woff2')}body{font-family:SCore,sans-serif;word-break:keep-all;background:#f5f8f7;color:#163c36}main{max-width:960px;margin:40px auto;padding:24px}header,nav,.actions{display:flex;gap:12px;align-items:center;flex-wrap:wrap}header{justify-content:space-between}section{background:white;padding:24px;margin-top:20px;border:1px solid #d8e6e2;border-radius:12px}label{display:block;margin:14px 0}input,textarea,select{display:block;box-sizing:border-box;width:100%;padding:10px;margin-top:6px;font:inherit;border:1px solid #a5bdb5;border-radius:6px}button{padding:10px 16px;border:0;border-radius:6px;background:#0a6f61;color:white;font:inherit;cursor:pointer}button:disabled{opacity:.5;cursor:wait}table{width:100%;border-collapse:collapse;font-size:14px}td,th{text-align:left;padding:12px;border-bottom:1px solid #d8e6e2}.scroll{overflow:auto}#message{min-height:24px;color:#8f3a0d;margin:16px 0}.muted{color:#536d65}a{color:#0a6f61}pre{white-space:pre-wrap;overflow-wrap:anywhere} [hidden]{display:none!important}@media(max-width:600px){main{padding:12px;margin:12px auto}section{padding:16px}}
+</style><script src="/student-accounts.js" defer></script></head>
+<body><main><header><h1>학생 계정</h1><a href="/app">모아허브로 돌아가기</a></header>
+<nav><button id="student-tab">학생 로그인</button><button id="manager-tab">학교 계정 관리</button></nav>
+<p id="message" role="status" aria-live="polite"></p>
+<section id="student-pane">
+<form id="login-form"><h2>학교에서 받은 계정으로 로그인</h2><label>학생 아이디<input name="username" autocomplete="username" required maxlength="21"></label><label>비밀번호<input name="password" type="password" autocomplete="current-password" required maxlength="128"></label><button>로그인</button></form>
+<div id="signed-in" hidden><h2>학생 계정</h2><p id="account-name"></p><p>공유 기기를 사용했다면 이용을 마친 뒤 반드시 로그아웃해 주세요.</p><button id="logout">로그아웃 · 학생 바꾸기</button></div>
+<form id="password-form" hidden><h2>처음 받은 비밀번호를 변경하세요</h2><label>현재 비밀번호<input name="current" type="password" autocomplete="current-password" required maxlength="128"></label><label>새 비밀번호<input name="next" type="password" autocomplete="new-password" required minlength="8" maxlength="128"></label><label>새 비밀번호 확인<input name="confirm" type="password" autocomplete="new-password" required minlength="8" maxlength="128"></label><button>변경 후 다시 로그인</button></form>
+</section>
+<section id="manager-pane" hidden><h2>학교 학생 계정 관리</h2><p id="teacher-status"></p>
+<form id="school-form" hidden><label>새 학교 이름<input name="schoolName" maxlength="120" required></label><button>학교 등록</button></form>
+<label>담당 학교<select id="schools"><option value="">학교를 선택하세요</option></select></label>
+<form id="manager-form" hidden><label>담당자로 지정할 교사 계정 ID<input name="teacherId" required inputmode="numeric"></label><button>학교 담당자 지정</button></form>
+<form id="roster-form" hidden><h3>학생 계정 일괄 발급</h3><p>한 줄에 이름과 반을 탭으로 구분해 붙여 넣으세요. 최대 100명입니다. 같은 이름도 서로 다른 계정으로 발급됩니다.</p><label>학생 명단<textarea name="roster" rows="6" required placeholder="학생 이름&#9;반"></textarea></label><label><input type="checkbox" required style="display:inline;width:auto">기존에 발급한 학생이 아닌 새 학생 명단임을 확인했습니다.</label><button>계정 발급</button></form>
+<div id="issued" hidden><h3>발급 결과</h3><p>임시 비밀번호는 이 화면에서만 확인할 수 있습니다. 각 학생에게 본인 계정만 전달하세요.</p><pre id="issued-values"></pre><button id="clear-issued">발급 정보 지우기</button></div>
+<div class="scroll"><table><thead><tr><th>이름</th><th>반</th><th>아이디</th><th>관리</th></tr></thead><tbody id="students"></tbody></table></div>
+<form id="member-form" hidden><h3>학생 소속 정보 변경</h3><label>이름<input name="displayName" required maxlength="80"></label><label>반<input name="className" required maxlength="80"></label><button>저장</button></form>
+</section></main></body></html>
