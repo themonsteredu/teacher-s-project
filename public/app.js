@@ -218,7 +218,7 @@ function activeMenuHref(hash = location.hash || '#/') {
   return section ? `#/${section}` : '#/';
 }
 
-function shell(title, contentHtml) {
+function shell(title, contentHtml, { showSearch = true } = {}) {
   disposeShell();
   const u = state.me;
   const activeHref = activeMenuHref();
@@ -246,10 +246,10 @@ function shell(title, contentHtml) {
         <button class="tb-burger" id="btn-hamburger" type="button" aria-label="메뉴 열기" aria-controls="hub-sidebar" aria-expanded="false">${icon('menu')}</button>
         <span class="hub-page-title">${esc(title)}</span>
         <div class="tb-spacer"></div>
-        <div class="search-box">
+        ${showSearch ? `<div class="search-box">
           ${icon('search')}
           <input id="global-search" aria-label="프로그램 검색" placeholder="프로그램 검색" autocomplete="off" value="${esc(state.search)}">
-        </div>
+        </div>` : ''}
         <div class="tb-user">
           <span class="tb-avatar">${esc(u.name.slice(0, 1))}</span>
           <span class="tb-who">${esc(u.name)}<br><b>${esc(u.roleLabel)}</b></span>
@@ -319,7 +319,8 @@ function shell(title, contentHtml) {
     state.me = null;
     location.hash = '#/login';
   };
-  document.getElementById('global-search').onkeydown = (e) => {
+  const globalSearch = document.getElementById('global-search');
+  if (globalSearch) globalSearch.onkeydown = (e) => {
     if (e.key === 'Enter') {
       state.search = e.target.value.trim();
       if ((location.hash || '#/') === '#/') navigate(); else location.hash = '#/';
@@ -1294,40 +1295,124 @@ async function downloadAll(boardId, btn) {
 }
 
 /* ---------------- 프로그램 관리 (#/manage, admin) ---------------- */
+const programManagerView = { search: '', status: 'all' };
+function programMatchesView(p, view = programManagerView) {
+  const query = view.search.trim().normalize('NFKC').toLocaleLowerCase();
+  const content = [p.title, p.grade, p.category].filter(Boolean).join(' ').normalize('NFKC').toLocaleLowerCase();
+  return (!query || content.includes(query)) && (view.status === 'all' || (view.status === 'published' ? p.published : !p.published));
+}
+function programLessonLabel(p) {
+  const summary = p.courseSummary;
+  if (summary?.status === 'invalid') return '수업 구성 확인 필요';
+  if (summary?.variants?.length) {
+    const counts = [...new Set(summary.variants.map(v => v.lessonCount))];
+    return counts.map(n => `${n}차시`).join(' / ') + (summary.status === 'draft' ? ' · 구성 임시저장' : '');
+  }
+  return p.lessonCount > 0 ? `원본 ${p.lessonCount}차시 · 구성 미설정` : '차시 구성 미설정';
+}
+function programManagerRow(p) {
+  return `<article class="pm-item" data-program="${esc(p.id)}">
+    <div class="pm-info">
+      <div class="pm-heading"><h2><a href="#/manage/${esc(p.id)}">${esc(p.title)}</a></h2><span class="pm-status ${p.published ? 'is-published' : ''}">${p.published ? '공개' : '비공개'}</span></div>
+      <p class="pm-meta">${[p.grade || '학년 미지정', p.category, programLessonLabel(p)].filter(Boolean).map(v => `<span>${esc(v)}</span>`).join('')}</p>
+    </div>
+    <div class="pm-actions">
+      <a class="btn btn-soft pm-configure" href="#/manage/${esc(p.id)}">${icon('layers')} 수업 구성</a>
+      <details class="pm-more">
+        <summary aria-label="${esc(p.title)} 더보기"><span aria-hidden="true">⋯</span></summary>
+        <div class="pm-more-panel">
+          <a href="#/resources/${esc(p.id)}">${icon('edit')} 기본정보 편집</a>
+          <a href="#/course/${esc(p.id)}">${icon('eye')} 자료 미리보기</a>
+          <button type="button" data-pub="${esc(p.id)}" data-val="${p.published ? 0 : 1}">${icon(p.published ? 'eyeOff' : 'eye')} ${p.published ? '비공개로 전환' : '공개하기'}</button>
+          <button class="pm-delete" type="button" data-del="${esc(p.id)}">${icon('trash')} 수업 삭제</button>
+        </div>
+      </details>
+    </div>
+  </article>`;
+}
 route(/^#\/manage$/, async () => {
   if (!isAdmin()) { location.hash = '#/'; return; }
   const data = await api('GET', '/api/programs');
-  const row = (p) => `
-    <div class="deck-line">
-      <div class="dl-left">
-        <span class="dl-ico">${p.published ? '🟢' : '⚪'}</span>
-        <div class="dl-body">
-          <div class="dl-title">${esc(p.title)}</div>
-          <div class="dl-meta small muted">${p.grade ? `🎓 ${esc(p.grade)} · ` : ''}${p.category ? `📁 ${esc(p.category)} · ` : ''}${p.published ? '공개 중' : '비공개'} · 🔗${p.linkCount + p.aiappCount} ▶${p.videoCount} 📎${p.fileCount}</div>
-        </div>
-      </div>
-      <div class="dl-actions">
-        <button class="btn ${p.published ? 'btn-ghost' : 'btn-primary'} btn-sm" data-pub="${p.id}" data-val="${p.published ? 0 : 1}">${p.published ? '비공개로' : '공개하기'}</button>
-        <a class="btn btn-soft btn-sm" href="#/course/${p.id}">구성별 자료</a><a class="btn btn-ghost btn-sm" href="#/manage/${p.id}">${icon('edit')} 편집</a>
-        <button class="btn btn-danger btn-sm" data-del="${p.id}">${icon('trash')}</button>
-      </div>
-    </div>`;
-
   shell('프로그램 관리', `
+    <section class="program-manager" id="program-manager" aria-label="수업 목록 관리">
     <div class="page-head">
-      <div><div class="ph-t">프로그램 관리</div><div class="desc">공개/비공개 토글은 즉시 반영됩니다 — 비공개로 바꾸면 교사 화면에서 바로 사라집니다.</div></div>
+      <div><div class="ph-t">수업 목록</div><div class="desc">수업을 선택해 차시와 자료를 구성하세요.</div></div>
       <button class="btn btn-primary" id="btn-new">${icon('plus')} 수업 등록</button>
     </div>
-    <div class="card" style="padding:6px 12px"><div class="deck-list">
-      ${data.programs.map(row).join('') || '<p class="empty-note">프로그램이 없습니다. 새로 만들어 보세요.</p>'}
-    </div></div>`);
+    <div class="pm-toolbar">
+      <label class="pm-search">${icon('search')}<input type="search" id="pm-search" aria-label="수업 이름, 학년, 분류 검색" placeholder="수업 이름 · 학년 · 분류 검색" value="${esc(programManagerView.search)}" autocomplete="off"></label>
+      <div class="pm-filters" role="group" aria-label="공개 상태 필터">
+        ${[['all', '전체'], ['published', '공개'], ['private', '비공개']].map(([value, label]) => `<button type="button" data-pm-status="${value}" aria-pressed="${programManagerView.status === value}">${label} <span data-pm-count="${value}"></span></button>`).join('')}
+      </div>
+    </div>
+    <p class="pm-result-count" id="pm-result-count" role="status" aria-live="polite"></p>
+    <div class="pm-list" id="pm-list"></div>
+    </section>`, { showSearch: false });
+
+  const manager = document.getElementById('program-manager');
+  const list = document.getElementById('pm-list');
+  const search = document.getElementById('pm-search');
+  const closeMenus = (except) => manager.querySelectorAll('.pm-more[open]').forEach(menu => { if (menu !== except) menu.open = false; });
+  const outsideClick = e => { if (!e.target.closest?.('.pm-more')) closeMenus(); };
+  document.addEventListener('click', outsideClick);
+  manager.onkeydown = e => {
+    if (e.key !== 'Escape') return;
+    const open = manager.querySelector('.pm-more[open]');
+    if (open) { e.preventDefault(); open.open = false; open.querySelector('summary').focus(); }
+  };
+  const disposePreviousShell = disposeShell;
+  disposeShell = () => { document.removeEventListener('click', outsideClick); disposePreviousShell(); };
+
+  const drawRows = () => {
+    const filtered = data.programs.filter(p => programMatchesView(p));
+    document.getElementById('pm-result-count').textContent = `${filtered.length}개 수업 · 전체 ${data.programs.length}개`;
+    const counts = { all: data.programs.length, published: data.programs.filter(p => p.published).length, private: data.programs.filter(p => !p.published).length };
+    manager.querySelectorAll('[data-pm-count]').forEach(el => { el.textContent = counts[el.dataset.pmCount]; });
+    manager.querySelectorAll('[data-pm-status]').forEach(button => button.setAttribute('aria-pressed', String(button.dataset.pmStatus === programManagerView.status)));
+    list.innerHTML = filtered.map(programManagerRow).join('') || `<div class="pm-empty"><p>${data.programs.length ? '조건에 맞는 수업이 없습니다.' : '아직 등록한 수업이 없습니다.'}</p>${data.programs.length ? '<button class="btn btn-ghost" type="button" id="pm-reset">검색·필터 초기화</button>' : '<p class="small muted">수업 등록을 눌러 첫 수업을 만들어 보세요.</p>'}</div>`;
+    const reset = document.getElementById('pm-reset');
+    if (reset) reset.onclick = () => { programManagerView.search = ''; programManagerView.status = 'all'; search.value = ''; drawRows(); search.focus(); };
+    list.querySelectorAll('.pm-more').forEach(menu => { menu.ontoggle = () => { if (menu.open) closeMenus(menu); }; });
+    list.querySelectorAll('[data-pub]').forEach(button => {
+      button.onclick = async () => {
+        if (button.disabled) return;
+        const program = data.programs.find(p => String(p.id) === button.dataset.pub);
+        if (!program) return;
+        const published = button.dataset.val === '1';
+        button.disabled = true;
+        try {
+          await api('PATCH', `/api/programs/${program.id}`, { published });
+          program.published = published;
+          toast(published ? '공개되었습니다.' : '비공개로 전환되었습니다.');
+          if (manager.isConnected) { drawRows(); search.focus(); }
+        } catch (err) { if (!err.handled) toast(err.message, true); button.disabled = false; }
+      };
+    });
+    list.querySelectorAll('[data-del]').forEach(button => {
+      button.onclick = async () => {
+        if (button.disabled) return;
+        const program = data.programs.find(p => String(p.id) === button.dataset.del);
+        if (!program || !confirm(`“${program.title}” 수업을 삭제할까요? 연결된 수업 보드와 첨부자료 원본도 함께 삭제되며 되돌릴 수 없습니다.`)) return;
+        button.disabled = true;
+        try {
+          await api('DELETE', `/api/programs/${program.id}`);
+          data.programs = data.programs.filter(p => p.id !== program.id);
+          toast('삭제되었습니다.');
+          if (manager.isConnected) { drawRows(); search.focus(); }
+        } catch (err) { if (!err.handled) toast(err.message, true); button.disabled = false; }
+      };
+    });
+  };
+  search.oninput = () => { programManagerView.search = search.value; drawRows(); };
+  manager.querySelectorAll('[data-pm-status]').forEach(button => { button.onclick = () => { programManagerView.status = button.dataset.pmStatus; drawRows(); }; });
+  drawRows();
 
   document.getElementById('btn-new').onclick = () => {
     const back = openModal(`
       <h3>새 프로그램</h3>
       <div class="m-sub">수업을 만든 뒤 운영 구성과 구성별 자료를 등록합니다. 처음에는 비공개 상태입니다.</div>
       <div class="form-grid" style="grid-template-columns:1fr 1fr">
-        <div style="grid-column:1/-1"><label>제목</label><input id="np-title" placeholder="예: 진로탐색 젭 수업"></div>
+        <div style="grid-column:1/-1"><label>제목</label><input id="np-title" placeholder="예: AI로 탐구하는 삼국시대"></div>
         <div><label>학년</label><select id="np-grade">
           <option value="">미지정</option>
           ${GRADES.map((g) => `<option value="${g}">${g}</option>`).join('')}
@@ -1358,21 +1443,6 @@ route(/^#\/manage$/, async () => {
       }
     };
   };
-  document.querySelectorAll('[data-pub]').forEach((b) => {
-    b.onclick = async () => {
-      await api('PATCH', `/api/programs/${b.dataset.pub}`, { published: b.dataset.val === '1' });
-      toast(b.dataset.val === '1' ? '공개되었습니다.' : '비공개로 전환되었습니다.');
-      navigate();
-    };
-  });
-  document.querySelectorAll('[data-del]').forEach((b) => {
-    b.onclick = async () => {
-      if (!confirm('이 프로그램을 삭제할까요? 첨부자료 원본도 저장소에서 함께 삭제되며 되돌릴 수 없습니다.')) return;
-      await api('DELETE', `/api/programs/${b.dataset.del}`);
-      toast('삭제되었습니다.');
-      navigate();
-    };
-  });
 });
 
 /* ---------------- 프로그램 편집 (#/manage/:id, admin) ---------------- */

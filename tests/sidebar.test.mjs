@@ -190,7 +190,7 @@ test('sidebar styles include responsive width, visible mobile search, keyboard f
   assert.match(css, /\.hub-sidebar[\s\S]*?height: 100dvh/);
   assert.match(css, /@media \(max-width: 920px\)/);
   assert.match(css, /width: min\(288px, calc\(100vw - 48px\)\)/);
-  assert.match(css, /\.topbar \.search-box \{ order: 1; width: 100%; \}/);
+  assert.match(css, /\.topbar \.search-box \{ order: 1; flex: 1 0 100%; width: 100%; max-width: none; \}/);
   assert.match(css, /:focus-visible/);
   assert.match(css, /prefers-reduced-motion: reduce/);
   assert.match(css, /word-break: keep-all/);
