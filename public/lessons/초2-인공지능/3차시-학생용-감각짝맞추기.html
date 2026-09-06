@@ -130,6 +130,7 @@
       <div class="mascot">🌟</div>
       <h1 class="title">저장했어요!</h1>
       <p class="sub" id="savedMsg"></p>
+      <p class="note hide" id="careerLogStatus" aria-live="polite"></p>
       <button class="go" id="downloadBtn">그림으로 다시 받기 🖼️</button>
       <button class="go gold" id="sHomeBtn" style="margin-top:12px;">🏠 처음으로</button>
     </section>
@@ -197,6 +198,91 @@ function openLens(){ try{ window.open('https://lens.google.com/','_blank'); }cat
 function roundRect(ctx,x,y,w,h,r){ ctx.beginPath(); ctx.moveTo(x+r,y); ctx.arcTo(x+w,y,x+w,y+h,r);
   ctx.arcTo(x+w,y+h,x,y+h,r); ctx.arcTo(x,y+h,x,y,r); ctx.arcTo(x,y,x+w,y,r); ctx.closePath(); }
 let lastObs={name:'',plant:'',feat:''};
+const CAREER_PROGRAM_REF='science-observation-ai-03';
+function careerLogContext(){
+  const params=new URLSearchParams(location.search), boardCode=(params.get('hub_code')||'').trim().toLowerCase();
+  const studentId=(params.get('student_id')||'').trim().toLowerCase();
+  if(!/^[a-z0-9]{4,10}$/i.test(boardCode)||!/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(studentId)) return null;
+  return {boardCode,studentId};
+}
+const memoryPendingCareerEvents=new Map();
+const CAREER_PENDING_COOKIE_PREFIX='moakit_career_science_pending_';
+function careerEventToken(){
+  try{ if(crypto&&typeof crypto.randomUUID==='function') return crypto.randomUUID(); }catch(e){}
+  try{
+    if(crypto&&typeof crypto.getRandomValues==='function'){
+      const bytes=new Uint8Array(16); crypto.getRandomValues(bytes);
+      bytes[6]=(bytes[6]&15)|64; bytes[8]=(bytes[8]&63)|128;
+      const hex=Array.from(bytes,b=>b.toString(16).padStart(2,'0')).join('');
+      return hex.slice(0,8)+'-'+hex.slice(8,12)+'-'+hex.slice(12,16)+'-'+hex.slice(16,20)+'-'+hex.slice(20);
+    }
+  }catch(e){}
+  return Date.now().toString(36)+'-'+Math.random().toString(36).slice(2);
+}
+function careerFingerprint(value){
+  let first=0x811c9dc5,second=0x9e3779b9;
+  for(let i=0;i<value.length;i++){
+    const code=value.charCodeAt(i); first=Math.imul(first^code,0x01000193); second=Math.imul(second^code,0x85ebca6b);
+  }
+  return (first>>>0).toString(16).padStart(8,'0')+(second>>>0).toString(16).padStart(8,'0');
+}
+function careerPendingKey(boardCode,studentId,fingerprint){ return 'moakit-career-science-pending:'+boardCode+':'+studentId+':'+careerFingerprint(fingerprint); }
+function careerPendingCookie(key){ return CAREER_PENDING_COOKIE_PREFIX+careerFingerprint(key); }
+function careerStorage(kind){ try{ return window[kind]; }catch(e){ return null; } }
+function careerStorageRead(storage,key){ try{ return storage&&storage.getItem(key); }catch(e){ return null; } }
+function careerCookieRead(key){
+  try{
+    const name=careerPendingCookie(key),part=document.cookie.split('; ').find(value=>value.startsWith(name+'='));
+    return part?decodeURIComponent(part.slice(name.length+1)):null;
+  }catch(e){ return null; }
+}
+function careerReadPending(key){
+  const candidates=[memoryPendingCareerEvents.get(key),careerCookieRead(key),careerStorageRead(careerStorage('sessionStorage'),key),careerStorageRead(careerStorage('localStorage'),key)]
+    .map(value=>{ try{ return typeof value==='string'?JSON.parse(value):value; }catch(e){ return null; } })
+    .filter(value=>value&&value.key===key);
+  return candidates.sort((left,right)=>(right.createdAt||0)-(left.createdAt||0))[0]||null;
+}
+function careerWritePending(key,value){
+  const entry={key,fingerprint:value.fingerprint,id:value.id,createdAt:Date.now()};
+  const raw=JSON.stringify(entry); memoryPendingCareerEvents.set(key,entry);
+  try{ careerStorage('localStorage')?.setItem(key,raw); }catch(e){}
+  try{ careerStorage('sessionStorage')?.setItem(key,raw); }catch(e){}
+  try{ document.cookie=careerPendingCookie(key)+'='+encodeURIComponent(raw)+'; Path=/; SameSite=Lax; Secure'; }catch(e){}
+}
+function careerClearPending(key,id){
+  const pending=careerReadPending(key); if(!pending||pending.id!==id) return;
+  memoryPendingCareerEvents.delete(key);
+  try{ careerStorage('localStorage')?.removeItem(key); }catch(e){}
+  try{ careerStorage('sessionStorage')?.removeItem(key); }catch(e){}
+  try{ document.cookie=careerPendingCookie(key)+'=; Path=/; SameSite=Lax; Secure; Max-Age=0'; }catch(e){}
+}
+function careerSourceEvent(boardCode,studentId,plant,feat){
+  const fingerprint=JSON.stringify([plant,feat]),key=careerPendingKey(boardCode,studentId,fingerprint);
+  const pending=careerReadPending(key);
+  if(pending&&pending.fingerprint===fingerprint) return {key,id:pending.id};
+  const next={fingerprint,id:CAREER_PROGRAM_REF+':'+boardCode+':'+careerEventToken()};
+  careerWritePending(key,next); return {key,id:next.id};
+}
+async function saveCareerObservation(plant,feat){
+  const context=careerLogContext();
+  if(!context) return;
+  const status=document.getElementById('careerLogStatus');
+  status.textContent='Career Log에 관찰 기록을 저장하는 중이에요…'; status.classList.remove('hide');
+  const sourceEvent=careerSourceEvent(context.boardCode,context.studentId,plant,feat);
+  try{
+    const response=await fetch('/api/career-log/ingest',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
+      board_code:context.boardCode, student_id:context.studentId, program_ref:CAREER_PROGRAM_REF,
+      process:plant+' 식물을 관찰하고 눈에 보이는 특징을 기록함',
+      artifact:'식물 관찰 카드 · '+plant+(feat?': '+feat:''), reflection:null,
+      source_event_id:sourceEvent.id,
+      raw_data:{lesson:3,activity:'plant-observation',observation:{plant_name:plant,features:feat||null}}
+    })});
+    const result=await response.json().catch(()=>({}));
+    if(!response.ok) throw new Error(result.error||('HTTP '+response.status));
+    status.textContent=result.duplicate?'이미 Career Log에 저장된 관찰 기록이에요.':'Career Log에도 관찰 기록을 저장했어요!';
+    careerClearPending(sourceEvent.key,sourceEvent.id);
+  }catch(error){ console.error('Career Log save failed',error); status.textContent='Career Log 저장에 실패했어요. 수업 코드를 확인하고 다시 시도해 주세요.'; }
+}
 function drawCard(o){
   const cv=document.getElementById('cardCanvas'), ctx=cv.getContext('2d'), W=cv.width, H=cv.height;
   const g=ctx.createLinearGradient(0,0,0,H); g.addColorStop(0,'#149079'); g.addColorStop(1,'#0C5647');
@@ -229,6 +315,7 @@ async function saveObs(){
   document.getElementById('savedMsg').textContent=(name?name+' 어린이가 ':'')+'‘'+plant+'’을(를) 관찰했어요!';
   show(V.saved); say('저장했어요! '+plant+'을 관찰했어요. 잘했어요!');
   for(let i=0;i<10;i++) setTimeout(confetti,i*100);
+  await saveCareerObservation(plant,feat);
 }
 
 /* ===== 메뉴/이동 버튼 ===== */

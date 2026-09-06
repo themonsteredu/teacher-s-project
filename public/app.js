@@ -799,8 +799,24 @@ function postCardHtml(p, { forTeacher = false, manageable = false } = {}) {
     </div>`;
 }
 
+function careerMaterialUrl(link, code, studentId) {
+  const original = String(link.url || '');
+  if (!studentId || link.kind !== 'aiapp') return original;
+  try {
+    const target = new URL(original, location.origin);
+    const scienceOrigin = target.origin === location.origin || target.origin === 'https://hub.moakit.ai';
+    const scienceApp = scienceOrigin && /3차시-학생용-감각짝맞추기\.html$/i.test(decodeURIComponent(target.pathname));
+    const historyApp = target.origin === 'https://ai-history-ar.vercel.app'
+      || /^https:\/\/ai-history-[a-z0-9-]+-themonsteredu\.vercel\.app$/.test(target.origin);
+    if (!scienceApp && !historyApp) return original;
+    target.searchParams.set('hub_code', code);
+    target.searchParams.set('student_id', studentId);
+    return target.origin === location.origin ? `${target.pathname}${target.search}${target.hash}` : target.toString();
+  } catch { return original; }
+}
+
 // 학생 화면: 오늘의 수업자료 렌더 (교사가 공유한 링크·웹앱·영상·파일)
-function studentMaterialsHtml(materials, code) {
+function studentMaterialsHtml(materials, code, studentId = '') {
   const links = (materials && materials.links) || [];
   const files = (materials && materials.files) || [];
   if (!links.length && !files.length) return '';
@@ -810,7 +826,7 @@ function studentMaterialsHtml(materials, code) {
     }
     const tag = l.kind === 'aiapp' ? '🖥 웹앱' : '🔗 링크';
     const label = l.label || (l.kind === 'aiapp' ? '웹앱 열기' : '링크 열기');
-    return `<a class="mat-link" href="${esc(l.url)}" target="_blank" rel="noopener">${tag} <b>${esc(label)}</b><span class="mat-go">열기 →</span></a>`;
+    return `<a class="mat-link" href="${esc(careerMaterialUrl(l, code, studentId))}" target="_blank" rel="noopener">${tag} <b>${esc(label)}</b><span class="mat-go">열기 →</span></a>`;
   };
   const fileItem = (f) => {
     const isHtml = /\.html?$/i.test(f.name) || f.mime === 'text/html';
@@ -866,6 +882,8 @@ route(/^#\/board\/([A-Za-z0-9]{4,10})$/, async (code) => {
   }
   document.title = `${data.board.title} — 모아허브`;
   const savedName = (() => { try { return localStorage.getItem('studentName') || ''; } catch { return ''; } })();
+  const candidateStudentId = (new URLSearchParams(location.search).get('student_id') || data.careerStudentId || '').trim();
+  const careerStudentId = window.MoakitCareerStudent?.getOrCreate({ candidate: candidateStudentId }) || '';
   $app.innerHTML = `
     <div class="sboard">
       <header class="sb-head">
@@ -875,7 +893,7 @@ route(/^#\/board\/([A-Za-z0-9]{4,10})$/, async (code) => {
         </div>
         <a class="btn btn-ghost btn-sm" href="#/login">나가기</a>
       </header>
-      ${studentMaterialsHtml(data.materials, code)}
+      ${studentMaterialsHtml(data.materials, code, careerStudentId)}
       <div class="card sb-form">
         <div class="form-grid" style="grid-template-columns:150px 1fr">
           <div><label>이름</label><input id="sb-name" maxlength="20" value="${esc(savedName)}" placeholder="이름"></div>
@@ -1144,8 +1162,8 @@ async function loadShareCard(el, boardId) {
   let d;
   try { d = await api('GET', `/api/boards/${boardId}/items`); }
   catch (e) { el.innerHTML = `<div class="small muted">${esc(e.message)}</div>`; return; }
-  const sharedL = new Set(d.sharedLinkIds);
-  const sharedF = new Set(d.sharedFileIds);
+  const sharedL = new Set(d.sharedLinkIds.map(String));
+  const sharedF = new Set(d.sharedFileIds.map(String));
   const total = d.links.length + d.files.length;
   if (!total) {
     el.innerHTML = `<h2 style="margin:0 0 6px">학생에게 보여줄 수업자료</h2>
@@ -1167,22 +1185,28 @@ async function loadShareCard(el, boardId) {
       <button class="btn btn-primary btn-sm" id="share-save">저장</button>
     </div>
     <div class="share-list" style="margin-top:12px">
-      ${d.links.map((l) => row(sharedL.has(l.id), 'link', l.id, KIND_TAG[l.kind] || '🔗 링크', l.label || l.url, '')).join('')}
-      ${d.files.map((f) => row(sharedF.has(f.id), 'file', f.id, '📎 자료', f.name, (f.size / 1024 / 1024).toFixed(1) + 'MB')).join('')}
+      ${d.links.map((l) => row(sharedL.has(String(l.id)), 'link', l.id, KIND_TAG[l.kind] || '🔗 링크', l.label || l.url, '')).join('')}
+      ${d.files.map((f) => row(sharedF.has(String(f.id)), 'file', f.id, '📎 자료', f.name, (f.size / 1024 / 1024).toFixed(1) + 'MB')).join('')}
     </div>
     <div class="msg" id="share-msg" style="margin-top:8px"></div>`;
   document.getElementById('share-save').onclick = async () => {
     const link_ids = []; const file_ids = [];
     el.querySelectorAll('[data-share]:checked').forEach((c) => {
       const [t, i] = c.dataset.share.split(':');
-      (t === 'link' ? link_ids : file_ids).push(Number(i));
+      (t === 'link' ? link_ids : file_ids).push(i);
     });
     const msg = document.getElementById('share-msg');
     msg.textContent = '저장 중…'; msg.className = 'msg';
     try {
-      await api('PUT', `/api/boards/${boardId}/items`, { link_ids, file_ids });
-      msg.textContent = `저장됐어요 — 학생에게 ${link_ids.length + file_ids.length}개 자료가 보입니다.`;
-      msg.className = 'msg ok';
+      const saved = await api('PUT', `/api/boards/${boardId}/items`, { link_ids, file_ids });
+      const expected = new Set(link_ids).size + new Set(file_ids).size;
+      if (saved.count !== expected) {
+        msg.textContent = `선택한 ${expected}개 중 ${saved.count}개가 저장됐어요. 자료 목록을 새로고침하고 다시 확인해 주세요.`;
+        msg.className = 'msg err';
+      } else {
+        msg.textContent = `저장됐어요 — 학생에게 ${saved.count}개 자료가 보입니다.`;
+        msg.className = 'msg ok';
+      }
     } catch (e) { if (!e.handled) { msg.textContent = e.message; msg.className = 'msg err'; } }
   };
 }
