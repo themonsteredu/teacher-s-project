@@ -6,7 +6,7 @@ const html = readFileSync(new URL('../public/index.html', import.meta.url), 'utf
 const focusEngine = html.match(/<script id="hub-focus-engine">([\s\S]*?)<\/script>/)?.[1] || '';
 
 test('keeps the public landing contract and destinations', () => {
-  assert.match(html, /<h1>수업에 쓸 것들을 모아, <em>링크 하나<\/em>로 나눕니다\.<\/h1>/);
+  assert.match(html, /<h1 id="hero-title">교과의 배움을 <em>AI로 탐구합니다\.<\/em><\/h1>/);
   assert.doesNotMatch(html, /<h1>[\s\S]*?<br>/);
   for (const id of ['what', 'board', 'control', 'start']) {
     assert.match(html, new RegExp(`id=["']${id}["']`));
@@ -57,7 +57,7 @@ test('keeps the pointer focus dependency-free, user-driven, and motion-safe', ()
 
 test('uses terracotta for one primary action only', () => {
   assert.equal((html.match(/class="btn btn-solid lg"/g) || []).length, 1);
-  assert.match(html, /class="btn btn-teal sm" href="\/app#\/login">로그인<\/a>/);
+  assert.match(html, /class="btn btn-teal sm" href="\/app#\/login">수업 허브 입장<\/a>/);
   assert.doesNotMatch(html, /btn-accent/);
   assert.doesNotMatch(html, /\.btn-line:hover\{[^}]*accent/);
 });
