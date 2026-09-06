@@ -1,0 +1,15 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {createRequire} from 'node:module';
+const require=createRequire(import.meta.url);
+const {normalize,issues,safeUrl}=require('../lib/course-plan');
+const session=()=>({title:'관찰하기',minutes:40,sourceLessons:['1'],bridge:'제공된 자료로 시작',assets:Object.fromEntries(['app','ppt','worksheet','guide'].map(k=>[k,{url:'https://example.org/'+k,fileId:''}])),record:{mode:'submission',completion:'관찰 보고서 제출',original:'식물 이름과 관찰 특징',process:'식물을 관찰하고 특징을 기록함'}});
+const plan=()=>({version:1,appUrl:'https://example.org',variants:[{id:'basic',name:'맞춤 구성',sessions:[session()]}]});
+const context={lessonIds:[1],fileIds:[5]};
+test('arbitrary session counts, not fixed 10/5/3; preserves original input and mapping',()=>{const p=plan();p.variants[0].sessions=Array.from({length:7},session);const got=normalize(p,context);assert.equal(got.variants[0].sessions.length,7);assert.deepEqual(issues(got),[]);assert.equal(got.variants[0].sessions[0].bridge,'제공된 자료로 시작');});
+test('file reuse allowed, foreign or deleted files rejected',()=>{const p=plan();p.variants[0].sessions[0].assets.ppt={fileId:'5',url:''};assert.equal(normalize(p,context).variants[0].sessions[0].assets.ppt.fileId,'5');assert.throws(()=>normalize(p,{...context,fileIds:[]}),/다른 수업/);});
+test('foreign source lesson and duplicate variants rejected',()=>{const p=plan();assert.throws(()=>normalize(p,{lessonIds:[9]}),/원본 차시/);p.variants.push(p.variants[0]);assert.throws(()=>normalize(p,context),/식별자/);});
+test('unsafe URLs and credential-bearing URLs rejected',()=>{for(const u of ['javascript:alert(1)','//example.org','https://u:p@example.org','/lessons/../secret','/lessons/%2e%2e/secret','/api/files/5/download','https://a.test/"x'])assert.throws(()=>safeUrl(u));assert.equal(safeUrl('/lessons/example.html'),'/lessons/example.html');});
+test('incomplete drafts save but cannot pass publication validation',()=>{const p=plan();p.variants[0].sessions[0].assets.guide={};p.variants[0].sessions[0].record.completion='';const got=normalize(p,context);assert.equal(issues(got).length,2);});
+test('does not accept injected ingest controls or evaluation fields',()=>{const p=plan();p.student_id='injected';p.variants[0].sessions[0].record.source='job';p.variants[0].sessions[0].record.correct=true;const got=normalize(p,context);assert.equal(got.student_id,undefined);assert.equal(got.variants[0].sessions[0].record.source,undefined);assert.equal(got.variants[0].sessions[0].record.correct,undefined);});
+test('invalid counts, durations and malformed sessions fail closed',()=>{for(const p of [{version:1,variants:[]},{version:1,variants:[null]}])assert.throws(()=>normalize(p,context),e=>e.status===400);const p=plan();p.variants[0].sessions[0].minutes=0;assert.throws(()=>normalize(p,context),/시간/);p.variants[0].sessions=[null];assert.throws(()=>normalize(p,context),e=>e.status===400);});

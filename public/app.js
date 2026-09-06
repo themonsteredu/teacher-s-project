@@ -484,6 +484,7 @@ route(/^#\/program\/(\d+)$/, async (id) => {
       ${v.label ? `<div class="field-label" style="margin:8px 0 6px">${esc(v.label)}</div>` : ''}
       ${videoEmbed(v.url)}`).join('')}</div>` : ''}`;
   const rightHtml = `
+    <div class="card"><h2>운영 구성</h2><p class="small muted">등록된 구성에 맞춰 웹앱·PPT·활동지·교안을 확인합니다.</p><a class="btn btn-soft" href="#/course/${p.id}">구성별 자료 보기</a></div>
     ${(links.length || htmlApps.length || lessonLinks.length || toolLinks.length) ? `<div class="card"><h2>수업 링크 · 웹앱</h2>
       <div style="display:flex;flex-direction:column;gap:8px">${lessonLinks.map(lessonRow).join('')}${toolLinks.map(toolAppRow).join('')}${htmlApps.map(htmlAppRow).join('')}${links.map(linkRow).join('')}</div></div>` : ''}
     ${docFiles.length ? `<div class="card"><h2>첨부자료${selLessonName ? ` <span class="sub">${esc(selLessonName)}</span>` : ''}</h2>
@@ -505,7 +506,7 @@ route(/^#\/program\/(\d+)$/, async (id) => {
       <div style="display:flex;gap:8px">
         ${isAdmin() ? `
           <button class="btn btn-ghost btn-sm" id="pub-toggle">${p.published ? `${icon('eyeOff')} 비공개로 전환` : `${icon('eye')} 공개하기`}</button>
-          <a class="btn btn-ghost btn-sm" href="#/manage/${p.id}">${icon('edit')} 편집</a>` : ''}
+          <a class="btn btn-soft btn-sm" href="#/course/${p.id}">구성별 자료</a><a class="btn btn-ghost btn-sm" href="#/manage/${p.id}">${icon('edit')} 편집</a>` : ''}
         <a class="btn btn-ghost btn-sm" href="#/">← 목록</a>
       </div>
     </div>
@@ -1304,7 +1305,7 @@ route(/^#\/manage$/, async () => {
       </div>
       <div class="dl-actions">
         <button class="btn ${p.published ? 'btn-ghost' : 'btn-primary'} btn-sm" data-pub="${p.id}" data-val="${p.published ? 0 : 1}">${p.published ? '비공개로' : '공개하기'}</button>
-        <a class="btn btn-ghost btn-sm" href="#/manage/${p.id}">${icon('edit')} 편집</a>
+        <a class="btn btn-soft btn-sm" href="#/course/${p.id}">구성별 자료</a><a class="btn btn-ghost btn-sm" href="#/manage/${p.id}">${icon('edit')} 편집</a>
         <button class="btn btn-danger btn-sm" data-del="${p.id}">${icon('trash')}</button>
       </div>
     </div>`;
@@ -1312,7 +1313,7 @@ route(/^#\/manage$/, async () => {
   shell('프로그램 관리', `
     <div class="page-head">
       <div><div class="ph-t">프로그램 관리</div><div class="desc">공개/비공개 토글은 즉시 반영됩니다 — 비공개로 바꾸면 교사 화면에서 바로 사라집니다.</div></div>
-      <button class="btn btn-primary" id="btn-new">${icon('plus')} 새 프로그램</button>
+      <button class="btn btn-primary" id="btn-new">${icon('plus')} 수업 등록</button>
     </div>
     <div class="card" style="padding:6px 12px"><div class="deck-list">
       ${data.programs.map(row).join('') || '<p class="empty-note">프로그램이 없습니다. 새로 만들어 보세요.</p>'}
@@ -1321,7 +1322,7 @@ route(/^#\/manage$/, async () => {
   document.getElementById('btn-new').onclick = () => {
     const back = openModal(`
       <h3>새 프로그램</h3>
-      <div class="m-sub">만든 뒤 편집 화면에서 링크·영상·첨부자료를 추가하세요. 처음에는 비공개 상태입니다.</div>
+      <div class="m-sub">수업을 만든 뒤 운영 구성과 구성별 자료를 등록합니다. 처음에는 비공개 상태입니다.</div>
       <div class="form-grid" style="grid-template-columns:1fr 1fr">
         <div style="grid-column:1/-1"><label>제목</label><input id="np-title" placeholder="예: 진로탐색 젭 수업"></div>
         <div><label>학년</label><select id="np-grade">
@@ -1374,7 +1375,7 @@ route(/^#\/manage$/, async () => {
 /* ---------------- 프로그램 편집 (#/manage/:id, admin) ---------------- */
 const KIND_OPTIONS = [['link', '🔗 수업 링크'], ['aiapp', '🖥️ 웹앱'], ['video', '▶ 영상 (유튜브)']];
 
-route(/^#\/manage\/(\d+)$/, async (id) => {
+route(/^#\/resources\/(\d+)$/, async (id) => {
   if (!isAdmin()) { location.hash = '#/'; return; }
   let data;
   try { data = await api('GET', `/api/programs/${id}`); }
@@ -1426,10 +1427,10 @@ route(/^#\/manage\/(\d+)$/, async (id) => {
 
   shell(`편집 — ${p.title}`, `
     <div class="page-head">
-      <div><div class="ph-t">프로그램 편집</div><div class="desc">${p.published ? '<span class="badge green">공개 중</span> 저장하면 교사 화면에 바로 반영됩니다.' : '<span class="badge gray">비공개</span> 공개 전까지 교사에게 보이지 않습니다.'}</div></div>
+      <div><div class="ph-t">공통 자료 관리</div><div class="desc">${p.published ? '<span class="badge green">공개 중</span> 저장하면 교사 화면에 바로 반영됩니다.' : '<span class="badge gray">비공개</span> 공개 전까지 교사에게 보이지 않습니다.'}</div></div>
       <div style="display:flex;gap:8px">
         <button class="btn ${p.published ? 'btn-ghost' : 'btn-primary'} btn-sm" id="pub-toggle">${p.published ? '비공개로 전환' : '공개하기'}</button>
-        <a class="btn btn-ghost btn-sm" href="#/program/${p.id}">미리보기</a>
+        <a class="btn btn-soft btn-sm" href="#/manage/${p.id}">수업 구성으로 돌아가기</a><a class="btn btn-ghost btn-sm" href="#/program/${p.id}">미리보기</a>
         <a class="btn btn-ghost btn-sm" href="#/manage">← 목록</a>
       </div>
     </div>
@@ -2027,7 +2028,7 @@ route(/^#\/settings$/, async () => {
 });
 
 /* ---------------- 부팅 ---------------- */
-(async function boot() {
+async function boot() {
   try {
     const data = await api('GET', '/api/me');
     state.me = data.user;
@@ -2035,4 +2036,6 @@ route(/^#\/settings$/, async () => {
   } catch { state.me = null; }
   if (!location.hash) location.hash = state.me ? '#/' : '#/login';
   navigate();
-})();
+}
+if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot, { once: true });
+else boot();
