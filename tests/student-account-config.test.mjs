@@ -12,7 +12,7 @@ const preview = {
 
 test('approved Vercel Preview uses public defaults and only the explicit central secret', () => {
   assert.deepEqual(accountConfig(preview), {
-    enabled: true, databaseUrl: preview.CAREER_ACCOUNTS_DATABASE_URL,
+    enabled: true, databaseUrl: preview.CAREER_ACCOUNTS_DATABASE_URL, databasePassword: undefined,
     issuer: 'moakit-hub', origin: 'https://hub-git-accounts-example.vercel.app',
   });
   const config = accountConfig({...preview, CAREER_ACCOUNTS_DATABASE_URL: undefined, DATABASE_URL: 'postgresql://other-db'});

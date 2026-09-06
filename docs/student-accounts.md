@@ -45,6 +45,15 @@ It is never committed, printed, replaced with Hub's `DATABASE_URL`, or exposed t
 the browser. The pool identifies itself as `moakit-student-accounts` so operators
 can verify the target database connection without exposing credentials.
 
+For easier secret entry, optionally set `CAREER_ACCOUNTS_DATABASE_PASSWORD` in
+the same private environment to the CURRENT database password exactly as written.
+Paste only the password, with no surrounding quotes or URL encoding. The server
+uses the existing URL for its target/user/TLS settings and passes this separate
+password directly to pg. It overrides both the URL password and any password query
+parameter. An explicitly empty override fails closed; when absent, the existing
+URI-only configuration is unchanged. This does not change the Supabase password
+or other applications. Never send the password through chat, logs, or browser code.
+
 `lib/student-accounts/schema.sql` was applied to aiapp as migration
 `20260905220759_moakit_student_accounts_v1`. It does not alter Career Log tables
 or grant public API access. New tables
