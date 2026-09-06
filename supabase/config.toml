@@ -1,0 +1,4 @@
+# The function verifies the Hub's signed Vercel OIDC identity in its handler.
+# Supabase user JWT validation is not the authentication mechanism for this route.
+[functions.career-log-ingest]
+verify_jwt = false

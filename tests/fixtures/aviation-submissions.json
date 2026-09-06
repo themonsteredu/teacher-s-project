@@ -1,0 +1,192 @@
+[
+  {
+    "program_ref": "aviation-mobility-01",
+    "board_code": "ab1234",
+    "student_id": "11111111-1111-4111-8111-111111111111",
+    "source_event_id": "aviation-mobility-01:ab1234:11111111-1111-4111-8111-111111111111:0c6ef61c-f3f8-4806-a72a-78b086b8f84e",
+    "process": "응급 의약품 운송에서 안전 우회 항로을 선택했습니다. 선택 이유: 위험 구역을 피해 안전하게 운항하려고",
+    "artifact": "제한 시간 종료 · 24점 · 충돌 2회 · 항로 이탈 0회",
+    "reflection": "착륙 전에 미리 속도를 줄이겠어요.",
+    "raw_data": {
+      "activity": "aviation-flight",
+      "record": {
+        "version": 1,
+        "id": "0c6ef61c-f3f8-4806-a72a-78b086b8f84e",
+        "recordedAt": "2026-09-06T00:00:00.000Z",
+        "participant": "테스트 모둠",
+        "reflection": "착륙 전에 미리 속도를 줄이겠어요.",
+        "practice": false,
+        "mission": {
+          "id": "medical-delivery",
+          "title": "응급 의약품 운송",
+          "role": "재난 의료물류 운항 담당자",
+          "kind": "medical_delivery"
+        },
+        "plan": {
+          "id": "medical-safe",
+          "label": "안전 우회 항로",
+          "reason": "위험 구역을 피해 안전하게 운항하려고"
+        },
+        "preflight": [
+          {
+            "label": "기상·강풍 구역 확인",
+            "checked": true
+          },
+          {
+            "label": "의약품 보관함 잠금",
+            "checked": true
+          },
+          {
+            "label": "임시 진료소 착륙장 확인",
+            "checked": true
+          }
+        ],
+        "outcome": {
+          "status": "EXPIRED",
+          "elapsedSeconds": 180,
+          "timeLimitSeconds": 180,
+          "collisionCount": 2,
+          "corridorViolationCount": 0,
+          "emergencyActivations": 0,
+          "batteryPercent": 100,
+          "payloadIntegrityPercent": 100,
+          "handoverCompleted": false,
+          "targets": [
+            {
+              "label": "임시 응급진료소 착륙장",
+              "found": false
+            }
+          ]
+        },
+        "result": {
+          "missionId": "medical-delivery",
+          "title": "항공모빌리티 운항 결과",
+          "completed": false,
+          "totalScore": 24,
+          "safety": {
+            "score": 70,
+            "stars": 3
+          },
+          "stability": {
+            "score": 0,
+            "stars": 1
+          },
+          "landing": {
+            "score": 0,
+            "stars": 1
+          },
+          "objective": {
+            "score": 30,
+            "stars": 1
+          },
+          "time": {
+            "score": 0,
+            "stars": 1
+          },
+          "profileLabel": "균형 성장형",
+          "profileReason": "여러 운항 능력을 고르게 연습하며 다음 도전을 준비했습니다.",
+          "careerMessage": "재난 의료물류 운항 담당자는 육상 접근이 어려운 곳에도 필요한 물품이 제때 도착하도록 항로, 기상, 화물 상태와 착륙 안전을 함께 판단합니다."
+        }
+      }
+    }
+  },
+  {
+    "program_ref": "aviation-mobility-01",
+    "board_code": "ab1234",
+    "student_id": "11111111-1111-4111-8111-111111111111",
+    "source_event_id": "aviation-mobility-01:ab1234:11111111-1111-4111-8111-111111111111:91d28e70-2a66-4f4c-8564-f7a92b8f3d54",
+    "process": "재난지역 탐색에서 안전 순환 수색을 선택했습니다. 선택 이유: 위험 구역을 피해 안전하게 운항하려고",
+    "artifact": "제한 시간 종료 · 14점 · 충돌 2회 · 항로 이탈 0회",
+    "reflection": "착륙 전에 미리 속도를 줄이겠어요.",
+    "raw_data": {
+      "activity": "aviation-flight",
+      "record": {
+        "version": 1,
+        "id": "91d28e70-2a66-4f4c-8564-f7a92b8f3d54",
+        "recordedAt": "2026-09-06T00:00:00.000Z",
+        "participant": "테스트 모둠",
+        "reflection": "착륙 전에 미리 속도를 줄이겠어요.",
+        "practice": false,
+        "mission": {
+          "id": "disaster-search",
+          "title": "재난지역 탐색",
+          "role": "재난 항공수색 운항 담당자",
+          "kind": "disaster_search"
+        },
+        "plan": {
+          "id": "search-sweep",
+          "label": "안전 순환 수색",
+          "reason": "위험 구역을 피해 안전하게 운항하려고"
+        },
+        "preflight": [
+          {
+            "label": "수색 순서 확인",
+            "checked": true
+          },
+          {
+            "label": "촬영·확인 기능 점검",
+            "checked": true
+          },
+          {
+            "label": "복귀 착륙장 확인",
+            "checked": true
+          }
+        ],
+        "outcome": {
+          "status": "EXPIRED",
+          "elapsedSeconds": 210,
+          "timeLimitSeconds": 210,
+          "collisionCount": 2,
+          "corridorViolationCount": 0,
+          "emergencyActivations": 0,
+          "batteryPercent": 100,
+          "payloadIntegrityPercent": 100,
+          "handoverCompleted": false,
+          "targets": [
+            {
+              "label": "탐색 지점 1",
+              "found": false
+            },
+            {
+              "label": "탐색 지점 2",
+              "found": false
+            },
+            {
+              "label": "탐색 지점 3",
+              "found": false
+            }
+          ]
+        },
+        "result": {
+          "missionId": "disaster-search",
+          "title": "항공모빌리티 운항 결과",
+          "completed": false,
+          "totalScore": 14,
+          "safety": {
+            "score": 70,
+            "stars": 3
+          },
+          "stability": {
+            "score": 0,
+            "stars": 1
+          },
+          "landing": {
+            "score": 0,
+            "stars": 1
+          },
+          "objective": {
+            "score": 0,
+            "stars": 1
+          },
+          "time": {
+            "score": 0,
+            "stars": 1
+          },
+          "profileLabel": "균형 성장형",
+          "profileReason": "여러 운항 능력을 고르게 연습하며 다음 도전을 준비했습니다.",
+          "careerMessage": "재난 항공수색 운항 담당자는 현장 위험을 살피며 수색 순서와 비행 경로를 정하고, 정확한 위치 정보를 구조팀에 전달합니다."
+        }
+      }
+    }
+  }
+]
