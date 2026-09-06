@@ -808,7 +808,9 @@ function careerMaterialUrl(link, code, studentId) {
     const scienceApp = scienceOrigin && /3차시-학생용-감각짝맞추기\.html$/i.test(decodeURIComponent(target.pathname));
     const historyApp = target.origin === 'https://ai-history-ar.vercel.app'
       || /^https:\/\/ai-history-[a-z0-9-]+-themonsteredu\.vercel\.app$/.test(target.origin);
-    if (!scienceApp && !historyApp) return original;
+    const droneApp = target.origin === 'https://drone-six-smoky.vercel.app'
+      || /^https:\/\/drone-[a-z0-9-]+-themonsteredu\.vercel\.app$/.test(target.origin);
+    if (!scienceApp && !historyApp && !droneApp) return original;
     target.searchParams.set('hub_code', code);
     target.searchParams.set('student_id', studentId);
     return target.origin === location.origin ? `${target.pathname}${target.search}${target.hash}` : target.toString();
