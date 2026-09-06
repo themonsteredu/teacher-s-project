@@ -170,8 +170,10 @@ function renderBodyMd(text) {
 /* ---------------- 라우터 ---------------- */
 const routes = [];
 function route(pattern, fn) { routes.push({ pattern, fn }); }
+let disposeShell = () => {};
 
 async function navigate() {
+  disposeShell();
   const hash = location.hash || '#/';
   // 학생 활동 보드(#/board/코드)는 로그인 없이 접근 가능
   if (!state.me && hash !== '#/login' && !hash.startsWith('#/board/')) { location.hash = '#/login'; return; }
@@ -191,7 +193,7 @@ async function navigate() {
 }
 window.addEventListener('hashchange', navigate);
 
-/* ---------------- 셸 (상단 메뉴바) ---------------- */
+/* ---------------- 셸 (왼쪽 메뉴 · 모바일 접이식 메뉴) ---------------- */
 function menuItems() {
   const items = [['#/', 'grid', '프로그램'], ['#/myclass', 'monitor', '내 수업']];
   if (isAdmin()) {
@@ -207,26 +209,46 @@ function menuItems() {
   return items;
 }
 
+function activeMenuHref(hash = location.hash || '#/') {
+  const section = hash.split('/')[1];
+  if (section === 'program') return '#/';
+  if (section === 'boardview') return '#/myclass';
+  if (section === 'resources') return '#/manage';
+  if (section === 'password') return '#/settings';
+  return section ? `#/${section}` : '#/';
+}
+
 function shell(title, contentHtml) {
+  disposeShell();
   const u = state.me;
-  const hash = (location.hash || '#/').split('/').slice(0, 2).join('/');
+  const activeHref = activeMenuHref();
   document.title = `${title} — 모아허브`;
   $app.innerHTML = `
-    <div class="site">
-      <header class="topbar" id="topbar">
-        <a class="tb-brand" href="#/">
-          <span class="tb-mark">수업</span>
-          <span class="tb-name">모아허브</span>
-        </a>
-        <button class="tb-burger" id="btn-hamburger" aria-label="메뉴">${icon('menu')}</button>
-        <nav class="tb-nav" id="tb-nav">
+    <div class="site hub-layout" id="hub-layout">
+      <aside class="hub-sidebar" id="hub-sidebar" aria-label="모아허브 메뉴">
+        <div class="hub-sidebar-head">
+          <a class="tb-brand" href="#/" aria-label="모아허브 프로그램 홈">
+            <img class="hub-brand-symbol" src="/brand/moakit-symbol.svg" alt="" width="36" height="36">
+            <span><span class="tb-name">모아허브</span><small class="hub-brand-by">by MoaKit</small></span>
+          </a>
+          <button class="hub-menu-close" id="btn-menu-close" type="button" aria-label="메뉴 닫기">${icon('x')}</button>
+        </div>
+        <p class="hub-nav-label">수업 공간</p>
+        <nav class="hub-nav" aria-label="주 메뉴">
           ${menuItems().map(([href, ic, text]) =>
-            `<a href="${href}" class="${hash === href || (href === '#/' && (location.hash || '#/') === '#/') ? 'active' : ''}">${icon(ic)}${text}</a>`).join('')}
+            `<a href="${href}" class="${activeHref === href ? 'active' : ''}"${activeHref === href ? ' aria-current="page"' : ''}>${icon(ic)}<span>${text}</span></a>`).join('')}
         </nav>
+        <div class="hub-sidebar-foot"><span>수업을 준비하고, 배움을 모으는 곳</span><a href="https://moakit.ai/">모아킷 홈 ${icon('link')}</a></div>
+      </aside>
+      <button class="hub-menu-backdrop" id="hub-menu-backdrop" type="button" aria-label="메뉴 닫기" tabindex="-1" hidden></button>
+      <div class="hub-workspace" id="hub-workspace">
+      <header class="topbar" id="topbar">
+        <button class="tb-burger" id="btn-hamburger" type="button" aria-label="메뉴 열기" aria-controls="hub-sidebar" aria-expanded="false">${icon('menu')}</button>
+        <span class="hub-page-title">${esc(title)}</span>
         <div class="tb-spacer"></div>
         <div class="search-box">
           ${icon('search')}
-          <input id="global-search" placeholder="프로그램 검색" autocomplete="off" value="${esc(state.search)}">
+          <input id="global-search" aria-label="프로그램 검색" placeholder="프로그램 검색" autocomplete="off" value="${esc(state.search)}">
         </div>
         <div class="tb-user">
           <span class="tb-avatar">${esc(u.name.slice(0, 1))}</span>
@@ -236,15 +258,67 @@ function shell(title, contentHtml) {
       </header>
       <main class="page"><div class="page-inner">${contentHtml}</div></main>
       <footer class="site-foot">궁금한 점은 관리자 선생님에게 문의하세요 🌱</footer>
+      </div>
     </div>`;
 
+  const layout = document.getElementById('hub-layout');
+  const sidebar = document.getElementById('hub-sidebar');
+  const workspace = document.getElementById('hub-workspace');
+  const toggle = document.getElementById('btn-hamburger');
+  const close = document.getElementById('btn-menu-close');
+  const backdrop = document.getElementById('hub-menu-backdrop');
+  const mobile = window.matchMedia('(max-width: 920px)');
+  const originalOverflow = document.body.style.overflow;
+  let menuOpen = false;
+  const setMenuOpen = (open, returnFocus = false) => {
+    menuOpen = mobile.matches && open;
+    layout.classList.toggle('is-menu-open', menuOpen);
+    toggle.setAttribute('aria-expanded', String(menuOpen));
+    sidebar.inert = mobile.matches && !menuOpen;
+    workspace.inert = menuOpen;
+    backdrop.hidden = !menuOpen;
+    document.body.style.overflow = menuOpen ? 'hidden' : originalOverflow;
+    if (menuOpen) {
+      sidebar.setAttribute('role', 'dialog');
+      sidebar.setAttribute('aria-modal', 'true');
+      close.focus();
+    } else {
+      sidebar.removeAttribute('role');
+      sidebar.removeAttribute('aria-modal');
+      if (returnFocus) toggle.focus();
+    }
+  };
+  toggle.onclick = () => setMenuOpen(true);
+  close.onclick = backdrop.onclick = () => setMenuOpen(false, true);
+  layout.onkeydown = (e) => {
+    if (!menuOpen) return;
+    if (e.key === 'Escape') { e.preventDefault(); setMenuOpen(false, true); }
+    if (e.key === 'Tab') {
+      const links = sidebar.querySelectorAll('a[href], button:not([disabled])');
+      const first = links[0], last = links[links.length - 1];
+      if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+      else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+    }
+  };
+  const onResize = () => {
+    const focusInMenu = sidebar.contains(document.activeElement);
+    const focusOnToggle = document.activeElement === toggle;
+    setMenuOpen(false, mobile.matches && focusInMenu);
+    if (!mobile.matches && (focusOnToggle || document.activeElement === close)) sidebar.querySelector('a[aria-current="page"]')?.focus();
+  };
+  mobile.addEventListener('change', onResize);
+  setMenuOpen(false);
+  disposeShell = () => {
+    setMenuOpen(false);
+    mobile.removeEventListener('change', onResize);
+    layout.onkeydown = null;
+    disposeShell = () => {};
+  };
   document.getElementById('btn-logout').onclick = async () => {
     await api('POST', '/api/logout').catch(() => {});
     state.me = null;
     location.hash = '#/login';
   };
-  document.getElementById('btn-hamburger').onclick = () =>
-    document.getElementById('topbar').classList.toggle('nav-open');
   document.getElementById('global-search').onkeydown = (e) => {
     if (e.key === 'Enter') {
       state.search = e.target.value.trim();
