@@ -24,6 +24,10 @@ function isAdmin() { return state.me && state.me.role === 'admin'; }
 
 /* ---------------- 아이콘 (Feather 스타일 인라인 SVG) ---------------- */
 const ICONS = {
+  book: '<path d="M12 5v16M3 3h5a4 4 0 0 1 4 2 4 4 0 0 1 4-2h5v17h-5a4 4 0 0 0-4 1 4 4 0 0 0-4-1H3z"/>',
+  file: '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="M8 13h8M8 17h6"/>',
+  camera: '<path d="M4 6h4l2-3h4l2 3h4a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2z"/><circle cx="12" cy="13" r="4"/>',
+  upload: '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M12 16V3m-5 5 5-5 5 5"/>',
   grid: '<rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/>',
   layers: '<polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/>',
   users: '<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>',
@@ -787,14 +791,15 @@ function postCardHtml(p, { forTeacher = false, manageable = false } = {}) {
     <div class="post-card ${p.hidden ? 'is-hidden' : ''}">
       <div class="pc-head"><span class="pc-name">${esc(p.student_name)}</span><span class="pc-time">${esc(String(p.created_at).slice(5, 16))}</span></div>
       ${p.previewUrl ? `<img class="pc-img" src="${esc(p.previewUrl)}" alt="" loading="lazy">` : ''}
+      ${p.submission ? `<div class="pc-body"><small>${esc(p.sessionTitle)}</small><h3>${esc(p.title)}</h3><span class="badge green">제출 완료</span> <span class="small muted">활동 기록 미연결</span></div>` : ''}
       ${p.content ? `<div class="pc-body">${esc(p.content)}</div>` : ''}
       ${fileChip}
       ${forTeacher ? `
         <div class="pc-actions">
-          ${p.hidden ? '<span class="badge red plain">숨김</span>' : ''}
+          ${p.hidden ? `<span class="badge gray">${p.submission?'선생님만 열람':'숨김'}</span>` : p.submission?'<span class="badge green">우리 반 공개</span>':''}
           ${p.file_name ? `<a class="btn btn-primary btn-sm" href="/api/posts/${p.id}/download" target="_blank" rel="noopener">${icon('download')} 받기</a>` : ''}
           ${manageable ? `
-            <button class="btn btn-ghost btn-sm" data-phide="${p.id}" data-val="${p.hidden ? 0 : 1}">${p.hidden ? '보이기' : '숨김'}</button>
+            <button class="btn btn-ghost btn-sm" data-phide="${p.id}" data-val="${p.hidden ? 0 : 1}">${p.submission ? (p.hidden?'우리 반에 공개':'공개 취소') : (p.hidden?'보이기':'숨김')}</button>
             <button class="btn btn-danger btn-sm" data-pdel="${p.id}">${icon('trash')}</button>` : ''}
         </div>` : ''}
     </div>`;
@@ -882,88 +887,10 @@ route(/^#\/board\/([A-Za-z0-9]{4,10})$/, async (code) => {
     return;
   }
   document.title = `${data.board.title} — 모아허브`;
-  const savedName = (() => { try { return localStorage.getItem('studentName') || ''; } catch { return ''; } })();
   const candidateStudentId = (new URLSearchParams(location.search).get('student_id') || data.careerStudentId || '').trim();
   const careerStudentId = window.MoakitCareerStudent?.getOrCreate({ candidate: candidateStudentId }) || '';
-  $app.innerHTML = `
-    <div class="sboard">
-      <header class="sb-head">
-        <div>
-          <div class="sb-title">📌 ${esc(data.board.title)}</div>
-          <div class="sb-sub">${esc(data.programTitle)} · 참여 코드 ${esc(code.toUpperCase())}</div>
-        </div>
-        <a class="btn btn-ghost btn-sm" href="#/login">나가기</a>
-      </header>
-      ${studentMaterialsHtml(data.materials, code, careerStudentId)}
-      <div class="card sb-form">
-        <div class="form-grid" style="grid-template-columns:150px 1fr">
-          <div><label>이름</label><input id="sb-name" maxlength="20" value="${esc(savedName)}" placeholder="이름"></div>
-          <div><label>활동 내용</label><textarea id="sb-content" rows="2" class="input" maxlength="2000" placeholder="활동한 내용을 적어보세요"></textarea></div>
-        </div>
-        <div class="mt" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
-          <button class="btn btn-ghost btn-sm" id="sb-file-btn" type="button">📎 사진/활동지 첨부</button>
-          <span class="small muted" id="sb-file-label">첨부 없음</span>
-          <span style="flex:1"></span>
-          <button class="btn btn-primary" id="sb-submit" type="button">올리기</button>
-        </div>
-        <input type="file" id="sb-file" accept=".pdf,.ppt,.pptx,.doc,.docx,.xls,.xlsx,.hwp,.hwpx,.png,.jpg,.jpeg,.webp,.gif" style="display:none">
-        <div class="msg" id="sb-msg"></div>
-      </div>
-      <div class="sb-grid" id="sb-grid">
-        ${data.posts.map((p) => postCardHtml(p)).join('') || '<p class="empty-note" style="grid-column:1/-1">아직 올라온 결과물이 없어요. 첫 번째로 올려보세요!</p>'}
-      </div>
-    </div>`;
+  await renderStudentClass(code, data, careerStudentId);
 
-  const onThisBoard = () => location.hash.toLowerCase().endsWith(`/board/${code}`);
-  const refresh = async () => {
-    if (!onThisBoard()) return;
-    try {
-      const d = await api('GET', `/api/join-board/${code}`);
-      const grid = document.getElementById('sb-grid');
-      if (grid) grid.innerHTML = d.posts.map((p) => postCardHtml(p)).join('') || '<p class="empty-note" style="grid-column:1/-1">아직 올라온 결과물이 없어요. 첫 번째로 올려보세요!</p>';
-    } catch (e) { if (!e.handled) navigate(); } // 마감되면 안내 화면으로
-  };
-  // 수업 중 실시간처럼 보이도록 15초마다 갱신
-  const timer = setInterval(() => {
-    if (!onThisBoard()) { clearInterval(timer); return; }
-    refresh();
-  }, 15000);
-
-  document.querySelectorAll('[data-matfile]').forEach((btn) => {
-    btn.onclick = () => openStudentFile(code, btn.dataset.matfile);
-  });
-  document.getElementById('sb-file-btn').onclick = () => document.getElementById('sb-file').click();
-  document.getElementById('sb-file').onchange = (e) => {
-    const f = e.target.files[0];
-    document.getElementById('sb-file-label').textContent = f ? `${f.name} (${(f.size / 1024 / 1024).toFixed(1)}MB)` : '첨부 없음';
-  };
-  document.getElementById('sb-submit').onclick = async () => {
-    const name = document.getElementById('sb-name').value.trim();
-    const content = document.getElementById('sb-content').value.trim();
-    const file = document.getElementById('sb-file').files[0] || null;
-    const msg = document.getElementById('sb-msg');
-    if (!name) { msg.textContent = '이름을 입력하세요.'; msg.className = 'msg err'; return; }
-    if (!content && !file) { msg.textContent = '내용을 쓰거나 파일을 첨부하세요.'; msg.className = 'msg err'; return; }
-    if (file && file.size > 20 * 1024 * 1024) { msg.textContent = '파일은 20MB 이하여야 합니다.'; msg.className = 'msg err'; return; }
-    msg.textContent = '올리는 중…'; msg.className = 'msg';
-    try {
-      let filePart = {};
-      if (file) {
-        const mime = guessMime(file.name, file.type);
-        const sign = await api('POST', `/api/join-board/${code}/file-sign`, { name: file.name, size: file.size });
-        const put = await fetch(sign.uploadUrl, { method: 'PUT', headers: { 'Content-Type': mime, 'x-upsert': 'true' }, body: file });
-        if (!put.ok) throw new Error('파일 업로드에 실패했습니다.');
-        filePart = { path: sign.path, file_name: file.name, mime, size: file.size };
-      }
-      await api('POST', `/api/join-board/${code}/posts`, { student_name: name, content, ...filePart });
-      try { localStorage.setItem('studentName', name); } catch {}
-      document.getElementById('sb-content').value = '';
-      document.getElementById('sb-file').value = '';
-      document.getElementById('sb-file-label').textContent = '첨부 없음';
-      msg.textContent = '올라갔어요! 🎉'; msg.className = 'msg ok';
-      refresh();
-    } catch (err) { if (!err.handled) { msg.textContent = err.message; msg.className = 'msg err'; } }
-  };
 });
 
 /* ---------------- 내 수업 대시보드 (#/myclass — 교사·관리자) ---------------- */
@@ -1113,6 +1040,7 @@ route(/^#\/boardview\/(\d+)$/, async (id) => {
       <div class="small muted" style="line-height:1.8">학생은 사이트 첫 화면의 <b>[학생 참여]</b> 탭에서<br>이 코드를 입력하면 됩니다. (계정 불필요)</div>
     </div>` : ''}
     ${data.manageable ? rosterCardHtml(data.roster) : ''}
+    ${data.manageable ? '<div class="card" id="submission-settings-card">차시별 제출 설정을 불러오는 중…</div>' : ''}
     ${data.manageable ? '<div class="card" id="share-card"><div class="small muted">수업자료 불러오는 중…</div></div>' : ''}
     <div class="sb-grid">
       ${data.posts.map((p) => postCardHtml(p, { forTeacher: true, manageable: data.manageable })).join('') || '<p class="empty-note" style="grid-column:1/-1">아직 게시물이 없습니다.</p>'}
@@ -1140,8 +1068,7 @@ route(/^#\/boardview\/(\d+)$/, async (id) => {
   if (rosterEditBtn) rosterEditBtn.onclick = () => openRosterModal(id, b.roster || '');
   document.querySelectorAll('[data-phide]').forEach((btn) => {
     btn.onclick = async () => {
-      await api('PATCH', `/api/posts/${btn.dataset.phide}`, { hidden: btn.dataset.val === '1' });
-      navigate();
+      try { await api('PATCH', `/api/posts/${btn.dataset.phide}`, { hidden: btn.dataset.val === '1' }); navigate(); } catch(e) { toast(e.message,true); }
     };
   });
   document.querySelectorAll('[data-pdel]').forEach((btn) => {
@@ -1156,6 +1083,8 @@ route(/^#\/boardview\/(\d+)$/, async (id) => {
   // 학생에게 보여줄 수업자료 고르기 (보드 관리자만)
   const shareCard = document.getElementById('share-card');
   if (shareCard) loadShareCard(shareCard, id);
+  const submissionSettings = document.getElementById('submission-settings-card');
+  if (submissionSettings) loadSubmissionSettings(submissionSettings, id);
 });
 
 const KIND_TAG = { link: '🔗 링크', aiapp: '🖥 웹앱', video: '▶ 영상' };
