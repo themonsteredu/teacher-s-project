@@ -20,9 +20,9 @@
 | `/` | 모아허브 소개 랜딩 (`public/index.html` — 단일 파일, CSS·스크립트 인라인) |
 | `/app`, `/app/*` | 기존 허브 SPA (`public/app.html` + `public/app.js`) |
 | `/app#/board/<6자리코드>` | 학생 활동 보드 (로그인 없이 접근) |
-| `/api/*` | 서버리스 (`api/index.js` → `lib/api.js`) |
+| `/api/*` | Vercel Node 서버 (`server.js` → `lib/api.js`, 공개 pathname 유지) |
 
-- 라우팅 규칙은 **`vercel.json`과 `server.js` 양쪽에 같이** 넣는다. 한쪽만 고치면 Vercel과 로컬 동작이 갈린다
+- 라우팅 변경 시 **`vercel.json`과 `server.js`를 함께 확인**한다. `framework: node`는 `server.js`를 실행하므로 일반 `/api/*`를 `/api/index`로 rewrite하지 않는다. Career Log 전용 rewrite는 일반 API보다 먼저 처리한다
 - 해시 라우팅이라, 랜딩 `<head>`에 `#/`로 시작하는 해시만 `/app`으로 넘기는 스크립트를 둬서 예전 링크를 살린다. 페이지 내부 앵커(`#what` 등)는 건드리지 않는다
 - `/lessons/*`는 발표 iframe에 같은 출처로 임베드되므로 `X-Frame-Options: SAMEORIGIN` — `server.js`의 예외 처리를 지운다면 발표 화면이 깨진다
 

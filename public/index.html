@@ -3,8 +3,8 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>모아허브 — 선생님 수업자료 허브</title>
-<meta name="description" content="수업 링크·자료·영상·학생 활동 보드를 한 프로그램에 담아 링크 하나로 나눕니다. 모아킷의 교육 AI 제품." />
+<title>모아허브 — AI 교과연계 수업과 수업 허브</title>
+<meta name="description" content="AI 역사탐구·윤리·그림책 수업과 교사용 자료, 학생 활동을 한곳에서 잇는 모아킷의 교과연계 교육 서비스입니다." />
 <meta property="og:title" content="모아허브 — 선생님 수업자료 허브" />
 <meta property="og:description" content="수업 링크·자료·영상·학생 활동 보드를 한 프로그램에 담아 링크 하나로 나눕니다." />
 <meta property="og:locale" content="ko_KR" />
@@ -274,9 +274,47 @@
     .stage-focus,.stage,.reveal-gate,.reveal-seam,.product-shot img{animation:none;transition:none}
     .reveal-gate,.reveal-seam{display:none}
   }
+
+  /* Curriculum first; returning teachers keep a direct hub entrance. */
+  .hub-skip{position:fixed;z-index:200;top:12px;left:12px;padding:12px 20px;transform:translateY(-200%);background:var(--mint);color:var(--ink)}
+  .hub-skip:focus{transform:none}
+  a:focus-visible,button:focus-visible,summary:focus-visible{outline:2px solid var(--teal-deep);outline-offset:5px}
+  header :focus-visible,.hero :focus-visible,.cta-band :focus-visible{outline-color:var(--teal-light)}
+  .hub-programs,.hub-operation,.hub-start{padding-block:64px;scroll-margin-top:90px}
+  .hub-programs .head,.hub-operation .head{margin-bottom:30px}
+  .hub-programs h2,.hub-operation h2{font-size:clamp(26px,3vw,36px);line-height:1.4}
+  .hub-program-list{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));border-top:1px solid var(--line)}
+  .hub-program-list article{padding:26px 28px 20px}
+  .hub-program-list article:first-child{padding-left:0}
+  .hub-program-list article+article{border-left:1px solid var(--line)}
+  .hub-program-list span{font-size:12px;color:var(--teal-deep);font-weight:700}
+  .hub-program-list h3{font-size:21px;margin-top:15px;line-height:1.4}
+  .hub-program-list p{font-size:14px;line-height:1.8;margin-top:12px;color:var(--muted);word-break:keep-all}
+  .hub-program-list b{display:block;font-size:12px;color:var(--teal-deep);margin-top:20px}
+  .hub-program-actions{display:flex;align-items:center;flex-wrap:wrap;gap:14px 24px;margin-top:28px}
+  .hub-program-actions>a:last-child{font-size:13px;min-height:44px;display:inline-flex;align-items:center;text-decoration:underline;text-underline-offset:5px}
+  .hub-operation-steps{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:28px;padding:0;list-style:none}
+  .hub-operation-steps li{display:flex;gap:16px;border-top:1px solid var(--line);padding-top:22px}
+  .hub-operation-steps li>span{font-size:12px;color:var(--teal-deep);font-weight:700}
+  .hub-operation-steps h3{font-size:17px;line-height:1.5}
+  .hub-operation-steps p{font-size:14px;line-height:1.8;margin-top:8px;color:var(--muted);word-break:keep-all}
+  .hub-help{margin-top:28px;border-block:1px solid var(--line);scroll-margin-top:90px}
+  .hub-help summary{display:flex;justify-content:space-between;align-items:center;gap:20px;min-height:58px;cursor:pointer;list-style:none;font-size:14px;font-weight:700}
+  .hub-help summary::-webkit-details-marker{display:none}
+  .hub-help summary span{font-size:24px;color:var(--teal-deep)}
+  .hub-help[open] summary span{transform:rotate(45deg)}
+  .hub-help p{max-width:760px;padding-bottom:22px;font-size:14px;line-height:1.8;word-break:keep-all}
+  .hub-start .cta-band{text-align:left;display:flex;align-items:center;justify-content:space-between;gap:30px;padding:36px}
+  .hub-start .cta-band h2{font-size:clamp(24px,2.7vw,32px);line-height:1.4}
+  .hub-start .cta-band p{margin:10px 0 0;font-size:14px}
+  .hub-start .cta-band .row{margin:0;flex-shrink:0}
+  @media(max-width:900px){.hub-start .cta-band{display:block}.hub-start .cta-band .row{margin-top:22px}.hub-programs,.hub-operation,.hub-start{padding-block:44px}}
+  @media(max-width:600px){.hub-program-list,.hub-operation-steps{grid-template-columns:minmax(0,1fr)}.hub-program-list article,.hub-program-list article:first-child{padding:22px 0}.hub-program-list article+article{border-left:0;border-top:1px solid var(--line)}.hub-program-list h3{font-size:19px;margin-top:8px}.hub-program-list b{margin-top:12px}.hub-start .cta-band{padding:26px 20px}.hub-start .row{display:flex;flex-wrap:wrap}.hub-start .btn.lg{font-size:13px;padding-inline:18px}.hero .row{display:flex;flex-wrap:wrap}.hero .row .btn{width:auto;flex:1;font-size:13px;padding-inline:16px}.hub-operation-steps{gap:18px}}
+
 </style>
 </head>
 <body>
+<a class="hub-skip" href="#main">본문으로 바로가기</a>
 
 <header>
   <div class="hd">
@@ -285,35 +323,33 @@
       <span class="wordmark">MoaHub</span>
       <span class="byline">by MoaKit</span>
     </a>
-    <nav class="menu" id="menu">
-      <a href="#what">담는 것</a>
-      <a href="#board">학생 활동 보드</a>
-      <a href="#control">회수와 보호</a>
-      <a href="#start">시작하기</a>
-      <a class="menu-login" href="/app#/login">로그인</a>
+    <nav class="menu" id="menu" aria-label="주요 메뉴">
+      <a href="#what">교과수업</a>
+      <a href="#board">수업 운영</a>
+      <a href="#start">도입 문의</a>
+      <a class="menu-login" href="/app#/login">수업 허브 입장</a>
     </nav>
     <div class="navcta">
       <a class="btn btn-ghost sm" href="https://moakit.ai">모아킷 홈</a>
-      <a class="btn btn-teal sm" href="/app#/login">로그인</a>
+      <a class="btn btn-teal sm" href="/app#/login">수업 허브 입장</a>
     </div>
-    <button class="hamb" id="hamb" aria-label="메뉴" aria-expanded="false" aria-controls="menu">
+    <button class="hamb" id="hamb" type="button" aria-label="메뉴 열기" aria-expanded="false" aria-controls="menu">
       <span></span><span></span><span></span>
     </button>
   </div>
 </header>
 
-<section class="hero">
+<main id="main">
+<section class="hero" aria-labelledby="hero-title">
   <div class="wrap">
     <div class="hero-copy">
-      <div class="eyebrow">Lesson Hub</div>
-      <h1>수업에 쓸 것들을 모아, <em>링크 하나</em>로 나눕니다.</h1>
-      <p class="sub">수업 링크·자료·영상·학생 활동 보드를 프로그램 하나에 담습니다.
-        같은 학교 선생님은 그 링크만 열면 되고, 학생은 계정 없이 6자리 코드로 들어옵니다.</p>
+      <div class="eyebrow">MOA 교육 · AI 교과연계 수업</div>
+      <h1 id="hero-title">교과의 배움을 <em>AI로 탐구합니다.</em></h1>
+      <p class="sub">역사·윤리·그림책 수업부터 교사용 자료와 학생 활동까지, 한곳에서 이어갑니다.</p>
       <div class="row">
-        <a class="btn btn-solid lg" href="/app#/login">허브 열기</a>
-        <a class="btn btn-line lg" href="#what">무엇을 담나</a>
+        <a class="btn btn-solid lg" href="#what">교과수업 보기</a>
+        <a class="btn btn-line lg" href="/app#/login">수업 허브 입장</a>
       </div>
-      <p class="trust">모아킷의 교육 AI 제품군 · 학교 현장에서 쓰며 만들었습니다</p>
     </div>
 
     <div class="stage-focus" id="hub-stage-focus">
@@ -333,96 +369,56 @@
   </div>
 </section>
 
-<section class="sec" id="what">
+<section class="sec hub-programs" id="what" aria-labelledby="programs-title">
   <div class="wrap">
     <div class="head">
-      <div class="eyebrow">What's inside</div>
-      <h2>프로그램 하나에 수업 한 벌이 다 들어갑니다</h2>
-      <p class="lead">자료를 폴더에 흩어두지 않습니다. 링크도 파일도 영상도 학생 활동도 한 프로그램 안에 있고,
-        선생님은 그 하나만 열면 수업이 시작됩니다.</p>
+      <div class="eyebrow">교과와 연결되는 프로젝트</div>
+      <h2 id="programs-title">배운 내용을, 나의 생각과 결과물로.</h2>
     </div>
-    <div class="cards">
-      <div class="card">
-        <span class="cic"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.5 1.5"/><path d="M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7L12 19"/></svg></span>
-        <h3>수업 링크</h3>
-        <p>젭·패들렛·AI 도구처럼 수업에 쓰는 외부 링크를 프로그램마다 여러 개 담습니다.</p>
-      </div>
-      <div class="card">
-        <span class="cic"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="14" rx="2.5"/><path d="M10.5 9.2 14.5 11l-4 1.8z"/></svg></span>
-        <h3>웹앱과 영상</h3>
-        <p>배포된 웹앱 링크와 유튜브 영상을 함께 두고, 상세 화면에서 바로 재생합니다.</p>
-      </div>
-      <div class="card">
-        <span class="cic"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3v5h5"/><path d="M19 8v11a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h7z"/></svg></span>
-        <h3>첨부자료</h3>
-        <p>PPT·PDF·한글·이미지를 올립니다. 기본은 사이트 안 뷰어로만 열리는 보기 전용입니다.</p>
-      </div>
-      <div class="card acc">
-        <span class="cic"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2.5"/><path d="M9 3v18"/><path d="M13 8h5"/><path d="M13 13h5"/></svg></span>
-        <h3>학생 활동 보드</h3>
-        <p>학생이 계정 없이 참여 코드로 들어와 글과 활동지를 올립니다. 결과물은 교사가 수합합니다.</p>
-      </div>
+    <div class="hub-program-list">
+      <article><span>01 · 역사</span><h3>AI 역사탐구</h3><p>자료와 유물을 살펴보며 질문하고 근거를 찾습니다.</p><b>탐구 · 비교 · 설명</b></article>
+      <article><span>02 · 디지털 시민성</span><h3>AI 윤리수업</h3><p>생활 속 AI 문제를 만나 자신의 판단과 이유를 나눕니다.</p><b>사례 탐색 · 판단 · 토론</b></article>
+      <article><span>03 · 국어·미술</span><h3>나만의 그림책</h3><p>이야기와 장면을 기획하며 생각을 한 권의 책으로 만듭니다.</p><b>기획 · 표현 · 공유</b></article>
     </div>
+    <div class="hub-program-actions"><a class="btn btn-teal lg" href="#start">우리 학교 수업 문의</a><a href="https://job.moakit.ai">AI 진로수업도 찾고 있나요? ↗</a></div>
   </div>
 </section>
 
-<section class="sec alt" id="board">
+<section class="sec alt hub-operation" id="board" aria-labelledby="operation-title">
   <div class="wrap">
-    <div class="head">
-      <div class="eyebrow">Student board</div>
-      <h2>학생은 계정도, 앱 설치도 필요 없습니다</h2>
-      <p class="lead">6자리 참여 코드만 있으면 들어옵니다. 수업이 끝나 보드를 마감하면 학생 접근은 즉시 막히고,
-        올라온 결과물은 교사에게 그대로 남습니다.</p>
-    </div>
-    <div class="join">
-      <div class="step"><b>1</b><h3>보드 열기</h3><p>선생님이 프로그램 안에서 활동 보드를 만들면 6자리 코드가 나옵니다.</p></div>
-      <div class="step"><b>2</b><h3>코드로 참여</h3><p>학생은 코드를 넣고 바로 글과 활동지를 올립니다. 계정을 만들지 않습니다.</p></div>
-      <div class="step"><b>3</b><h3>결과물 수합</h3><p>교사는 올라온 파일을 원본 이름 그대로 내려받아 정리합니다.</p></div>
-      <div class="step"><b>4</b><h3>마감</h3><p>마감하면 학생 접근이 즉시 차단되고 결과물은 계속 보관됩니다.</p></div>
-    </div>
+    <div class="head"><div class="eyebrow">선생님을 위한 수업 허브</div><h2 id="operation-title">자료를 열고, 활동을 이어가세요.</h2></div>
+    <ol class="hub-operation-steps">
+      <li><span>01</span><div><h3>수업자료 준비</h3><p>차시별 PPT·활동지·웹앱을 한곳에서 엽니다.</p></div></li>
+      <li><span>02</span><div><h3>학생 활동</h3><p>선생님이 안내한 링크와 참여 코드로 시작합니다.</p></div></li>
+      <li><span>03</span><div><h3>결과물 확인</h3><p>학생이 남긴 생각과 활동 결과를 모아 살펴봅니다.</p></div></li>
+    </ol>
+    <details class="hub-help" id="control"><summary>계정과 자료 이용 안내 <span aria-hidden="true">+</span></summary><p>교사는 안내받은 계정으로 수업 허브에 입장합니다. 학생은 선생님이 공유한 참여 안내를 따릅니다. 자료별 다운로드 가능 여부는 담당 교사가 설정합니다.</p></details>
   </div>
 </section>
 
-<section class="sec" id="control">
-  <div class="wrap">
-    <div class="band">
-      <div>
-        <h2>만든 사람이 <em>언제든 회수</em>할 수 있습니다</h2>
-        <p>자료를 나눈다고 통제를 잃지 않습니다. 공유한 프로그램도, 열어준 파일도
-          만든 사람이 즉시 거둘 수 있게 설계했습니다.</p>
-      </div>
-      <ul>
-        <li><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12 5 5 9-10"/></svg>수업자료는 기본 보기 전용 — 사이트 안 뷰어로만 열립니다</li>
-        <li><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12 5 5 9-10"/></svg>뷰어에 교사 이름 워터마크, 서명 URL은 60초 뒤 만료</li>
-        <li><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12 5 5 9-10"/></svg>파일별로 다운로드 허용을 켜고 끌 수 있습니다</li>
-        <li><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12 5 5 9-10"/></svg>학생 결과물은 수합 목적이라 교사 다운로드를 허용합니다</li>
-      </ul>
-    </div>
-  </div>
-</section>
-
-<section class="sec" id="start">
+<section class="sec hub-start" id="start" aria-labelledby="start-title">
   <div class="wrap">
     <div class="cta-band">
-      <h2>같은 학교 선생님들과 함께 쓰세요</h2>
-      <p>계정은 관리자가 만들어 드립니다. 이미 계정이 있으면 바로 로그인해 프로그램을 여세요.</p>
+      <div><h2 id="start-title">우리 학교에 맞는 수업을 찾으세요.</h2><p>대상 학년과 희망 주제, 일정을 알려 주세요.</p></div>
       <div class="row">
-        <a class="btn btn-white lg" href="/app#/login">허브 로그인</a>
-        <a class="btn btn-ghost lg" href="https://moakit.ai">모아킷 제품 보기</a>
+        <a class="btn btn-white lg" href="mailto:cuteheea0@gmail.com?subject=%5BMOA%20%EA%B5%90%EC%9C%A1%5D%20%EA%B5%90%EA%B3%BC%EC%88%98%EC%97%85%20%EB%AC%B8%EC%9D%98">교과수업 문의</a>
+        <a class="btn btn-ghost lg" href="/app#/login">수업 허브 입장</a>
       </div>
     </div>
   </div>
 </section>
+</main>
 
 <footer>
   <div class="wrap">
     <div class="ft">
-      <div class="fb"><img src="/brand/moakit-symbol.svg" alt="" /><span>MoaHub — 모아킷의 선생님 수업자료 허브</span></div>
+      <div class="fb"><img src="/brand/moakit-symbol.svg" alt="" /><span>MoaHub — 모아킷의 AI 교과연계 수업</span></div>
       <nav>
         <a href="https://moakit.ai">모아킷 홈</a>
-        <a href="https://job.moakit.ai">모아랩</a>
+        <a href="https://job.moakit.ai">AI 진로수업</a>
+        <a href="https://moakit.ai/moasem">모아셈</a>
         <a href="https://moakit.ai/academy">학원 앱</a>
-        <a href="/app#/login">로그인</a>
+        <a href="/app#/login">수업 허브 입장</a>
       </nav>
     </div>
     <div class="legal">
@@ -477,12 +473,15 @@
 
 <script>
   var hamb = document.getElementById('hamb'), menu = document.getElementById('menu');
+  function closeHubMenu() { menu.classList.remove('open'); hamb.setAttribute('aria-expanded', 'false'); hamb.setAttribute('aria-label', '메뉴 열기'); }
+  document.addEventListener('keydown', function (event) { if (event.key === 'Escape') { closeHubMenu(); hamb.focus(); } });
   hamb.addEventListener('click', function () {
     var opened = menu.classList.toggle('open');
     hamb.setAttribute('aria-expanded', String(opened));
+    hamb.setAttribute('aria-label', opened ? '메뉴 닫기' : '메뉴 열기');
   });
   menu.querySelectorAll('a').forEach(function (a) {
-    a.addEventListener('click', function () { menu.classList.remove('open'); });
+    a.addEventListener('click', closeHubMenu);
   });
 </script>
 </body>
