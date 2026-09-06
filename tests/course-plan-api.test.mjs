@@ -1,0 +1,20 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import vm from 'node:vm';
+import {readFileSync} from 'node:fs';
+import {createRequire} from 'node:module';
+const require=createRequire(import.meta.url), source=readFileSync(new URL('../lib/api.js',import.meta.url),'utf8');
+const plan=()=>({version:1,appUrl:'',variants:[{id:'v1',name:'독립 2차시',sessions:Array.from({length:2},()=>({title:'탐구',minutes:40,sourceLessons:['1'],bridge:'',assets:Object.fromEntries(['app','ppt','worksheet','guide'].map(k=>[k,{url:'https://example.org/'+k,fileId:''}])),record:{mode:'none',completion:'',original:'',process:''}}))}]});
+function app(){
+ let stored=null,writes=0;const module={exports:{}};
+ const deps={'node:crypto':require('node:crypto'),'./course-plan':require('../lib/course-plan'),'./password':{},'./cookies':{},'./storage':{},'./auth':{getSessionUser:async req=>req.user?{user:req.user}:null,roleLevel:r=>({admin:2,teacher:1}[r]||0)},'./db':{TS:c=>c,ready:async()=>{},log:async()=>{},getSettings:async()=>({site_open:api.open}),one:async sql=>sql.includes('FROM programs')?{id:71,published:api.published}:stored?{value:stored}:null,q:async(sql,args)=>{if(sql.startsWith('SELECT id FROM lessons'))return[{id:1}];if(sql.startsWith('SELECT id FROM program_files'))return[{id:5}];if(sql.startsWith('INSERT INTO settings')){if(stored)return[];stored=args[1];writes++;return[{key:args[0]}];}if(sql.startsWith('UPDATE settings')){if(stored!==args[2])return[];stored=args[0];writes++;return[{key:args[1]}];}throw new Error(sql);}}};
+ vm.runInNewContext(source,{module,require:id=>deps[id],process:{env:{}},Buffer,URL});
+ const api={open:true,published:true,get writes(){return writes;},async request(method='PUT',body={revision:null,plan:plan()},role='admin'){let status,result;await module.exports.handleApi({method,headers:{},user:role?{id:1,role}:null},{writeHead(s){status=s;},end(s){result=JSON.parse(s);}},'/api/programs/71/course-plan',body);return{status,result};}};return api;
+}
+test('actual handler persists and reloads arbitrary course variants',async()=>{const a=app(),r=await a.request();assert.equal(r.status,200);assert.equal(r.result.plan.variants[0].sessions.length,2);const get=await a.request('GET');assert.deepEqual(get.result.plan,r.result.plan);assert.equal(get.result.revision,r.result.revision);});
+test('unauthenticated and teacher writes denied before storing',async()=>{const a=app();assert.equal((await a.request('PUT',{},null)).status,401);assert.equal((await a.request('PUT',{},'teacher')).status,403);assert.equal(a.writes,0);});
+test('concurrent initial saves serialize through compare-and-set',async()=>{const a=app();const r=await Promise.all([a.request(),a.request()]);assert.deepEqual(r.map(x=>x.status).sort(),[200,409]);assert.equal(a.writes,1);});
+test('stale edit cannot overwrite current revision',async()=>{const a=app();await a.request();assert.equal((await a.request()).status,409);assert.equal(a.writes,1);});
+test('unpublished program, unpublished draft and site kill switch restrict teacher reads',async()=>{const a=app();await a.request();assert.equal((await a.request('GET',null,'teacher')).result.plan,null);a.published=false;assert.equal((await a.request('GET',null,'teacher')).status,403);a.published=true;a.open=false;assert.equal((await a.request('GET',null,'teacher')).status,403);});
+test('publish requires all materials and exposes only explicit published configuration',async()=>{const a=app(),p=plan();p.variants[0].sessions[0].assets.guide={};assert.equal((await a.request('PUT',{revision:null,plan:p,publish:true})).status,400);assert.equal(a.writes,0);assert.equal((await a.request('PUT',{revision:null,plan:plan(),publish:true})).status,200);assert.equal((await a.request('GET',null,'teacher')).result.plan.variants[0].name,'독립 2차시');});
+test('foreign file ownership is enforced by the real save handler',async()=>{const a=app(),p=plan();p.variants[0].sessions[0].assets.ppt={fileId:'999',url:''};assert.equal((await a.request('PUT',{revision:null,plan:p})).status,400);assert.equal(a.writes,0);});

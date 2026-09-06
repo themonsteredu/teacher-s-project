@@ -24,6 +24,10 @@ function isAdmin() { return state.me && state.me.role === 'admin'; }
 
 /* ---------------- 아이콘 (Feather 스타일 인라인 SVG) ---------------- */
 const ICONS = {
+  book: '<path d="M12 5v16M3 3h5a4 4 0 0 1 4 2 4 4 0 0 1 4-2h5v17h-5a4 4 0 0 0-4 1 4 4 0 0 0-4-1H3z"/>',
+  file: '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="M8 13h8M8 17h6"/>',
+  camera: '<path d="M4 6h4l2-3h4l2 3h4a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2z"/><circle cx="12" cy="13" r="4"/>',
+  upload: '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M12 16V3m-5 5 5-5 5 5"/>',
   grid: '<rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/>',
   layers: '<polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/>',
   users: '<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>',
@@ -484,6 +488,7 @@ route(/^#\/program\/(\d+)$/, async (id) => {
       ${v.label ? `<div class="field-label" style="margin:8px 0 6px">${esc(v.label)}</div>` : ''}
       ${videoEmbed(v.url)}`).join('')}</div>` : ''}`;
   const rightHtml = `
+    <div class="card"><h2>운영 구성</h2><p class="small muted">등록된 구성에 맞춰 웹앱·PPT·활동지·교안을 확인합니다.</p><a class="btn btn-soft" href="#/course/${p.id}">구성별 자료 보기</a></div>
     ${(links.length || htmlApps.length || lessonLinks.length || toolLinks.length) ? `<div class="card"><h2>수업 링크 · 웹앱</h2>
       <div style="display:flex;flex-direction:column;gap:8px">${lessonLinks.map(lessonRow).join('')}${toolLinks.map(toolAppRow).join('')}${htmlApps.map(htmlAppRow).join('')}${links.map(linkRow).join('')}</div></div>` : ''}
     ${docFiles.length ? `<div class="card"><h2>첨부자료${selLessonName ? ` <span class="sub">${esc(selLessonName)}</span>` : ''}</h2>
@@ -505,7 +510,7 @@ route(/^#\/program\/(\d+)$/, async (id) => {
       <div style="display:flex;gap:8px">
         ${isAdmin() ? `
           <button class="btn btn-ghost btn-sm" id="pub-toggle">${p.published ? `${icon('eyeOff')} 비공개로 전환` : `${icon('eye')} 공개하기`}</button>
-          <a class="btn btn-ghost btn-sm" href="#/manage/${p.id}">${icon('edit')} 편집</a>` : ''}
+          <a class="btn btn-soft btn-sm" href="#/course/${p.id}">구성별 자료</a><a class="btn btn-ghost btn-sm" href="#/manage/${p.id}">${icon('edit')} 편집</a>` : ''}
         <a class="btn btn-ghost btn-sm" href="#/">← 목록</a>
       </div>
     </div>
@@ -786,14 +791,15 @@ function postCardHtml(p, { forTeacher = false, manageable = false } = {}) {
     <div class="post-card ${p.hidden ? 'is-hidden' : ''}">
       <div class="pc-head"><span class="pc-name">${esc(p.student_name)}</span><span class="pc-time">${esc(String(p.created_at).slice(5, 16))}</span></div>
       ${p.previewUrl ? `<img class="pc-img" src="${esc(p.previewUrl)}" alt="" loading="lazy">` : ''}
+      ${p.submission ? `<div class="pc-body"><small>${esc(p.sessionTitle)}</small><h3>${esc(p.title)}</h3><span class="badge green">제출 완료</span> <span class="small muted">활동 기록 미연결</span></div>` : ''}
       ${p.content ? `<div class="pc-body">${esc(p.content)}</div>` : ''}
       ${fileChip}
       ${forTeacher ? `
         <div class="pc-actions">
-          ${p.hidden ? '<span class="badge red plain">숨김</span>' : ''}
+          ${p.hidden ? `<span class="badge gray">${p.submission?'선생님만 열람':'숨김'}</span>` : p.submission?'<span class="badge green">우리 반 공개</span>':''}
           ${p.file_name ? `<a class="btn btn-primary btn-sm" href="/api/posts/${p.id}/download" target="_blank" rel="noopener">${icon('download')} 받기</a>` : ''}
           ${manageable ? `
-            <button class="btn btn-ghost btn-sm" data-phide="${p.id}" data-val="${p.hidden ? 0 : 1}">${p.hidden ? '보이기' : '숨김'}</button>
+            <button class="btn btn-ghost btn-sm" data-phide="${p.id}" data-val="${p.hidden ? 0 : 1}">${p.submission ? (p.hidden?'우리 반에 공개':'공개 취소') : (p.hidden?'보이기':'숨김')}</button>
             <button class="btn btn-danger btn-sm" data-pdel="${p.id}">${icon('trash')}</button>` : ''}
         </div>` : ''}
     </div>`;
@@ -881,88 +887,10 @@ route(/^#\/board\/([A-Za-z0-9]{4,10})$/, async (code) => {
     return;
   }
   document.title = `${data.board.title} — 모아허브`;
-  const savedName = (() => { try { return localStorage.getItem('studentName') || ''; } catch { return ''; } })();
   const candidateStudentId = (new URLSearchParams(location.search).get('student_id') || data.careerStudentId || '').trim();
   const careerStudentId = window.MoakitCareerStudent?.getOrCreate({ candidate: candidateStudentId }) || '';
-  $app.innerHTML = `
-    <div class="sboard">
-      <header class="sb-head">
-        <div>
-          <div class="sb-title">📌 ${esc(data.board.title)}</div>
-          <div class="sb-sub">${esc(data.programTitle)} · 참여 코드 ${esc(code.toUpperCase())}</div>
-        </div>
-        <a class="btn btn-ghost btn-sm" href="#/login">나가기</a>
-      </header>
-      ${studentMaterialsHtml(data.materials, code, careerStudentId)}
-      <div class="card sb-form">
-        <div class="form-grid" style="grid-template-columns:150px 1fr">
-          <div><label>이름</label><input id="sb-name" maxlength="20" value="${esc(savedName)}" placeholder="이름"></div>
-          <div><label>활동 내용</label><textarea id="sb-content" rows="2" class="input" maxlength="2000" placeholder="활동한 내용을 적어보세요"></textarea></div>
-        </div>
-        <div class="mt" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
-          <button class="btn btn-ghost btn-sm" id="sb-file-btn" type="button">📎 사진/활동지 첨부</button>
-          <span class="small muted" id="sb-file-label">첨부 없음</span>
-          <span style="flex:1"></span>
-          <button class="btn btn-primary" id="sb-submit" type="button">올리기</button>
-        </div>
-        <input type="file" id="sb-file" accept=".pdf,.ppt,.pptx,.doc,.docx,.xls,.xlsx,.hwp,.hwpx,.png,.jpg,.jpeg,.webp,.gif" style="display:none">
-        <div class="msg" id="sb-msg"></div>
-      </div>
-      <div class="sb-grid" id="sb-grid">
-        ${data.posts.map((p) => postCardHtml(p)).join('') || '<p class="empty-note" style="grid-column:1/-1">아직 올라온 결과물이 없어요. 첫 번째로 올려보세요!</p>'}
-      </div>
-    </div>`;
+  await renderStudentClass(code, data, careerStudentId);
 
-  const onThisBoard = () => location.hash.toLowerCase().endsWith(`/board/${code}`);
-  const refresh = async () => {
-    if (!onThisBoard()) return;
-    try {
-      const d = await api('GET', `/api/join-board/${code}`);
-      const grid = document.getElementById('sb-grid');
-      if (grid) grid.innerHTML = d.posts.map((p) => postCardHtml(p)).join('') || '<p class="empty-note" style="grid-column:1/-1">아직 올라온 결과물이 없어요. 첫 번째로 올려보세요!</p>';
-    } catch (e) { if (!e.handled) navigate(); } // 마감되면 안내 화면으로
-  };
-  // 수업 중 실시간처럼 보이도록 15초마다 갱신
-  const timer = setInterval(() => {
-    if (!onThisBoard()) { clearInterval(timer); return; }
-    refresh();
-  }, 15000);
-
-  document.querySelectorAll('[data-matfile]').forEach((btn) => {
-    btn.onclick = () => openStudentFile(code, btn.dataset.matfile);
-  });
-  document.getElementById('sb-file-btn').onclick = () => document.getElementById('sb-file').click();
-  document.getElementById('sb-file').onchange = (e) => {
-    const f = e.target.files[0];
-    document.getElementById('sb-file-label').textContent = f ? `${f.name} (${(f.size / 1024 / 1024).toFixed(1)}MB)` : '첨부 없음';
-  };
-  document.getElementById('sb-submit').onclick = async () => {
-    const name = document.getElementById('sb-name').value.trim();
-    const content = document.getElementById('sb-content').value.trim();
-    const file = document.getElementById('sb-file').files[0] || null;
-    const msg = document.getElementById('sb-msg');
-    if (!name) { msg.textContent = '이름을 입력하세요.'; msg.className = 'msg err'; return; }
-    if (!content && !file) { msg.textContent = '내용을 쓰거나 파일을 첨부하세요.'; msg.className = 'msg err'; return; }
-    if (file && file.size > 20 * 1024 * 1024) { msg.textContent = '파일은 20MB 이하여야 합니다.'; msg.className = 'msg err'; return; }
-    msg.textContent = '올리는 중…'; msg.className = 'msg';
-    try {
-      let filePart = {};
-      if (file) {
-        const mime = guessMime(file.name, file.type);
-        const sign = await api('POST', `/api/join-board/${code}/file-sign`, { name: file.name, size: file.size });
-        const put = await fetch(sign.uploadUrl, { method: 'PUT', headers: { 'Content-Type': mime, 'x-upsert': 'true' }, body: file });
-        if (!put.ok) throw new Error('파일 업로드에 실패했습니다.');
-        filePart = { path: sign.path, file_name: file.name, mime, size: file.size };
-      }
-      await api('POST', `/api/join-board/${code}/posts`, { student_name: name, content, ...filePart });
-      try { localStorage.setItem('studentName', name); } catch {}
-      document.getElementById('sb-content').value = '';
-      document.getElementById('sb-file').value = '';
-      document.getElementById('sb-file-label').textContent = '첨부 없음';
-      msg.textContent = '올라갔어요! 🎉'; msg.className = 'msg ok';
-      refresh();
-    } catch (err) { if (!err.handled) { msg.textContent = err.message; msg.className = 'msg err'; } }
-  };
 });
 
 /* ---------------- 내 수업 대시보드 (#/myclass — 교사·관리자) ---------------- */
@@ -1112,6 +1040,7 @@ route(/^#\/boardview\/(\d+)$/, async (id) => {
       <div class="small muted" style="line-height:1.8">학생은 사이트 첫 화면의 <b>[학생 참여]</b> 탭에서<br>이 코드를 입력하면 됩니다. (계정 불필요)</div>
     </div>` : ''}
     ${data.manageable ? rosterCardHtml(data.roster) : ''}
+    ${data.manageable ? '<div class="card" id="submission-settings-card">차시별 제출 설정을 불러오는 중…</div>' : ''}
     ${data.manageable ? '<div class="card" id="share-card"><div class="small muted">수업자료 불러오는 중…</div></div>' : ''}
     <div class="sb-grid">
       ${data.posts.map((p) => postCardHtml(p, { forTeacher: true, manageable: data.manageable })).join('') || '<p class="empty-note" style="grid-column:1/-1">아직 게시물이 없습니다.</p>'}
@@ -1139,8 +1068,7 @@ route(/^#\/boardview\/(\d+)$/, async (id) => {
   if (rosterEditBtn) rosterEditBtn.onclick = () => openRosterModal(id, b.roster || '');
   document.querySelectorAll('[data-phide]').forEach((btn) => {
     btn.onclick = async () => {
-      await api('PATCH', `/api/posts/${btn.dataset.phide}`, { hidden: btn.dataset.val === '1' });
-      navigate();
+      try { await api('PATCH', `/api/posts/${btn.dataset.phide}`, { hidden: btn.dataset.val === '1' }); navigate(); } catch(e) { toast(e.message,true); }
     };
   });
   document.querySelectorAll('[data-pdel]').forEach((btn) => {
@@ -1155,6 +1083,8 @@ route(/^#\/boardview\/(\d+)$/, async (id) => {
   // 학생에게 보여줄 수업자료 고르기 (보드 관리자만)
   const shareCard = document.getElementById('share-card');
   if (shareCard) loadShareCard(shareCard, id);
+  const submissionSettings = document.getElementById('submission-settings-card');
+  if (submissionSettings) loadSubmissionSettings(submissionSettings, id);
 });
 
 const KIND_TAG = { link: '🔗 링크', aiapp: '🖥 웹앱', video: '▶ 영상' };
@@ -1162,8 +1092,8 @@ async function loadShareCard(el, boardId) {
   let d;
   try { d = await api('GET', `/api/boards/${boardId}/items`); }
   catch (e) { el.innerHTML = `<div class="small muted">${esc(e.message)}</div>`; return; }
-  const sharedL = new Set(d.sharedLinkIds);
-  const sharedF = new Set(d.sharedFileIds);
+  const sharedL = new Set(d.sharedLinkIds.map(String));
+  const sharedF = new Set(d.sharedFileIds.map(String));
   const total = d.links.length + d.files.length;
   if (!total) {
     el.innerHTML = `<h2 style="margin:0 0 6px">학생에게 보여줄 수업자료</h2>
@@ -1185,22 +1115,28 @@ async function loadShareCard(el, boardId) {
       <button class="btn btn-primary btn-sm" id="share-save">저장</button>
     </div>
     <div class="share-list" style="margin-top:12px">
-      ${d.links.map((l) => row(sharedL.has(l.id), 'link', l.id, KIND_TAG[l.kind] || '🔗 링크', l.label || l.url, '')).join('')}
-      ${d.files.map((f) => row(sharedF.has(f.id), 'file', f.id, '📎 자료', f.name, (f.size / 1024 / 1024).toFixed(1) + 'MB')).join('')}
+      ${d.links.map((l) => row(sharedL.has(String(l.id)), 'link', l.id, KIND_TAG[l.kind] || '🔗 링크', l.label || l.url, '')).join('')}
+      ${d.files.map((f) => row(sharedF.has(String(f.id)), 'file', f.id, '📎 자료', f.name, (f.size / 1024 / 1024).toFixed(1) + 'MB')).join('')}
     </div>
     <div class="msg" id="share-msg" style="margin-top:8px"></div>`;
   document.getElementById('share-save').onclick = async () => {
     const link_ids = []; const file_ids = [];
     el.querySelectorAll('[data-share]:checked').forEach((c) => {
       const [t, i] = c.dataset.share.split(':');
-      (t === 'link' ? link_ids : file_ids).push(Number(i));
+      (t === 'link' ? link_ids : file_ids).push(i);
     });
     const msg = document.getElementById('share-msg');
     msg.textContent = '저장 중…'; msg.className = 'msg';
     try {
-      await api('PUT', `/api/boards/${boardId}/items`, { link_ids, file_ids });
-      msg.textContent = `저장됐어요 — 학생에게 ${link_ids.length + file_ids.length}개 자료가 보입니다.`;
-      msg.className = 'msg ok';
+      const saved = await api('PUT', `/api/boards/${boardId}/items`, { link_ids, file_ids });
+      const expected = new Set(link_ids).size + new Set(file_ids).size;
+      if (saved.count !== expected) {
+        msg.textContent = `선택한 ${expected}개 중 ${saved.count}개가 저장됐어요. 자료 목록을 새로고침하고 다시 확인해 주세요.`;
+        msg.className = 'msg err';
+      } else {
+        msg.textContent = `저장됐어요 — 학생에게 ${saved.count}개 자료가 보입니다.`;
+        msg.className = 'msg ok';
+      }
     } catch (e) { if (!e.handled) { msg.textContent = e.message; msg.className = 'msg err'; } }
   };
 }
@@ -1298,7 +1234,7 @@ route(/^#\/manage$/, async () => {
       </div>
       <div class="dl-actions">
         <button class="btn ${p.published ? 'btn-ghost' : 'btn-primary'} btn-sm" data-pub="${p.id}" data-val="${p.published ? 0 : 1}">${p.published ? '비공개로' : '공개하기'}</button>
-        <a class="btn btn-ghost btn-sm" href="#/manage/${p.id}">${icon('edit')} 편집</a>
+        <a class="btn btn-soft btn-sm" href="#/course/${p.id}">구성별 자료</a><a class="btn btn-ghost btn-sm" href="#/manage/${p.id}">${icon('edit')} 편집</a>
         <button class="btn btn-danger btn-sm" data-del="${p.id}">${icon('trash')}</button>
       </div>
     </div>`;
@@ -1306,7 +1242,7 @@ route(/^#\/manage$/, async () => {
   shell('프로그램 관리', `
     <div class="page-head">
       <div><div class="ph-t">프로그램 관리</div><div class="desc">공개/비공개 토글은 즉시 반영됩니다 — 비공개로 바꾸면 교사 화면에서 바로 사라집니다.</div></div>
-      <button class="btn btn-primary" id="btn-new">${icon('plus')} 새 프로그램</button>
+      <button class="btn btn-primary" id="btn-new">${icon('plus')} 수업 등록</button>
     </div>
     <div class="card" style="padding:6px 12px"><div class="deck-list">
       ${data.programs.map(row).join('') || '<p class="empty-note">프로그램이 없습니다. 새로 만들어 보세요.</p>'}
@@ -1315,7 +1251,7 @@ route(/^#\/manage$/, async () => {
   document.getElementById('btn-new').onclick = () => {
     const back = openModal(`
       <h3>새 프로그램</h3>
-      <div class="m-sub">만든 뒤 편집 화면에서 링크·영상·첨부자료를 추가하세요. 처음에는 비공개 상태입니다.</div>
+      <div class="m-sub">수업을 만든 뒤 운영 구성과 구성별 자료를 등록합니다. 처음에는 비공개 상태입니다.</div>
       <div class="form-grid" style="grid-template-columns:1fr 1fr">
         <div style="grid-column:1/-1"><label>제목</label><input id="np-title" placeholder="예: 진로탐색 젭 수업"></div>
         <div><label>학년</label><select id="np-grade">
@@ -1368,7 +1304,7 @@ route(/^#\/manage$/, async () => {
 /* ---------------- 프로그램 편집 (#/manage/:id, admin) ---------------- */
 const KIND_OPTIONS = [['link', '🔗 수업 링크'], ['aiapp', '🖥️ 웹앱'], ['video', '▶ 영상 (유튜브)']];
 
-route(/^#\/manage\/(\d+)$/, async (id) => {
+route(/^#\/resources\/(\d+)$/, async (id) => {
   if (!isAdmin()) { location.hash = '#/'; return; }
   let data;
   try { data = await api('GET', `/api/programs/${id}`); }
@@ -1420,10 +1356,10 @@ route(/^#\/manage\/(\d+)$/, async (id) => {
 
   shell(`편집 — ${p.title}`, `
     <div class="page-head">
-      <div><div class="ph-t">프로그램 편집</div><div class="desc">${p.published ? '<span class="badge green">공개 중</span> 저장하면 교사 화면에 바로 반영됩니다.' : '<span class="badge gray">비공개</span> 공개 전까지 교사에게 보이지 않습니다.'}</div></div>
+      <div><div class="ph-t">공통 자료 관리</div><div class="desc">${p.published ? '<span class="badge green">공개 중</span> 저장하면 교사 화면에 바로 반영됩니다.' : '<span class="badge gray">비공개</span> 공개 전까지 교사에게 보이지 않습니다.'}</div></div>
       <div style="display:flex;gap:8px">
         <button class="btn ${p.published ? 'btn-ghost' : 'btn-primary'} btn-sm" id="pub-toggle">${p.published ? '비공개로 전환' : '공개하기'}</button>
-        <a class="btn btn-ghost btn-sm" href="#/program/${p.id}">미리보기</a>
+        <a class="btn btn-soft btn-sm" href="#/manage/${p.id}">수업 구성으로 돌아가기</a><a class="btn btn-ghost btn-sm" href="#/program/${p.id}">미리보기</a>
         <a class="btn btn-ghost btn-sm" href="#/manage">← 목록</a>
       </div>
     </div>
@@ -2021,7 +1957,7 @@ route(/^#\/settings$/, async () => {
 });
 
 /* ---------------- 부팅 ---------------- */
-(async function boot() {
+async function boot() {
   try {
     const data = await api('GET', '/api/me');
     state.me = data.user;
@@ -2029,4 +1965,6 @@ route(/^#\/settings$/, async () => {
   } catch { state.me = null; }
   if (!location.hash) location.hash = state.me ? '#/' : '#/login';
   navigate();
-})();
+}
+if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot, { once: true });
+else boot();
