@@ -866,7 +866,7 @@ function postCardHtml(p, { forTeacher = false, manageable = false } = {}) {
     <div class="post-card ${p.hidden ? 'is-hidden' : ''}">
       <div class="pc-head"><span class="pc-name">${esc(p.student_name)}</span><span class="pc-time">${esc(String(p.created_at).slice(5, 16))}</span></div>
       ${p.previewUrl ? `<img class="pc-img" src="${esc(p.previewUrl)}" alt="" loading="lazy">` : ''}
-      ${p.submission ? `<div class="pc-body"><small>${esc(p.sessionTitle)}</small><h3>${esc(p.title)}</h3><span class="badge green">제출 완료</span> <span class="small muted">활동 기록 미연결</span></div>` : ''}
+      ${p.submission ? `<div class="pc-body"><small>${esc(p.sessionTitle)}</small><h3>${esc(p.title)}</h3><span class="badge green">제출 완료</span> <span class="small muted">${esc({saved:'진로기록 저장 완료',pending:'진로기록 저장 대기'}[p.careerStatus]||'게시판 제출만')}</span>${p.career?.recordId?`<p class="small muted">저장 번호 ${esc(p.career.recordId)}</p>`:''}</div>` : ''}
       ${p.content ? `<div class="pc-body">${esc(p.content)}</div>` : ''}
       ${fileChip}
       ${forTeacher ? `
@@ -964,8 +964,7 @@ route(/^#\/board\/([A-Za-z0-9]{4,10})$/, async (code) => {
     return;
   }
   document.title = `${data.board.title} — 모아허브`;
-  const candidateStudentId = (new URLSearchParams(location.search).get('student_id') || data.careerStudentId || '').trim();
-  const careerStudentId = window.MoakitCareerStudent?.getOrCreate({ candidate: candidateStudentId }) || '';
+  const careerStudentId = data.careerStudentId || ''; // Server session only; ignore browser UUID overrides.
   await renderStudentClass(code, data, careerStudentId);
 
 });

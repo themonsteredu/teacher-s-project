@@ -1,65 +1,50 @@
-# 수업 안의 학생 제출 게시판
+# 학생 제출 → Career Log
 
-## 구현 범위
+## 학생과 교사 흐름
 
-수업 구성 → 차시 → 활동하기 / 자료·활동지 / 제출 게시판을 연결한다. 학생은 기존 참여 코드로 입장한다. 사진 촬영(지원 기기), 사진 선택, PDF·한글·오피스 문서, 글 또는 웹앱 결과 붙여넣기를 지원한다. 제출 1건에 첨부 1개, 최대 20MB다. 이미지 인식·OCR·웹앱 결과 자동 수집은 포함하지 않는다.
+학생은 일반 수업 코드로 입장해 차시별 활동을 한 뒤 사진·문서(최대 20MB, 1개) 또는 글을 제출한다. 새 제출은 항상 교사에게 먼저 보인다. 우리 반 공개는 교사의 별도 행동이며 진로기록 저장/교사 검증과 별개다.
 
-새 파일 제출은 Hub의 `board_posts`에 저장한다. `career_log.records`에는 쓰지 않으며 기존 Career Log 생성·정정·보안 계약도 변경하지 않는다. ‘내 활동 기록’은 이 게시판에 제출한 활동과 미연결 상태를 표시한다. 외부 웹앱에서 따로 생성한 Career Log를 모두 조회하는 화면은 아니다.
+교사가 차시의 `record.mode=submission`을 선택했다면 게시물과 함께 제출 순간의 Career snapshot을 서버에 보관한다. Hub 서버가 서명된 Vercel OIDC로 Edge를 호출한다. 설정이 none이면 게시판 제출만 한다. 외부 웹앱 내부의 제출은 여전히 앱별 연동이 필요하다.
 
-## 교사 흐름
+학생의 **내 진로기록**은 이번 학생 세션의 제출 snapshot·실제 저장 영수증·원본 첨부를 보여준다. 교사는 수업 제출 설정의 **이 수업의 진로기록 확인**과 제출 카드에서 저장 결과를 본다. 기존 History/Science/항공모빌리티 기록을 포함한 전체 계정 통합 조회 기능으로 주장하지 않는다.
 
-1. 수업 등록에서 운영 구성을 만들고, 각 차시의 웹앱·PPT·활동지·교안을 연결한다.
-2. 차시의 ‘학생 제출 설정’에서 제출 받기, 허용 형식, 선생님만 열람 / 교사 확인 후 우리 반 공개를 정한다. 이 설정은 기록 설계와 별도다.
-3. 개설한 수업 보드의 ‘차시·학생 제출 설정’에서 공개된 운영 구성을 적용한다. 차시 제목과 자료 연결은 그때의 스냅샷으로 고정된다. 원본 구성의 이후 편집이 진행 중인 반의 차시를 자동으로 바꾸지 않는다.
-4. ‘이 구성의 학생 웹앱·활동지도 학생에게 공유’를 선택하면 해당 앱·활동지만 기존 `program_links` / `board_items`에 연결한다. PPT·교안은 기존 공유 선택에서 따로 정한다. 공유를 해제하면 다음 학생 자료 요청부터 제외된다.
-5. 차시별 제출 상태를 조절하고, 최초 표시할 ‘오늘 수업’을 선택한다. 학생은 구성 내 차시를 이동할 수 있다. 특정 차시를 마감하려면 그 차시의 제출 받기를 해제한다.
-6. 새 제출물은 항상 교사에게 먼저 보인다. 교사가 ‘우리 반에 공개’를 눌러야 학생들끼리 볼 수 있다. 해당 차시가 교사 전용이면 서버가 공개를 거부한다.
-
-운영 구성이나 차시별 설정을 바꿔도 이미 제출한 제목·설명·첨부를 덮어쓰지 않는다. 이전 구성의 제출물은 ‘내 제출물’에서 기존 차시 이름으로 확인한다. 교사의 기존 보드/게시물 삭제 기능은 Hub 제출물에만 적용된다. Career Log 원본에는 적용하지 않는다.
-
-## 저장 계약 (새 migration 없음)
-
-기존 `settings(key,value)`에 이름 공간을 사용한다. 일반 설정 조회는 `sb:`와 `course_plan:`을 제외한다.
-
-| 키 | 역할 |
+| 상태 | 근거 |
 |---|---|
-| `course_plan:<programId>` | 차시별 제출 기본값 추가 (`submissions`) |
-| `sb:config:<boardId>` | 이 반이 선택한 구성 스냅샷·차시별 정책·revision |
-| `sb:session:<boardId>:<tokenHash>` | 무작위 제출 세션의 만료 시간 |
-| `sb:upload:<boardId>:<uploadUUID>` | 학생 세션·차시·파일 경로·유형·크기·만료·사용 여부 |
-| `sb:post:<postId>` | 소유 세션 해시·제목·차시 식별자·제출 당시 차시 이름 |
-| `sb:event:<boardId>:<ownerHash>:<requestUUID>` | 재시도 요청 해시와 실제 게시물 ID |
+| 게시판 제출만 | 기록 모드가 아니었던 실제 제출 |
+| 진로기록 저장 대기 | Hub 제출 snapshot은 커밋됐지만 Edge 성공 응답 미확인 |
+| 진로기록 저장 완료 | Edge가 record_id와 동일 student_id를 성공 응답한 뒤 영수증 저장 |
 
-프로젝트 이름/ref를 새 코드에 하드코딩하지 않는다. 검증되지 않은 `ACADEMY_ID` 호환 뷰 환경에서는 새 제출 쓰기를 503으로 차단한다. 이 작업에서 DB migration 및 운영 데이터 쓰기를 실행하지 않았다.
+## 학생 식별의 범위
 
-## 소유권과 접근
+서버가 256-bit 무작위 세션 토큰과 별도의 random v4 Career UUID를 생성한다. 쿠키 `moakit_submission_<boardId>`는 HttpOnly / SameSite=Strict / HTTPS Secure / 8시간 / `/api/join-board/` 범위이며 서버에는 토큰 해시를 저장한다. 일반 join도 이 서버 상태의 UUID를 돌려준다. 브라우저의 student_id query/localStorage/unsigned UUID cookie를 채택하지 않는다.
 
-- 서버가 생성한 256bit 무작위 토큰을 `moakit_submission_<boardId>` 쿠키에 둔다. HttpOnly, SameSite=Strict, HTTPS 운영에서 Secure, 8시간 만료다. 서버에는 토큰 해시만 저장한다.
-- 이름, Career UUID 후보, 요청 body의 경로는 소유권 증거로 사용하지 않는다. 학생 세션은 해당 반에만 적용된다. 로그인 계정과 연결되지 않은 임시 참여이므로 다른 기기·쿠키 삭제 후 개인 제출물을 복원하는 기능은 없다.
-- ‘수업 나가기’는 제출 세션을 서버에서 폐기한다. 마감된 반에서도 나가기가 가능하다. 공유기기에서는 학생 교체 전에 나가기를 사용해야 한다. 이 기능은 기존 Career UUID의 신뢰 모델이나 학생 계정 로그아웃을 변경하지 않는다.
-- 모든 학생 제출·목록·첨부 요청에서 기존 site / board / program 접근 조건을 재검증한다. 교사 첨부 다운로드에도 보드 소유권 검사를 추가했다.
-- 일반 join 응답은 새 제출물을 노출하지 않는다. 새 목록·첨부 경로에서 공개 정책 또는 실제 소유 세션을 검증한다. 미리보기와 내려받기 URL은 60초간 유효하다. 이미 발급된 링크는 만료 전까지 사용할 수 있다.
-- 실제 Storage 객체의 크기와 Content-Type을 확인한 후 저장한다. 허용 확장자에 HTML/SVG는 없다. 업로드 receipt는 한 번만 새 제출에 쓸 수 있다.
+같은 보드의 살아 있는 학생 세션에서는 차시가 달라도 UUID가 유지된다. 수업 나가기는 서버 세션을 폐기한다. 공유기기 학생 교체 시 반드시 나가기를 사용한다. 계정 없는 임시 세션이므로 다른 브라우저·새 보드·만료 이후의 동일인 복원은 제공하지 않는다. 기존 검증 UUID/기록을 새 세션으로 승격하거나 UPDATE하지 않는다. 장기 학생 계정 연결은 별도 작업이다.
 
-## 실패와 재시도
+이 변경은 기존 외부 앱 ingest의 브라우저 UUID 소유 증명 문제를 해결했다고 주장하지 않는다. 신뢰 경계는 이번 Hub 제출 endpoint까지다.
 
-제출 버튼을 누를 때 제목·설명·학생 입력의 스냅샷과 무작위 request UUID를 생성한다. 업로드가 끝난 후 서버가 발급한 upload UUID를 연결한다. 서버의 저장 응답을 받을 때까지 같은 스냅샷을 유지하고 중복 클릭을 막는다. sessionStorage 사용이 가능하면 응답 대기 중인 요청도 보존한다. 저장소가 차단되더라도 현재 화면의 메모리로 재시도하며 버튼을 복구한다.
+## 저장와 멱등성
 
-서버는 한 DB 연결에서 transaction → 요청별 advisory lock → 기존 응답 조회 → INSERT + 메타데이터 + 응답 receipt를 처리한다. 같은 UUID의 내용 변경은 409이며, 실제 새 제출은 새 UUID다. 실패하면 모두 rollback한다. 저장 응답 유실 후 재시도는 기존 ID를 반환한다. 업로드 완료 전에 새로고침한 파일은 다시 선택해야 한다.
+- 브라우저는 제목·설명·첨부 정보 snapshot과 request UUID를 만들고 재시도 때 유지한다. sessionStorage 실패 시 메모리로 유지하며 저장 버튼은 finally에서 복구한다.
+- Hub transaction은 event lock → 접근 재확인(board open/program published/site open/학생 세션/차시 제출 형식) → board_posts INSERT + settings snapshot + event receipt를 원자적으로 커밋한다.
+- Career UUID는 서버 세션에서만 읽는다. 이름·학교·모둠·참여코드·브라우저 body는 UUID 생성 근거가 아니다.
+- source_event_id는 서버에서 `hub-submission-v1:<randomUUID>`로 한 번 생성하고 snapshot에 보존한다. 실제 새로운 제출은 새 UUID다. 재시도 때 시간·설명·원본을 다시 만들지 않는다.
+- downstream 실패는 Hub 제출을 취소하지 않는다. 내 진로기록에서 해당 snapshot만 재시도한다. 서버는 소유자/board/program/site/세션을 다시 검사한다. Edge 영수증 유실 후에도 같은 이벤트로 재시도한다.
+- Edge는 기존 Hub project/team/issuer/audience/environment OIDC 검증을 유지한다. `hub-submission-v1`만 추가하고 기존 공개 앱 ingest allowlist에는 이 프로그램을 추가하지 않는다.
+- 새 프로그램은 단일 READ COMMITTED transaction의 advisory event lock → SELECT existing → INSERT를 사용한다. 같은 event는 직렬화하고 다른 이벤트는 별도 잠금이다. 기존 기록 UPDATE/DELETE/TRUNCATE, schema migration은 없다.
+- 늦은 재시도도 제출 당시 occurred_at을 보존하도록 Hub snapshot 프로그램에만 24시간 과거 제한을 적용하지 않는다. 미래 시간은 5분까지 허용한다. 기존 앱 시간 계약은 유지한다.
+- reflection/verification_status/verified_by/verified_at/supersedes_id는 NULL이다. raw_data는 실제 학생 제목·설명·검증된 첨부 메타데이터와 수업 문맥이며 점수·정답 상수는 보내지 않는다.
 
-구현 근거: [node-postgres transactions](https://node-postgres.com/features/transactions), [PostgreSQL advisory locks](https://www.postgresql.org/docs/current/explicit-locking.html#ADVISORY-LOCKS).
+## 첨부와 열람
 
-## 검증과 남은 운영 확인
+파일 검증 후 서버가 같은 비공개 버킷의 `career-originals/`에 독립 복사한다. 원본 기록에는 만료되는 signed URL 대신 보관 경로/이름/크기/MIME를 둔다. 일반 게시판 파일 삭제 함수는 Career 보관 경로 삭제를 거부한다. 게시물을 삭제해도 저장 snapshot/영수증과 보관본은 유지한다. 학생 첨부 열람은 같은 학생 세션과 열린 수업을 검증한 뒤 60초 서명 URL을 발급한다. 기존 일반 파일의 삭제/공개 정책은 유지한다.
 
-`npm run check`로 기존 기능과 새 API/UI 상태 전이·권한·파일 receipt·재시도·트랜잭션 회귀를 검증한다. DB 테스트는 격리된 mock transaction으로 실행하며 운영 DB 실험을 하지 않는다. UI 이벤트 테스트는 Node VM 기반으로, 실제 브라우저 레이아웃 검수를 대신하지 않는다.
+서버 crash로 생긴 고아 보관본의 주기적 정리는 구현하지 않았다. 향후 정리 시 저장/대기 snapshot의 참조를 먼저 확인해야 한다. 학생 세션 만료 후 장기 열람이나 삭제된 보드의 포털 복구는 계정 연결 작업에 포함해야 한다.
 
-배포 가능한 시점에 정확한 HEAD Preview로 다음을 확인해야 한다.
+## 배포 전 체크
 
-- 교사 구성 적용 → 학생 공유 선택 → 일반 코드 입장 → 차시별 자료와 게시판 표시
-- 모바일/태블릿/PC 레이아웃, 실제 기기 카메라·파일 선택 및 Storage 업로드
-- 같은 이름의 별도 학생 세션에서 비공개 파일 접근 차단
-- 교사의 승인 공개/취소, 마감·비공개·site off 접근 차단
-- 업로드/저장 응답 유실 후 중복 없이 재시도
-- Hub/History의 기존 Career Log 실제 UI E2E와 별도 리뷰/병합 조건
+1. 운영 Edge 소스와 Git 차이를 확인하고 기존 앱 지원을 보존한 채 이 버전 배포를 준비한다.
+2. Hub 서버 환경에 `CAREER_LOG_INGEST_URL=https://<중앙프로젝트>/functions/v1/career-log-ingest`를 설정한다. 프로젝트명을 새 코드에 하드코딩하지 않는다. 클라이언트에는 비밀값을 전달하지 않는다.
+3. 실제 HEAD Preview에서 교사 구성 등록/적용 → 일반 학생 join → 실제 글/파일 제출 → 두 Career Records SELECT → 동일 UUID/원본/NULL 검증을 한다.
+4. 학생 교체·다른 학생 접근·마감/비공개/site off·네트워크 재시도·기기별 UI를 검증한다. 기존 History/Science 실제 E2E 및 리뷰 병합 조건도 유지한다.
 
-배포와 실제 브라우저 검증이 끝나기 전에는 운영 반영 완료나 Career Log 연동 완료로 보고하지 않는다. 만료 세션·미제출 파일의 주기적 정리 정책과 학생 계정에 제출물을 장기 연결하는 작업은 후속 운영 과제다.
+테스트는 격리된 DB/Storage/Edge 대역과 Node VM UI 이벤트를 사용한다. 운영 DB 적용·실제 저장·실기기 검증 성공과 구분한다. 이번 구현만으로 운영 반영 완료를 선언하지 않는다.
