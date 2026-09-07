@@ -6,6 +6,19 @@ import { stripTypeScriptTypes } from 'node:module';
 const source = readFileSync(new URL('../supabase/functions/career-log-ingest/index.ts', import.meta.url), 'utf8');
 const code = stripTypeScriptTypes(source.replace(/^import .*;\n/gm, ''));
 const studentId = '11111111-1111-4111-8111-111111111111';
+const hubSubmission = () => ({...record('hub-submission-v1'), reflection:null, source_event_id:'hub-submission-v1:dcf764b3-aeff-4511-a03d-2c451c7d0508',
+  raw_data:{hub:{board_id:'42',program_id:'11'},submission:{session_id:'lesson-1',title:'내 관찰 결과',content:'노란 꽃과 톱니 모양 잎',attachment:null}}});
+
+test('Hub submission snapshots persist and concurrent retries produce one Career record',async()=>{
+ const edge=runtime(),p=hubSubmission();const results=await Promise.all([edge.call(p),edge.call(p)]);assert.deepEqual(results.map(r=>r.status).sort(),[200,201]);assert.equal(edge.inserts(),1);assert.equal(edge.locks(),2);
+});
+test('older committed Hub snapshot retries keep the original activity time',async()=>{
+ const p=hubSubmission();p.occurred_at=new Date(Date.now()-3*86400000).toISOString();assert.equal((await runtime().call(p)).status,201);
+ const oldHistory=record('history-ai-01');oldHistory.occurred_at=p.occurred_at;assert.equal((await runtime().call(oldHistory)).status,400);
+});
+test('Hub submission rejects missing actual work, mismatched board, fabricated reflection and non-UUID event',async()=>{
+ for(const change of [p=>p.raw_data.submission.content='',p=>p.raw_data.hub.board_id='999',p=>p.reflection='auto generated',p=>p.source_event_id='hub-submission-v1:named-student']){const p=hubSubmission();change(p);const edge=runtime();assert.equal((await edge.call(p)).status,400);assert.equal(edge.inserts(),0);}
+});
 const recordId = '22222222-2222-4222-8222-222222222222';
 const claims = {
   iss: 'https://oidc.vercel.com/themonsteredu', owner_id: 'team_XboDIrxx45loHnmZwo54PKam',
@@ -46,7 +59,8 @@ function runtime({ payload = claims, signatureValid = true, available = true } =
     const transaction = async (parts, ...values) => {
       const query = parts.join('?');
       if (/pg_advisory_xact_lock/.test(query)) {
-        assert.deepEqual(values, ['hub', 'aviation-mobility-01:contract-test-attempt']);
+        assert.equal(values[0], 'hub');
+        assert.match(values[1], /^(aviation-mobility-01|hub-submission-v1):/);
         const previous = tail;
         tail = new Promise(resolve => { release = resolve; });
         await previous;

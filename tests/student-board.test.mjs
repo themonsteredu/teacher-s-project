@@ -6,7 +6,42 @@ const require=createRequire(import.meta.url);
 const {createService,fileSpec,sameOrigin}=require('../lib/student-board');
 const {parseCookies}=require('../lib/cookies');
 const copy=x=>JSON.parse(JSON.stringify(x));
-function fixture(){
+const enableRecords=f=>{f.cfg.sessions[0].record={mode:'submission',completion:'관찰 결과 제출',original:'학생이 작성한 관찰',process:'관찰 내용을 작성해 제출함'};f.setConfig();};
+
+test('real submit service binds two activities to server random UUID and ignores client identity/evaluation',async()=>{
+ const delivered=[];const f=fixture({deliverCareer:async(req,p)=>{delivered.push(copy(p));return{recordId:randomUUID(),storedAt:new Date().toISOString()};}});enableRecords(f);
+ const req=await f.join(),res=f.response();req.headers.cookie+='; moakit_career_student_id='+randomUUID();
+ const serverId=await f.api.identity(req,res,'abcd12');
+ const a=await f.api.submit(req,res,'abcd12',f.body({student_id:randomUUID(),score:100,correct:false}));
+ f.cfg.sessions.push({...copy(f.cfg.sessions[0]),id:'lesson-2',title:'비교하기'});f.setConfig();
+ const b=await f.api.submit(req,res,'abcd12',f.body({sessionId:'lesson-2',content:'비교 근거를 작성했습니다.'}));
+ assert.equal(a.career.state,'saved');assert.equal(b.career.state,'saved');assert.equal(delivered.length,2);assert.equal(delivered[0].student_id,serverId);assert.equal(delivered[1].student_id,serverId);assert.match(serverId,/^[a-f0-9]{8}-[a-f0-9]{4}-4/);assert.notEqual(delivered[0].source_event_id,delivered[1].source_event_id);
+ assert.equal(delivered[0].raw_data.submission.content,'노란 꽃과 톱니 모양 잎');assert.equal(delivered[0].verification_status,null);assert.equal(delivered[0].reflection,null);assert.equal(delivered[0].raw_data.score,undefined);
+ const records=await f.api.records(req,res,'abcd12');assert.equal(records.records.length,2);assert.equal(records.records[0].record.student_id,serverId);
+ assert.equal((await f.api.teacherRecords(7,{id:3,role:'teacher'})).records[0].studentName,'학생');await assert.rejects(()=>f.api.teacherRecords(7,{id:99,role:'teacher'}),e=>e.status===403);
+ const other=await f.join();assert.equal((await f.api.records(other,res,'abcd12')).records.length,0);await assert.rejects(()=>f.api.saveCareer(other,res,'abcd12',a.id),e=>e.status===403);
+});
+test('downstream lost response keeps post; retry retains exact snapshot and event UUID',async()=>{
+ let lost=true;const payloads=[];const id=randomUUID();const f=fixture({deliverCareer:async(req,p)=>{payloads.push(copy(p));if(lost)throw Error('response lost');return{recordId:id,storedAt:'now'};}});enableRecords(f);const req=await f.join(),body=f.body();
+ const first=await f.api.submit(req,f.response(),'abcd12',body);assert.equal(first.career.state,'pending');assert.equal(f.posts.length,1);
+ f.cfg.sessions[0].record.process='변경된 수업 설정';f.setConfig();lost=false;
+ const retry=await f.api.submit(req,f.response(),'abcd12',body);assert.equal(retry.id,first.id);assert.equal(retry.career.recordId,id);assert.deepEqual(payloads[0],payloads[1]);assert.equal(f.posts.length,1);
+ await f.api.saveCareer(req,f.response(),'abcd12',first.id);assert.equal(payloads.length,2);
+});
+test('pending Career retries honor site/board/program switches and revoked student sessions',async()=>{
+ const f=fixture({deliverCareer:async()=>{throw Error('offline');}});enableRecords(f);const req=await f.join(),res=f.response();const r=await f.api.submit(req,res,'abcd12',f.body());
+ f.site='0';await assert.rejects(()=>f.api.saveCareer(req,res,'abcd12',r.id),e=>e.status===403);f.site='1';f.b.is_open=false;await assert.rejects(()=>f.api.saveCareer(req,res,'abcd12',r.id),e=>e.status===403);f.b.is_open=true;f.program.published=false;await assert.rejects(()=>f.api.saveCareer(req,res,'abcd12',r.id),e=>e.status===403);f.program.published=true;await f.api.leave(req,res,'abcd12');await assert.rejects(()=>f.api.saveCareer(req,res,'abcd12',r.id),e=>e.status===401);
+ const next=await f.join();assert.equal((await f.api.records(next,res,'abcd12')).records.length,0);
+});
+test('photo snapshot uses independently archived original; another student cannot open it',async()=>{
+ const f=fixture({deliverCareer:async()=>({recordId:randomUUID(),storedAt:'now'})});enableRecords(f);const req=await f.join(),res=f.response();
+ f.storage.archiveSubmission=async upload=>({...upload,path:'career-originals/'+upload.path.split('/').pop()});
+ const signed=await f.api.sign(req,res,'abcd12',{sessionId:'lesson-1',name:'관찰.png',size:20});const u=JSON.parse(f.settings.get(`sb:upload:7:${signed.uploadId}`));f.objects.set(u.path,{size:20,mime:'image/png'});
+ const r=await f.api.submit(req,res,'abcd12',f.body({uploadId:signed.uploadId,content:''}));const rec=(await f.api.records(req,res,'abcd12')).records[0];assert.match(rec.record.raw_data.submission.attachment.storage_path,/^career-originals\//);
+ f.posts.splice(0);assert.equal((await f.api.records(req,res,'abcd12')).records.length,1);assert.match((await f.api.recordFile(req,res,'abcd12',r.id)).url,/career-originals/);
+ const other=await f.join();await assert.rejects(()=>f.api.recordFile(other,res,'abcd12',r.id),e=>e.status===403);
+});
+function fixture(options={}){
   const settings=new Map(),posts=[],locks=[],objects=new Map(),signed=[],materialWrites=[],b={id:7,program_id:11,created_by:3,code:'abcd12',is_open:true},program={published:true};
   let inTx=false,nextId=1,queue=Promise.resolve(),breakReceipt=false,site='1';
   const cfg={revision:null,variantId:'',name:'기본 수업',activeSession:'lesson-1',sessions:[{id:'lesson-1',title:'관찰하기',minutes:40,bridge:'',sourceLessons:['1'],assets:{},submissions:{enabled:true,types:['photo','document','text'],sharing:'teacher'}}]};
@@ -27,6 +62,8 @@ function fixture(){
     if(sql.startsWith('SELECT id FROM board_posts'))return posts.filter(p=>String(p.id)===String(a[0])&&String(p.board_id)===String(a[1])).map(p=>({id:p.id}));
     if(sql.startsWith('SELECT * FROM board_posts'))return posts.filter(p=>String(p.id)===String(a[0])&&(a[1]===undefined||String(p.board_id)===String(a[1]))).map(copy);
     if(sql.startsWith('UPDATE board_posts')){posts.find(p=>String(p.id)===String(a[1])).hidden=a[0];return[];}
+    if(sql.startsWith("WITH career_posts")&&a.length===1)return [...settings].filter(([k,v])=>k.startsWith('sb:post:')&&JSON.parse(v).career?.payload.session_ref===a[0]).map(([key,value])=>({key,value}));
+    if(sql.startsWith("WITH career_posts"))return [...settings].filter(([k,v])=>{const m=JSON.parse(v);return k.startsWith('sb:post:')&&m.owner===a[0]&&m.career?.payload.session_ref===a[1];}).map(([key,value])=>({key,value}));
     if(sql.startsWith('SELECT key,value FROM settings'))return a[0].filter(k=>settings.has(k)).map(key=>({key,value:settings.get(key)}));
     if(sql.startsWith('SELECT p.*, m.value AS submission_meta')){
       const [id,owner,lesson,mine,before,publicIds]=a;
@@ -41,7 +78,7 @@ function fixture(){
     try{return await work(c);}catch(e){settings.clear();for(const [k,v]of oldSettings)settings.set(k,v);posts.splice(0,posts.length,...oldPosts);throw e;}finally{inTx=false;release();}
   }};
   const storage={storageEnabled:true,createSignedUpload:async path=>({uploadUrl:'https://storage.test/'+path}),inspectObject:async path=>{if(!objects.has(path))throw new Error('missing');return objects.get(path);},createSignedDownload:async path=>{signed.push(path);return'https://storage.test/private/'+path;}};
-  const api=createService({db,storage,parseCookies,secure:true,clientIp:()=> '192.0.2.1',openBoardByCode:async code=>code.toLowerCase()===b.code&&b.is_open&&program.published?{board:copy(b),program}:null,sharedMaterials:async()=>copy(f.shared)});
+  const api=createService({db,storage,parseCookies,secure:true,...options,clientIp:()=> '192.0.2.1',openBoardByCode:async code=>code.toLowerCase()===b.code&&b.is_open&&program.published?{board:copy(b),program}:null,sharedMaterials:async()=>copy(f.shared)});
   function request(cookie='',url='/api/join-board/abcd12/submissions'){return {url,headers:{host:'hub.test',origin:'https://hub.test',cookie,'sec-fetch-site':'same-origin'}};}
   function response(){return {headers:{},setHeader(k,v){this.headers[k]=v;},getHeader(k){return this.headers[k];}};}
   const f={api,settings,posts,locks,objects,signed,materialWrites,b,program,storage,cfg,shared:{links:[],files:[]},request,response,set site(v){site=v;},set failReceipt(v){breakReceipt=v;},async join(){const req=request(),res=response();await api.list(req,res,'ABCD12');req.headers.cookie=res.headers['Set-Cookie'].split(';')[0];return req;},body(extra={}){return{requestId:randomUUID(),sessionId:'lesson-1',student_name:'학생',title:'식물 관찰',content:'노란 꽃과 톱니 모양 잎',...extra};},setConfig(next=cfg){settings.set('sb:config:7',JSON.stringify(next));}};

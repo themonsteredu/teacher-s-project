@@ -36,9 +36,10 @@ test('science observation UI sends only the real observation through the shared 
   assert.doesNotMatch(scienceApp, /career_lens|fit_score|ability_score|career_recommendation/i);
 });
 
-test('Hub board creates a browser UUID and passes it only to assigned Career Log apps', () => {
+test('Hub board uses a server session UUID and passes it only to assigned Career Log apps', () => {
   assert.match(hubApp, /careerMaterialUrl\(l, code, studentId\)/);
-  assert.match(hubApp, /MoakitCareerStudent\?\.getOrCreate/);
+  assert.match(hubApp, /careerStudentId = data.careerStudentId/);
+  assert.doesNotMatch(hubApp, /get\('student_id'\)/);
   assert.match(hubApp, /target\.searchParams\.set\('hub_code', code\)/);
   assert.match(hubApp, /target\.searchParams\.set\('student_id', studentId\)/);
   assert.match(hubApp, /ai-history-ar\.vercel\.app/);
@@ -46,10 +47,9 @@ test('Hub board creates a browser UUID and passes it only to assigned Career Log
   assert.match(hubApp, /target\.origin === 'https:\/\/hub\.moakit\.ai'/);
   assert.match(careerStudent, /randomUUID/);
   assert.match(careerStudent, /sessionStorage/);
-  assert.match(hubApi, /moakit_career_student_id/);
-  assert.match(hubApi, /careerStudentId = .*cookieStudentId/s);
+  assert.match(hubApi, /studentBoardService\(\)\.identity\(req,res,ctx.params\[0\]\)/);
   assert.match(hubApi, /Cache-Control', 'no-store'/);
-  assert.match(hubApi, /HttpOnly; SameSite=Lax/);
+
   assert.match(scienceApp, /\^\[a-z0-9\]\{4,10\}\$/i);
   assert.match(scienceApp, /hub_code'\)\|\|'\'\)\.trim\(\)\.toLowerCase\(\)/);
 });

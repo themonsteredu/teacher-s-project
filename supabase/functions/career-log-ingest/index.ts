@@ -12,7 +12,7 @@ const ALLOWED_ISSUERS = new Set([
   `https://oidc.vercel.com/${TEAM_SLUG}`,
 ]);
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-const PROGRAM_REFS = ["history-ai-01", "science-observation-ai-03", "aviation-mobility-01"] as const;
+const PROGRAM_REFS = ["history-ai-01", "science-observation-ai-03", "aviation-mobility-01", "hub-submission-v1"] as const;
 type ProgramRef = (typeof PROGRAM_REFS)[number];
 
 type HubCareerRecord = {
@@ -67,13 +67,23 @@ function validRecord(input: unknown): HubCareerRecord | null {
   if (!UUID_RE.test(studentId)) return null;
   if (!/^hub-board:\d+$/.test(sessionRef)) return null;
   if (!programRef || value.source !== "hub") return null;
-  if (!Number.isFinite(occurredAt.getTime()) || Math.abs(Date.now() - occurredAt.getTime()) > 86_400_000) return null;
+  if (!Number.isFinite(occurredAt.getTime())) return null;
+  if (programRef === "hub-submission-v1" && occurredAt.getTime() > Date.now() + 300_000) return null;
+  if (programRef !== "hub-submission-v1" && Math.abs(Date.now() - occurredAt.getTime()) > 86_400_000) return null;
   if (!process || process.length > 1000 || artifact === undefined || reflection === undefined) return null;
   if (!/^[A-Za-z0-9:_-]{8,260}$/.test(sourceEventSuffix)) return null;
   if (!rawData || typeof rawData !== "object" || Array.isArray(rawData)) return null;
   if (JSON.stringify(rawData).length > 50_000) return null;
   if (value.verification_status != null || value.verified_by != null || value.verified_at != null) return null;
   if (value.supersedes_id != null) return null;
+  if (programRef === "hub-submission-v1") {
+    if (!UUID_RE.test(sourceEventSuffix) || reflection !== null) return null;
+    const submission = (rawData as Record<string, unknown>).submission as Record<string, unknown> | undefined;
+    const hub = (rawData as Record<string, unknown>).hub as Record<string, unknown> | undefined;
+    if (!submission || typeof submission.title !== "string" || !submission.title.trim() || typeof submission.content !== "string") return null;
+    if (!submission.content.trim() && !submission.attachment) return null;
+    if (!hub || sessionRef !== `hub-board:${hub.board_id}` || !/^\d+$/.test(String(hub.program_id))) return null;
+  }
 
   return {
     student_id: studentId,
@@ -162,7 +172,7 @@ Deno.serve(async (request) => {
       if (!inserted[0]) return response(503, { error: "career_log_insert_failed" });
       return response(201, { ok: true, duplicate: false, record_id: inserted[0].id, student_id: inserted[0].student_id });
     };
-    if (record.program_ref === "aviation-mobility-01") {
+    if (record.program_ref === "aviation-mobility-01" || record.program_ref === "hub-submission-v1") {
       // The existing table has no unique(source, source_event_id) constraint.
       // Serialize this new program's attempts across Edge workers without changing old records.
       // READ COMMITTED makes the post-lock SELECT see the previous writer's commit.
