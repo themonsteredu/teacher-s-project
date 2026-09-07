@@ -50,6 +50,7 @@ async function fixture(t) {
     './auth': { getSessionUser: async () => null },
     './cookies': require('../lib/cookies'),
     './storage': { storageEnabled: false },
+    './student-board': require('../lib/student-board'),
   });
   let handler;
   loadCommonJs('server.js', {
@@ -136,7 +137,8 @@ test('nested student file routes retain every path segment', async (t) => {
   const result = await f.request(path);
   assert.equal(f.apiCalls[0].pathname, path);
   assert.equal(result.status, 403);
-  assert.equal(result.body.error, 'not_shared');
+  assert.equal(result.body.error, '마감되었거나 없는 수업입니다.');
+  assert.equal(f.lookups[0].params[0], 'abcd12');
 });
 
 test('query parameters, JSON body, method and cookies survive the HTTP entrypoint', async (t) => {

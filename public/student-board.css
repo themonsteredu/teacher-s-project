@@ -11,3 +11,4 @@
 @media(prefers-reduced-motion:reduce){.student-class *{scroll-behavior:auto!important}}
 
 .sc-share-consent{display:flex;gap:8px;align-items:center;font-size:13px;margin:12px 0}.sc-share-consent input{width:17px;accent-color:#00877b}
+.sc-career-record>div{min-width:0;width:100%}.sc-career-record .sc-record-status{display:inline-block;margin:8px 0;white-space:normal}.sc-career-record details{border-top:1px solid var(--sc-line);padding-top:12px;margin-top:12px}.sc-career-record summary{cursor:pointer;color:var(--sc-teal);font-size:14px}.sc-career-record .sc-original-text{white-space:pre-wrap;overflow-wrap:anywhere;font-size:14px;line-height:1.7;margin:14px 0}.sc-career-record button{max-width:100%;white-space:normal;overflow-wrap:anywhere}.sc-career-record h3{overflow-wrap:anywhere}

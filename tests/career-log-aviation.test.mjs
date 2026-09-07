@@ -6,7 +6,9 @@ import { runInNewContext } from 'node:vm';
 
 const require = createRequire(import.meta.url);
 process.env.DATABASE_URL ||= 'postgresql://test:test@127.0.0.1:5432/test';
+process.env.CAREER_LOG_INGEST_URL = 'https://central.example/functions/v1/career-log-ingest';
 const db = require('../lib/db');
+const accounts = require('../lib/student-accounts/http');
 const { originAllowed, resolveIntegration } = require('../lib/career-log-integrations');
 const fixtures = JSON.parse(readFileSync(new URL('./fixtures/aviation-submissions.json', import.meta.url), 'utf8'));
 const body = (index = 0) => structuredClone(fixtures[index]);
@@ -17,7 +19,10 @@ const response = () => ({ headers: {}, setHeader(key, value) { this.headers[key]
 
 function handler({ open = true, boardOpen = true, published = true, links = [{ url: origin }] } = {}) {
   db.getSettings = async () => ({ site_open: open });
-  db.one = async () => ({ id: 42, program_id: 8, is_open: boardOpen, published, class_date: '2026-09-06' });
+  db.one = async sql => sql.includes('SELECT value FROM settings')
+    ? {value:JSON.stringify({career:{enabled:true,schoolId:'33333333-3333-4333-8333-333333333333'}})}
+    : { id: 42, program_id: 8, is_open: boardOpen, published, class_date: '2026-09-06' };
+  accounts.authorizeStudent = async () => ({careerStudentId:fixtures[0].student_id});
   db.q = async () => links;
   delete require.cache[require.resolve('../lib/career-log')];
   return require('../lib/career-log').handleCareerLogIngest;
@@ -62,7 +67,7 @@ test('aviation respects site/board/program switches and the exact assigned board
 
 test('both real drone payloads reach Edge with server-derived session and unverified status', async t => {
   t.mock.method(globalThis, 'fetch', async (url, options) => {
-    assert.equal(url, 'https://vypnobpmyadtcvxhtagn.supabase.co/functions/v1/career-log-ingest');
+    assert.equal(url, 'https://central.example/functions/v1/career-log-ingest');
     assert.equal(options.headers.Authorization, 'Bearer runtime-oidc-test');
     const payload = JSON.parse(options.body);
     assert.equal(payload.session_ref, 'hub-board:42');
@@ -100,8 +105,8 @@ test('practice, unfinished flights, missing checks and mismatched attempt contex
     const value = body(); change(value);
     const res = response();
     await handler()(request, res, value);
-    assert.equal(res.statusCode, 400);
-    assert.equal(res.body.error, 'invalid_career_record');
+    assert.equal(res.statusCode, value.student_id !== fixtures[0].student_id ? 409 : 400);
+    assert.equal(res.body.error, value.student_id !== fixtures[0].student_id ? 'student_identity_mismatch' : 'invalid_career_record');
   }
   assert.equal(globalThis.fetch.mock.callCount(), 0);
 });

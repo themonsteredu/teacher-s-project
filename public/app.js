@@ -70,7 +70,7 @@ async function api(method, url, body) {
     state.me = null;
     // 학생 보드는 로그인 없이 쓰므로, 보드 화면에서는 로그인으로 보내지 않는다
     if (!(location.hash || '').startsWith('#/board/')) location.hash = '#/login';
-    throw new Error(data.error || '로그인이 필요합니다.');
+    throw Object.assign(new Error(data.error || '로그인이 필요합니다.'), {status:res.status});
   }
   // 사이트 킬스위치: 폐쇄 중이면 폐쇄 안내 화면 (학생 보드 접근 포함)
   if (res.status === 403 && data.error === 'site_closed') {
@@ -81,6 +81,7 @@ async function api(method, url, body) {
   }
   if (!res.ok) {
     const err = new Error(data.error || '요청에 실패했습니다.');
+    err.status = res.status;
     err.data = data;
     throw err;
   }
@@ -196,6 +197,7 @@ window.addEventListener('hashchange', navigate);
 /* ---------------- 셸 (왼쪽 메뉴 · 모바일 접이식 메뉴) ---------------- */
 function menuItems() {
   const items = [['#/', 'grid', '프로그램'], ['#/myclass', 'monitor', '내 수업']];
+  items.push(['/student-accounts.html?view=teacher', 'users', '학교·학생 계정']);
   if (isAdmin()) {
     items.push(
       ['#/manage', 'layers', '프로그램 관리'],
@@ -346,7 +348,8 @@ route(/^#\/login$/, () => {
             <label>참여 코드</label>
             <input class="input" name="code" maxlength="10" placeholder="예: BS2622" required autocomplete="off"
               style="font-size:22px;letter-spacing:6px;text-align:center;font-weight:800;text-transform:uppercase">
-            <div class="small muted" style="margin-top:10px;line-height:1.6">선생님이 화면에 보여주는 코드를 입력하면<br>활동 결과물을 올릴 수 있어요. 계정은 필요 없습니다.</div>
+            <div class="small muted" style="margin-top:10px;line-height:1.6">선생님이 알려준 코드를 입력하세요.<br>학교에 연결된 수업은 학생 계정으로 입장합니다.</div>
+            <a href="/student-accounts.html" class="btn btn-soft" style="margin-top:10px">학생 로그인 · 내 진로기록</a>
           ` : `
             <label>아이디</label>
             <input class="input" name="username" autocomplete="username" required>
@@ -985,13 +988,15 @@ route(/^#\/board\/([A-Za-z0-9]{4,10})$/, async (code) => {
         <div class="lmark">수업</div>
         <div class="logo">참여할 수 없어요</div>
         <div class="sub" style="margin-bottom:16px">${esc(e.message)}<br>선생님께 코드를 다시 확인해 보세요.</div>
-        <a class="btn btn-primary" href="#/login" style="justify-content:center">처음으로</a>
+        ${e.status===401?`<a class="btn btn-primary" href="/student-accounts.html?board=${encodeURIComponent(code)}" style="justify-content:center">학생 계정으로 로그인</a>`:''}
+        <a class="btn btn-soft" href="#/login" style="justify-content:center">처음으로</a>
       </div></div>`;
     return;
   }
   document.title = `${data.board.title} — 모아허브`;
-  const candidateStudentId = (new URLSearchParams(location.search).get('student_id') || data.careerStudentId || '').trim();
-  const careerStudentId = window.MoakitCareerStudent?.getOrCreate({ candidate: candidateStudentId }) || '';
+  // Only the verified server join controls identity. URL/localStorage UUIDs are never adopted.
+  // Account UUIDs are not passed to external apps; their results are submitted in the Hub.
+  const careerStudentId = data.accountLinked ? '' : (data.careerStudentId || '');
   await renderStudentClass(code, data, careerStudentId);
 
 });
@@ -1140,7 +1145,7 @@ route(/^#\/boardview\/(\d+)$/, async (id) => {
         <div class="small muted" style="font-weight:700">학생 참여 코드 — 칠판에 띄워 주세요</div>
         <div class="sb-code">${esc(String(b.code).toUpperCase())}</div>
       </div>
-      <div class="small muted" style="line-height:1.8">학생은 사이트 첫 화면의 <b>[학생 참여]</b> 탭에서<br>이 코드를 입력하면 됩니다. (계정 불필요)</div>
+      <div class="small muted" style="line-height:1.8">학생은 사이트 첫 화면의 <b>[학생 참여]</b> 탭에서<br>이 코드를 입력하면 됩니다. 학교 연결 수업은 학생 로그인이 필요합니다.</div>
     </div>` : ''}
     ${data.manageable ? rosterCardHtml(data.roster) : ''}
     ${data.manageable ? '<div class="card" id="submission-settings-card">차시별 제출 설정을 불러오는 중…</div>' : ''}
@@ -1251,7 +1256,7 @@ function rosterCardHtml(r) {
     return `<div class="card roster-card">
       <div class="rc-head">
         <div><h2 style="margin:0 0 2px">제출 현황</h2>
-          <div class="small muted">학생 명단을 넣으면 누가 냈고 안 냈는지 자동으로 대조해 줍니다. (계정 불필요)</div></div>
+          <div class="small muted">학생 명단을 넣으면 누가 냈고 안 냈는지 자동으로 대조해 줍니다.</div></div>
         ${editBtn}
       </div></div>`;
   }
