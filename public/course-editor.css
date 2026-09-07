@@ -125,3 +125,14 @@
   .ce-step-footer #ce-message{max-height:70px;overflow-y:auto}.ce-actions{gap:8px}.ce-actions .btn{flex:1 1 120px;justify-content:center;font-size:12px}
   .ce-bulk-row{grid-template-columns:1fr 1fr}.ce-bulk-row strong{grid-column:1/-1}
 }
+
+/* Curriculum associations describe one program; they do not duplicate its lessons. */
+.ce-classification{margin:24px 0;padding:22px 0;border-top:1px solid var(--line,#e9e4d9);border-bottom:1px solid var(--line,#e9e4d9)}
+.ce-classification h3{margin:0 0 8px}.ce-classification-links{display:grid;gap:12px;margin:18px 0 12px}
+.ce-classification-row{display:grid;grid-template-columns:24px minmax(100px,1fr) minmax(80px,.65fr) minmax(140px,1.5fr) auto;gap:12px;align-items:end}
+.ce-classification-number{align-self:center;color:var(--muted,#756f63);font-size:13px}.ce-classification-row label{min-width:0}
+.ce-classification-row input,.ce-classification-row select{width:100%;min-width:0}.ce-classification-row>button{margin-bottom:2px;white-space:nowrap}
+.ce-classification-extra{display:grid;grid-template-columns:2fr 1fr;gap:16px;margin-top:20px}.ce-classification-extra label{min-width:0}
+.ce-classification-empty{margin:0;color:var(--muted,#756f63);font-size:14px;line-height:1.7}
+.ce-curriculum-summary{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 20px}.ce-curriculum-summary>span{font-size:13px;padding:7px 10px;background:#eaf6f2;color:#0a6f61;border-radius:8px}.ce-curriculum-summary>p{flex-basis:100%;margin:4px 0}
+@media(max-width:760px){.ce-classification{padding:18px 0}.ce-classification-row{grid-template-columns:1fr 1fr;gap:10px;padding:12px 0;border-bottom:1px solid var(--line,#e9e4d9)}.ce-classification-number{display:none}.ce-classification-row label:nth-of-type(3){grid-column:1/-1}.ce-classification-row>button{grid-column:2;justify-self:end}.ce-classification-extra{grid-template-columns:1fr}.ce-classification-row input,.ce-classification-row select,.ce-classification-extra input,.ce-classification-extra select{font-size:16px}}

@@ -18,3 +18,19 @@ test('stale edit cannot overwrite current revision',async()=>{const a=app();awai
 test('unpublished program, unpublished draft and site kill switch restrict teacher reads',async()=>{const a=app();await a.request();assert.equal((await a.request('GET',null,'teacher')).result.plan,null);a.published=false;assert.equal((await a.request('GET',null,'teacher')).status,403);a.published=true;a.open=false;assert.equal((await a.request('GET',null,'teacher')).status,403);});
 test('publish requires valid activities and exposes only explicit published configuration',async()=>{const a=app(),p=plan();p.variants[0].sessions[0].title='';assert.equal((await a.request('PUT',{revision:null,plan:p,publish:true})).status,400);assert.equal(a.writes,0);assert.equal((await a.request('PUT',{revision:null,plan:plan(),publish:true})).status,200);assert.equal((await a.request('GET',null,'teacher')).result.plan.variants[0].name,'독립 2차시');});
 test('foreign file ownership is enforced by the real save handler',async()=>{const a=app(),p=plan();p.variants[0].sessions[0].assets.ppt={fileId:'999',url:''};assert.equal((await a.request('PUT',{revision:null,plan:p})).status,400);assert.equal(a.writes,0);});
+test('curriculum survives save, reload and revision update without cross-product links',async()=>{
+ const a=app(),p=plan();p.curriculum={links:[{school:'elementary',grade:2,subject:'국어'},{school:'elementary',grade:3,subject:'과학'}],topic:'관찰과 이야기',purpose:'teaching'};
+ const first=await a.request('PUT',{revision:null,plan:p,publish:true});assert.equal(first.status,200);
+ assert.deepEqual((await a.request('GET',null,'teacher')).result.plan.curriculum,p.curriculum);
+ const revision=first.result.revision;p.curriculum.links=[];
+ const cleared=await a.request('PUT',{revision,plan:p});assert.equal(cleared.status,200);
+ assert.deepEqual((await a.request('GET')).result.plan.curriculum.links,[]);
+ assert.equal((await a.request('PUT',{revision,plan:p})).status,409);
+ assert.equal(a.writes,2);
+});
+test('invalid curriculum and teacher curriculum edits never write',async()=>{
+ const a=app(),p=plan();p.curriculum={links:[{school:'middle',grade:4,subject:'국어'}]};
+ assert.equal((await a.request('PUT',{revision:null,plan:p})).status,400);
+ p.curriculum={links:[]};assert.equal((await a.request('PUT',{revision:null,plan:p},'teacher')).status,403);
+ assert.equal(a.writes,0);
+});

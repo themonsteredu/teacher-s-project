@@ -4,6 +4,7 @@ import vm from 'node:vm';
 import {randomUUID} from 'node:crypto';
 import {readFileSync} from 'node:fs';
 const source=readFileSync(new URL('../public/course-editor.js',import.meta.url),'utf8');
+const curriculum=readFileSync(new URL('../public/curriculum.js',import.meta.url),'utf8');
 const authoring=readFileSync(new URL('../public/course-authoring.js',import.meta.url),'utf8');
 
 // A small event fixture, not a browser/layout test. Parse rendered controls so
@@ -43,7 +44,7 @@ function ui({lessons=[{id:1,title:'원본 활동'}],initialPlan=null}={}){
   const program={id:71,title:'수업 제목',description:'소개',grade:'초5'};
   const node=selector=>{const found=root.querySelector(selector);assert.ok(found,`rendered control ${selector}`);return found;};
   const ctx={Map,Object,Array,String,Number,crypto:{randomUUID},window:{addEventListener(){}},location:{hash:'#/manage/71'},GRADES:['초5'],isAdmin:()=>true,esc:s=>String(s??'').replaceAll('&','&amp;').replaceAll('"','&quot;').replaceAll('<','&lt;'),route:(pattern,fn)=>routes.push({pattern,fn}),confirm:()=>true,toast:(...args)=>toasts.push(args),document:{getElementById:id=>root.querySelector('#'+id),querySelector:s=>s==='.course-editor'?root:root.querySelector(s),querySelectorAll:s=>root.querySelectorAll(s)},shell:(title,content)=>{html=content;root=element();root.innerHTML=content;},openModal:content=>{modal=element();modal.innerHTML=content;return modal;},api:async(method,path,body)=>{calls.push({method,path,body});if(path.endsWith('/course-plan')){if(method==='PUT'){if(fail)throw new Error('검증용 네트워크 오류');saved={revision:randomUUID(),plan:structuredClone(body.plan)};}return structuredClone(saved);}if(method==='PATCH')Object.assign(program,body);return{program:{...program},lessons,files:[],links:[]};}};
-  vm.createContext(ctx);vm.runInContext(authoring,ctx);vm.runInContext(source,ctx);
+  vm.createContext(ctx);vm.runInContext(curriculum,ctx);vm.runInContext(authoring,ctx);vm.runInContext(source,ctx);
   return{open:()=>routes[0].fn('71'),node,all:s=>root.querySelectorAll(s),get html(){return html;},get saved(){return saved;},get modal(){return modal;},calls,toasts,fail(value=true){fail=value;},click(s){const n=node(s);assert.equal(n.disabled,false,`${s} must be enabled`);assert.equal(typeof n.onclick,'function',`${s} click handler`);return n.onclick({target:n});},input(s,value){const n=node(s);n.value=value;assert.equal(typeof n.oninput,'function',`${s} input handler`);return n.oninput({target:n});},change(s,value){const n=node(s);if(typeof value==='boolean')n.checked=value;else n.value=value;assert.equal(typeof n.onchange,'function',`${s} change handler`);return n.onchange({target:n});}};
 }
 const lessons=[{id:1,title:'문제 발견'},{id:2,title:'증거 조사'},{id:3,title:'결과 발표'}];
@@ -108,4 +109,28 @@ test('the last submission type cannot be removed or hidden in an unsavable state
 
 test('publication missing required program title is blocked before API persistence',async()=>{
   const u=ui();await u.open();u.input('#ce-title','');u.click('[data-step="3"]');await u.click('#ce-publish');assert.match(u.node('#ce-message').textContent,/수업명을 입력/);assert.equal(u.saved.plan,null);assert.equal(u.calls.filter(c=>c.method==='PUT').length,0);
+});
+
+
+test('curriculum connections save explicit grade-subject pairs, topic and test purpose without duplicating lessons',async()=>{
+  const u=ui({lessons});await u.open();
+  assert.equal(u.node('[data-curriculum-link="0"][data-field="grade"]').value,'5');
+  u.change('[data-curriculum-link="0"][data-field="grade"]','2');u.input('[data-curriculum-link="0"][data-field="subject"]','국어');
+  u.click('#ce-add-link');u.change('[data-curriculum-link="1"][data-field="grade"]','3');u.input('[data-curriculum-link="1"][data-field="subject"]','과학');
+  u.input('#ce-topic','관찰한 내용을 글로 표현하기');u.change('#ce-purpose','test');
+  u.click('[data-step="1"]');u.click('[data-step="0"]');assert.equal(u.node('#ce-topic').value,'관찰한 내용을 글로 표현하기');
+  await u.click('#ce-quick-save');assert.deepEqual(u.saved.plan.curriculum,{links:[{school:'elementary',grade:2,subject:'국어'},{school:'elementary',grade:3,subject:'과학'}],topic:'관찰한 내용을 글로 표현하기',purpose:'test'});
+  assert.equal(u.saved.plan.variants.length,1);assert.equal(u.saved.plan.variants[0].sessions.length,3);
+  await u.open();assert.equal(u.node('[data-curriculum-link="1"][data-field="subject"]').value,'과학');
+  u.click('[data-step="3"]');assert.match(u.html,/테스트·검증용/);assert.match(u.html,/관찰한 내용을 글로 표현하기/);
+});
+
+test('removing every curriculum connection persists unclassified instead of restoring legacy grade',async()=>{
+  const u=ui();await u.open();u.click('[data-curriculum-remove="0"]');await u.click('#ce-quick-save');
+  assert.deepEqual(u.saved.plan.curriculum.links,[]);await u.open();assert.equal(u.all('[data-curriculum-link]').length,0);assert.match(u.html,/미분류/);
+});
+
+test('school change corrects out-of-range grade; duplicate connections normalize on save',async()=>{
+  const u=ui();await u.open();u.change('[data-curriculum-link="0"][data-field="school"]','middle');assert.equal(u.node('[data-curriculum-link="0"][data-field="grade"]').value,'1');u.input('[data-curriculum-link="0"][data-field="subject"]',' 국어 ');
+  u.click('#ce-add-link');u.input('[data-curriculum-link="1"][data-field="subject"]','국어');await u.click('#ce-quick-save');assert.equal(u.saved.plan.curriculum.links.length,1);assert.equal(u.saved.plan.curriculum.links[0].subject,'국어');
 });
