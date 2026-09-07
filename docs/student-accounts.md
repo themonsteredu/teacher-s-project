@@ -107,6 +107,37 @@ a connection error. No server start or HTTP request executes schema.sql.
 
 ## Remaining release gates — do not advertise verified common login yet
 
+### Operator-run SQL is supported
+
+The operator can keep the current Supabase connector account and run the required
+read-only checks in the authorized aiapp SQL Editor. Connector reauthentication is
+not a prerequisite when the operator supplies the actual query results. Merely
+reporting that the account-count SELECT ran does not establish the returned
+counts, runtime DB permissions, successful student login, or saved Career records.
+Do not rerun the account migration or issue broad grants to diagnose these gaps.
+
+For `feature/career-account-submissions-20260907`, configure the existing Hub
+Vercel project's Preview environment for this exact branch:
+
+| Variable | Required setting |
+| --- | --- |
+| `STUDENT_ACCOUNTS_ENABLED` | `1` |
+| `STUDENT_ACCOUNT_ISSUER` | `moakit-hub` |
+| `STUDENT_ACCOUNT_ORIGIN` | The exact HTTPS branch alias used to open the account UI |
+| `CAREER_ACCOUNTS_DATABASE_URL` | The already authorized aiapp server connection; never Hub's `DATABASE_URL` |
+| `CAREER_ACCOUNTS_DATABASE_PASSWORD` | Preserve the existing password override if one is in use; never print it |
+| `CAREER_LOG_INGEST_URL` | The authorized central `/functions/v1/career-log-ingest` endpoint |
+
+Changing these settings requires a new Preview deployment. Do not apply the
+feature flag to Production before the gates below pass. The CLI can be authorized
+independently of the ChatGPT connectors; use the existing Hub project and team,
+and inspect secret values only within the authenticated configuration operation.
+
+SQL cannot read or deploy an Edge Function's source bundle. If the connector
+cannot read `career-log-ingest`, obtain its currently deployed files from the
+operator's Supabase dashboard and compare them with the candidate before any
+deployment. Do not replace an unknown operating version with an older Git copy.
+
 - Real Preview teacher/student login, active membership, shared-device switch,
   two distinct activities, actual central record SELECT and same UUID verification.
 - Actual board/program/site closure requests and existing History UI regression.

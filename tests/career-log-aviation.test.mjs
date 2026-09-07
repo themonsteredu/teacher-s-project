@@ -40,13 +40,13 @@ test('drone origins and assigned links reject suffix spoofing and cross-program 
   }
 });
 
-test('Hub launch carries the existing student and board only to recognized apps', () => {
+test('Hub launch does not send account UUIDs or authenticated context to external aviation apps', () => {
   const app = readFileSync(new URL('../public/app.js', import.meta.url), 'utf8');
   const source = app.slice(app.indexOf('function careerMaterialUrl('), app.indexOf('\nfunction ', app.indexOf('function careerMaterialUrl(') + 1));
   const launch = runInNewContext(`(${source}\n)`, { URL, location: { origin: 'https://hub.moakit.ai' } });
   const linked = new URL(launch({ kind: 'aiapp', url: `${origin}/?view=flight` }, 'ab1234', fixtures[0].student_id));
-  assert.equal(linked.searchParams.get('hub_code'), 'ab1234');
-  assert.equal(linked.searchParams.get('student_id'), fixtures[0].student_id);
+  assert.equal(linked.searchParams.has('hub_code'), false);
+  assert.equal(linked.searchParams.has('student_id'), false);
   assert.equal(linked.searchParams.get('view'), 'flight');
   const unrelated = 'https://evil.example/?app=drone-six-smoky.vercel.app';
   assert.equal(launch({ kind: 'aiapp', url: unrelated }, 'ab1234', fixtures[0].student_id), unrelated);

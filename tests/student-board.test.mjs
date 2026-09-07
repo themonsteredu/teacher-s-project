@@ -181,3 +181,31 @@ test('Career record response identifies the current draft scope without exposing
  assert.notEqual(refreshed.studentSession.draftScope,result.studentSession.draftScope);
  assert.equal(refreshed.records[0].record.student_id,result.records[0].record.student_id);
 });
+
+test('same-origin activity context requires an existing bound board session and exposes no Career UUID',async()=>{
+ const f=fixture();f.enableCareer();f.shared.links=[{url:'/lessons/초2-인공지능/3차시-학생용-감각짝맞추기.html',lesson_id:1}];const token=f.account(),req=f.request();req.accountToken=token;
+ await assert.rejects(()=>f.api.activityContext(req,f.response(),'abcd12'),e=>e.status===401);
+ const joined=await f.join(token);joined.url='/api/join-board/abcd12/science-career?session_id=lesson-1';const context=await f.api.activityContext(joined,f.response(),'abcd12');
+ assert.deepEqual(context,{accountLinked:true,draftScope:joined.draftScope,sessionId:'lesson-1'});
+ assert.ok(!JSON.stringify(context).includes(f.accounts.get(token).careerStudentId));
+ f.cfg.career.enabled=false;f.setConfig();await assert.rejects(()=>f.api.activityContext(joined,f.response(),'abcd12'),e=>e.status===403);
+});
+test('activity writes reject missing/stale scope, switched accounts and cross-origin cookies',async()=>{
+ const f=fixture();f.enableCareer();f.shared.links=[{url:'/lessons/초2-인공지능/3차시-학생용-감각짝맞추기.html',lesson_id:1}];const a=await f.join(f.account());
+ for(const draftScope of [undefined,randomUUID()])await assert.rejects(()=>f.api.authorizeActivity(a,f.response(),'abcd12',{draftScope,session_id:'lesson-1'}),e=>e.status===409);
+ const who=await f.api.authorizeActivity(a,f.response(),'abcd12',{draftScope:a.draftScope,session_id:'lesson-1'});assert.equal(who.careerStudentId,f.accounts.get(a.accountToken).careerStudentId);
+ const old=a.draftScope;a.accountToken=f.account();await assert.rejects(()=>f.api.authorizeActivity(a,f.response(),'abcd12',{draftScope:old,session_id:'lesson-1'}),e=>e.status===401);
+ await f.refresh(a);await assert.rejects(()=>f.api.authorizeActivity(a,f.response(),'abcd12',{draftScope:old,session_id:'lesson-1'}),e=>e.status===409);
+ a.headers.origin='https://evil.test';await assert.rejects(()=>f.api.authorizeActivity(a,f.response(),'abcd12',{draftScope:a.draftScope,session_id:'lesson-1'}),e=>e.status===403);
+});
+test('Science follows the selected lesson material and recording gates, not merely the active lesson',async()=>{
+ const f=fixture();f.enableCareer();f.shared.links=[{url:'/lessons/초2-인공지능/3차시-학생용-감각짝맞추기.html',lesson_id:1}];
+ f.cfg.sessions.push({...copy(f.cfg.sessions[0]),id:'lesson-2',sourceLessons:['2']});f.cfg.activeSession='lesson-2';f.setConfig();
+ const req=await f.join(f.account()),body={draftScope:req.draftScope,session_id:'lesson-1'};
+ assert.equal((await f.api.authorizeActivity(req,f.response(),'abcd12',body)).activitySessionId,'lesson-1');
+ await assert.rejects(()=>f.api.authorizeActivity(req,f.response(),'abcd12',{...body,session_id:'lesson-2'}),e=>e.status===403);
+ await assert.rejects(()=>f.api.authorizeActivity(req,f.response(),'abcd12',{...body,session_id:'unknown'}),e=>e.status===400);
+ f.cfg.sessions[0].record.mode='none';f.setConfig();await assert.rejects(()=>f.api.authorizeActivity(req,f.response(),'abcd12',body),e=>e.status===403);
+ f.cfg.sessions[0].record.mode='submission';f.cfg.sessions[0].submissions.enabled=false;f.setConfig();await assert.rejects(()=>f.api.authorizeActivity(req,f.response(),'abcd12',body),e=>e.status===403);
+ f.cfg.sessions[0].submissions.enabled=true;f.cfg.sessions[0].submissions.types=['photo'];f.setConfig();await assert.rejects(()=>f.api.authorizeActivity(req,f.response(),'abcd12',body),e=>e.status===400);
+});

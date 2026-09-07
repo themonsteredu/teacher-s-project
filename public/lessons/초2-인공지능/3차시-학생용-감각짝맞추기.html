@@ -79,6 +79,8 @@
 <body>
   <div class="wrap">
     <button class="sound" id="soundBtn">🔊</button>
+    <p class="note hide" id="careerSessionStatus" role="status"></p>
+    <button class="go gold hide" id="careerContextRetryBtn">학생 연결 다시 확인</button>
 
     <section id="startView">
       <div class="mascot">👀</div>
@@ -131,6 +133,7 @@
       <h1 class="title">저장했어요!</h1>
       <p class="sub" id="savedMsg"></p>
       <p class="note hide" id="careerLogStatus" aria-live="polite"></p>
+      <button class="go gold hide" id="careerRetryBtn">진로기록 저장 다시 시도</button>
       <button class="go" id="downloadBtn">그림으로 다시 받기 🖼️</button>
       <button class="go gold" id="sHomeBtn" style="margin-top:12px;">🏠 처음으로</button>
     </section>
@@ -199,90 +202,146 @@ function roundRect(ctx,x,y,w,h,r){ ctx.beginPath(); ctx.moveTo(x+r,y); ctx.arcTo
   ctx.arcTo(x+w,y+h,x,y+h,r); ctx.arcTo(x,y+h,x,y,r); ctx.arcTo(x,y,x+w,y,r); ctx.closePath(); }
 let lastObs={name:'',plant:'',feat:''};
 const CAREER_PROGRAM_REF='science-observation-ai-03';
+const CAREER_UUID=/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 function careerLogContext(){
   const params=new URLSearchParams(location.search), boardCode=(params.get('hub_code')||'').trim().toLowerCase();
-  const studentId=(params.get('student_id')||'').trim().toLowerCase();
-  if(!/^[a-z0-9]{4,10}$/i.test(boardCode)||!/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(studentId)) return null;
-  return {boardCode,studentId};
+  const sessionId=params.get('hub_session')||'';
+  if(params.getAll('hub_code').length!==1||!/^[a-z0-9]{4,10}$/i.test(boardCode)||params.getAll('hub_session').length!==1||!/^[A-Za-z0-9_-]{1,100}$/.test(sessionId)) return null;
+  return {boardCode,sessionId};
 }
-const memoryPendingCareerEvents=new Map();
-const CAREER_PENDING_COOKIE_PREFIX='moakit_career_science_pending_';
-function careerEventToken(){
-  try{ if(crypto&&typeof crypto.randomUUID==='function') return crypto.randomUUID(); }catch(e){}
+const careerBoard=careerLogContext();
+let careerScope=null,careerState=careerBoard?'checking':'standalone',careerEpoch=0,careerSaving=false,careerLastAttempt=null;
+const careerRequests=new Set(),memoryPendingCareerEvents=new Map();
+function careerStatus(message,retry=false){
+  const node=document.getElementById('careerSessionStatus');
+  node.textContent=message;node.classList.toggle('hide',!message);
+  document.getElementById('careerContextRetryBtn').classList.toggle('hide',!retry);
+}
+function careerControls(){
+  const disabled=!!careerBoard&&(careerState!=='ready'||careerSaving);
+  for(const id of ['nameField','plantField','featField','saveBtn','downloadBtn','careerRetryBtn']) document.getElementById(id).disabled=disabled;
+}
+function careerClearPrivate(){
+  for(const id of ['nameField','plantField','featField'])document.getElementById(id).value='';
+  lastObs={name:'',plant:'',feat:''};careerLastAttempt=null;
+  document.getElementById('savedMsg').textContent='';
+  document.getElementById('careerLogStatus').textContent='';
+  document.getElementById('careerRetryBtn').classList.add('hide');
+  const canvas=document.getElementById('cardCanvas');canvas.width=canvas.width;
+  if(!V.saved.classList.contains('hide'))show(V.observe);
+}
+function careerLock(message){
+  careerEpoch++;careerState='locked';careerSaving=false;
+  for(const controller of careerRequests)controller.abort();
+  careerClearPrivate();careerControls();careerStatus(message);
+}
+async function careerRequest(method,body){
+  const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),15000);
+  careerRequests.add(controller);
   try{
-    if(crypto&&typeof crypto.getRandomValues==='function'){
-      const bytes=new Uint8Array(16); crypto.getRandomValues(bytes);
-      bytes[6]=(bytes[6]&15)|64; bytes[8]=(bytes[8]&63)|128;
-      const hex=Array.from(bytes,b=>b.toString(16).padStart(2,'0')).join('');
-      return hex.slice(0,8)+'-'+hex.slice(8,12)+'-'+hex.slice(12,16)+'-'+hex.slice(16,20)+'-'+hex.slice(20);
+    const response=await fetch('/api/join-board/'+careerBoard.boardCode+'/science-career?session_id='+encodeURIComponent(careerBoard.sessionId),{
+      method,credentials:'same-origin',cache:'no-store',signal:controller.signal,
+      headers:body?{'Content-Type':'application/json'}:{},body:body?JSON.stringify(body):undefined
+    });
+    const result=await response.json();
+    if(!response.ok)throw Object.assign(new Error(result.error||('HTTP '+response.status)),{status:response.status});
+    return result;
+  }finally{clearTimeout(timer);careerRequests.delete(controller);}
+}
+async function careerCheckContext(){
+  if(!careerBoard)return null;
+  if(careerState==='locked')throw new Error('수업허브에서 본인 계정으로 다시 입장한 뒤 활동을 새로 여세요.');
+  const epoch=careerEpoch;
+  try{
+    const context=await careerRequest('GET');
+    if(epoch!==careerEpoch||document.hidden)throw new Error('학생 세션을 다시 확인하세요.');
+    if(context.accountLinked!==true||context.sessionId!==careerBoard.sessionId||!CAREER_UUID.test(context.draftScope||''))throw Object.assign(new Error('학생 입장을 확인하지 못했습니다.'),{status:401});
+    if(careerScope!==null&&context.draftScope!==careerScope)throw Object.assign(new Error('학생이 바뀌었습니다. 수업허브에서 활동을 새로 여세요.'),{status:409});
+    careerScope=context.draftScope;careerState='ready';careerControls();careerStatus('학생 계정에 연결되었습니다. 관찰한 식물 이름과 특징을 모두 적어 주세요.');
+    return {boardCode:careerBoard.boardCode,sessionId:careerBoard.sessionId,draftScope:careerScope,epoch};
+  }catch(error){
+    if(epoch===careerEpoch){
+      if([401,403,409].includes(error.status))careerLock('학생 또는 수업 연결이 바뀌었습니다. 수업허브에서 본인 계정으로 다시 입장한 뒤 활동을 새로 여세요.');
+      else{careerState='checking';careerControls();careerStatus('학생 연결을 확인하지 못했습니다. 인터넷 연결을 확인한 뒤 다시 확인해 주세요.',true);}
     }
-  }catch(e){}
-  return Date.now().toString(36)+'-'+Math.random().toString(36).slice(2);
+    throw error;
+  }
+}
+function careerEventToken(){
+  if(typeof crypto?.randomUUID==='function')return crypto.randomUUID();
+  if(typeof crypto?.getRandomValues==='function'){
+    const bytes=new Uint8Array(16);crypto.getRandomValues(bytes);bytes[6]=(bytes[6]&15)|64;bytes[8]=(bytes[8]&63)|128;
+    const hex=Array.from(bytes,b=>b.toString(16).padStart(2,'0')).join('');
+    return hex.slice(0,8)+'-'+hex.slice(8,12)+'-'+hex.slice(12,16)+'-'+hex.slice(16,20)+'-'+hex.slice(20);
+  }
+  throw new Error('안전한 저장 번호를 만들 수 없습니다. 수업허브에서 다시 열어 주세요.');
 }
 function careerFingerprint(value){
   let first=0x811c9dc5,second=0x9e3779b9;
-  for(let i=0;i<value.length;i++){
-    const code=value.charCodeAt(i); first=Math.imul(first^code,0x01000193); second=Math.imul(second^code,0x85ebca6b);
-  }
+  for(let i=0;i<value.length;i++){const code=value.charCodeAt(i);first=Math.imul(first^code,0x01000193);second=Math.imul(second^code,0x85ebca6b);}
   return (first>>>0).toString(16).padStart(8,'0')+(second>>>0).toString(16).padStart(8,'0');
 }
-function careerPendingKey(boardCode,studentId,fingerprint){ return 'moakit-career-science-pending:'+boardCode+':'+studentId+':'+careerFingerprint(fingerprint); }
-function careerPendingCookie(key){ return CAREER_PENDING_COOKIE_PREFIX+careerFingerprint(key); }
-function careerStorage(kind){ try{ return window[kind]; }catch(e){ return null; } }
-function careerStorageRead(storage,key){ try{ return storage&&storage.getItem(key); }catch(e){ return null; } }
-function careerCookieRead(key){
-  try{
-    const name=careerPendingCookie(key),part=document.cookie.split('; ').find(value=>value.startsWith(name+'='));
-    return part?decodeURIComponent(part.slice(name.length+1)):null;
-  }catch(e){ return null; }
-}
+function careerPendingKey(boardCode,draftScope,sessionId,fingerprint){return 'moakit-career-science-pending:'+boardCode+':'+draftScope+':'+sessionId+':'+careerFingerprint(fingerprint);}
+function careerStorage(kind){try{return window[kind];}catch(e){return null;}}
 function careerReadPending(key){
-  const candidates=[memoryPendingCareerEvents.get(key),careerCookieRead(key),careerStorageRead(careerStorage('sessionStorage'),key),careerStorageRead(careerStorage('localStorage'),key)]
-    .map(value=>{ try{ return typeof value==='string'?JSON.parse(value):value; }catch(e){ return null; } })
-    .filter(value=>value&&value.key===key);
-  return candidates.sort((left,right)=>(right.createdAt||0)-(left.createdAt||0))[0]||null;
+  const candidates=[memoryPendingCareerEvents.get(key)];
+  for(const kind of ['sessionStorage','localStorage'])try{candidates.push(JSON.parse(careerStorage(kind)?.getItem(key)||'null'));}catch(e){}
+  return candidates.find(value=>value?.key===key&&CAREER_UUID.test(value.id?.split(':').at(-1)||''))||null;
 }
-function careerWritePending(key,value){
-  const entry={key,fingerprint:value.fingerprint,id:value.id,createdAt:Date.now()};
-  const raw=JSON.stringify(entry); memoryPendingCareerEvents.set(key,entry);
-  try{ careerStorage('localStorage')?.setItem(key,raw); }catch(e){}
-  try{ careerStorage('sessionStorage')?.setItem(key,raw); }catch(e){}
-  try{ document.cookie=careerPendingCookie(key)+'='+encodeURIComponent(raw)+'; Path=/; SameSite=Lax; Secure'; }catch(e){}
-}
-function careerClearPending(key,id){
-  const pending=careerReadPending(key); if(!pending||pending.id!==id) return;
-  memoryPendingCareerEvents.delete(key);
-  try{ careerStorage('localStorage')?.removeItem(key); }catch(e){}
-  try{ careerStorage('sessionStorage')?.removeItem(key); }catch(e){}
-  try{ document.cookie=careerPendingCookie(key)+'=; Path=/; SameSite=Lax; Secure; Max-Age=0'; }catch(e){}
-}
-function careerSourceEvent(boardCode,studentId,plant,feat){
-  const fingerprint=JSON.stringify([plant,feat]),key=careerPendingKey(boardCode,studentId,fingerprint);
-  const pending=careerReadPending(key);
-  if(pending&&pending.fingerprint===fingerprint) return {key,id:pending.id};
-  const next={fingerprint,id:CAREER_PROGRAM_REF+':'+boardCode+':'+careerEventToken()};
-  careerWritePending(key,next); return {key,id:next.id};
+function careerSourceEvent(boardCode,draftScope,sessionId,plant,feat){
+  const key=careerPendingKey(boardCode,draftScope,sessionId,JSON.stringify([plant,feat])),pending=careerReadPending(key);
+  if(pending)return pending;
+  const entry={key,id:CAREER_PROGRAM_REF+':'+boardCode+':'+careerEventToken()};
+  memoryPendingCareerEvents.set(key,entry);
+  // Store only the attempt identifier, never the name or observation text. Storage is optional.
+  for(const kind of ['sessionStorage','localStorage'])try{careerStorage(kind)?.setItem(key,JSON.stringify(entry));}catch(e){}
+  return entry;
 }
 async function saveCareerObservation(plant,feat){
-  const context=careerLogContext();
-  if(!context) return;
+  if(!careerBoard||careerSaving)return;
   const status=document.getElementById('careerLogStatus');
-  status.textContent='Career Log에 관찰 기록을 저장하는 중이에요…'; status.classList.remove('hide');
-  const sourceEvent=careerSourceEvent(context.boardCode,context.studentId,plant,feat);
+  const captured={draftScope:careerScope,epoch:careerEpoch};
+  if(careerState!=='ready'||!captured.draftScope)return;
+  careerSaving=true;careerControls();
+  status.textContent='Career Log에 관찰 기록을 저장하는 중이에요…';status.classList.remove('hide');
   try{
-    const response=await fetch('/api/career-log/ingest',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
-      board_code:context.boardCode, student_id:context.studentId, program_ref:CAREER_PROGRAM_REF,
-      process:plant+' 식물을 관찰하고 눈에 보이는 특징을 기록함',
-      artifact:'식물 관찰 카드 · '+plant+(feat?': '+feat:''), reflection:null,
-      source_event_id:sourceEvent.id,
-      raw_data:{lesson:3,activity:'plant-observation',observation:{plant_name:plant,features:feat||null}}
-    })});
-    const result=await response.json().catch(()=>({}));
-    if(!response.ok) throw new Error(result.error||('HTTP '+response.status));
+    if(!plant||!feat)throw new Error('관찰한 식물 이름과 특징을 모두 적어 주세요.');
+    const context=await careerCheckContext();
+    if(context.epoch!==captured.epoch||context.draftScope!==captured.draftScope)throw new Error('학생 세션이 바뀌었습니다.');
+    const sourceEvent=careerSourceEvent(context.boardCode,context.draftScope,context.sessionId,plant,feat);
+    // Capture exactly this observation. A retry never adopts the next student's session scope.
+    const snapshot={draftScope:context.draftScope,session_id:context.sessionId,program_ref:CAREER_PROGRAM_REF,
+      process:plant+' 식물을 관찰하고 눈에 보이는 특징을 기록함',artifact:'식물 관찰 카드 · '+plant+': '+feat,reflection:null,
+      source_event_id:sourceEvent.id,raw_data:{lesson:3,activity:'plant-observation',observation:{plant_name:plant,features:feat}}};
+    careerLastAttempt={plant,feat,draftScope:context.draftScope};
+    const result=await careerRequest('POST',snapshot);
+    if(result.ok!==true||!CAREER_UUID.test(result.record_id||'')||typeof result.duplicate!=='boolean'
+      ||result.source_event_id!==sourceEvent.id||result.draftScope!==context.draftScope)throw new Error('서버의 저장 확인을 받지 못했습니다.');
+    await careerCheckContext();
+    if(captured.epoch!==careerEpoch||captured.draftScope!==careerScope)return;
     status.textContent=result.duplicate?'이미 Career Log에 저장된 관찰 기록이에요.':'Career Log에도 관찰 기록을 저장했어요!';
-    careerClearPending(sourceEvent.key,sourceEvent.id);
-  }catch(error){ console.error('Career Log save failed',error); status.textContent='Career Log 저장에 실패했어요. 수업 코드를 확인하고 다시 시도해 주세요.'; }
+    document.getElementById('careerRetryBtn').classList.add('hide');
+    // Keep the identifier after acknowledgment so a repeated click or reload remains the same event.
+  }catch(error){
+    if(captured.epoch!==careerEpoch)return;
+    if([401,403,409].includes(error.status))careerLock('학생 또는 수업 연결이 바뀌었습니다. 수업허브에서 본인 계정으로 다시 입장해 주세요.');
+    else{status.textContent='Career Log 저장을 확인하지 못했어요. 같은 관찰 기록으로 다시 시도해 주세요.';document.getElementById('careerRetryBtn').classList.remove('hide');}
+  }finally{if(captured.epoch===careerEpoch){careerSaving=false;careerControls();}}
 }
+function careerSuspend(){
+  if(!careerBoard)return;
+  careerEpoch++;if(careerState!=='locked')careerState='checking';careerSaving=false;
+  for(const controller of careerRequests)controller.abort();
+  careerClearPrivate();careerControls();careerStatus('학생 세션을 다시 확인하고 있어요.');
+}
+function careerResume(){if(careerBoard&&!document.hidden&&careerState!=='locked')return careerCheckContext().catch(()=>{});}
+window.addEventListener('pagehide',careerSuspend);
+window.addEventListener('pageshow',event=>{if(event.persisted){careerSuspend();careerResume();}});
+window.addEventListener('focus',()=>{careerSuspend();careerResume();});
+document.addEventListener('visibilitychange',()=>{if(document.hidden)careerSuspend();else careerResume();});
+document.getElementById('careerContextRetryBtn').onclick=()=>careerResume();
+careerControls();
+if(careerBoard)careerResume();
 function drawCard(o){
   const cv=document.getElementById('cardCanvas'), ctx=cv.getContext('2d'), W=cv.width, H=cv.height;
   const g=ctx.createLinearGradient(0,0,0,H); g.addColorStop(0,'#149079'); g.addColorStop(1,'#0C5647');
@@ -308,9 +367,16 @@ async function saveObs(){
   const plant=document.getElementById('plantField').value.trim();
   const feat=document.getElementById('featField').value.trim();
   if(!plant){ say('찾은 식물 이름을 적어 주세요.'); document.getElementById('plantField').focus(); return; }
-  try{ localStorage.setItem('plantObs_'+Date.now(), JSON.stringify({name,plant,feat,date:new Date().toISOString()})); }catch(e){}
+  if(!feat){ say('눈에 보이는 특징을 적어 주세요.'); document.getElementById('featField').focus(); return; }
+  const epoch=careerEpoch;
+  if(careerBoard){
+    if(careerState!=='ready'||careerSaving)return;
+    try{await careerCheckContext();}catch(e){return;}
+    if(epoch!==careerEpoch)return;
+  }
   lastObs={name,plant,feat};
   try{ await document.fonts.ready; }catch(e){}
+  if(careerBoard&&(epoch!==careerEpoch||careerState!=='ready'))return;
   drawCard(lastObs); downloadCard();
   document.getElementById('savedMsg').textContent=(name?name+' 어린이가 ':'')+'‘'+plant+'’을(를) 관찰했어요!';
   show(V.saved); say('저장했어요! '+plant+'을 관찰했어요. 잘했어요!');
@@ -324,7 +390,13 @@ document.getElementById('matchBtn').onclick=()=>{ initAudio(); start(); };
 document.getElementById('observeBtn').onclick=()=>{ initAudio(); goObserve(); };
 document.getElementById('lensBtn').onclick=openLens;
 document.getElementById('saveBtn').onclick=saveObs;
-document.getElementById('downloadBtn').onclick=()=>{ drawCard(lastObs); downloadCard(); };
+document.getElementById('downloadBtn').onclick=async()=>{
+  const epoch=careerEpoch;
+  if(careerBoard){try{await careerCheckContext();}catch(e){return;}}
+  if(epoch!==careerEpoch||!lastObs.plant)return;
+  drawCard(lastObs);downloadCard();
+};
+document.getElementById('careerRetryBtn').onclick=()=>{const attempt=careerLastAttempt;if(attempt&&attempt.draftScope===careerScope)return saveCareerObservation(attempt.plant,attempt.feat);};
 document.getElementById('gHomeBtn').onclick=()=>show(V.start);
 document.getElementById('eHomeBtn').onclick=()=>show(V.start);
 document.getElementById('oHomeBtn').onclick=()=>show(V.start);

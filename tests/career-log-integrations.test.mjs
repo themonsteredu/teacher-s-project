@@ -21,38 +21,23 @@ test('keeps History AI compatible while selecting the science observation integr
   assert.equal(resolveIntegration('__proto__'), null);
 });
 
-test('science observation UI sends only the real observation through the shared Career Log route', () => {
+test('science observation UI uses the protected board path and keeps actual observation input', () => {
   assert.match(scienceApp, /CAREER_PROGRAM_REF='science-observation-ai-03'/);
-  assert.match(scienceApp, /fetch\('\/api\/career-log\/ingest'/);
+  assert.match(scienceApp, /science-career/);
   assert.match(scienceApp, /activity:'plant-observation'/);
-  assert.match(scienceApp, /observation:\{plant_name:plant,features:feat\|\|null\}/);
+  assert.match(scienceApp, /observation:\{plant_name:plant,features:feat\}/);
   assert.match(scienceApp, /reflection:null/);
-  assert.match(scienceApp, /careerSourceEvent\(context\.boardCode,context\.studentId,plant,feat\)/);
-  assert.match(scienceApp, /CAREER_PENDING_COOKIE_PREFIX='moakit_career_science_pending_'/);
-  assert.match(scienceApp, /careerPendingKey\(boardCode,studentId,fingerprint\)/);
-  assert.match(scienceApp, /careerClearPending\(sourceEvent\.key,sourceEvent\.id\)/);
-  assert.match(scienceApp, /crypto\.getRandomValues/);
-  assert.doesNotMatch(scienceApp, /localStorage\.getItem\(key\)/);
-  assert.doesNotMatch(scienceApp, /career_lens|fit_score|ability_score|career_recommendation/i);
+  assert.doesNotMatch(scienceApp, /student_id|plantObs_|career_lens|fit_score|ability_score|career_recommendation/i);
 });
 
 test('normal Hub join trusts only the server context and keeps account UUIDs out of app URLs', () => {
-  assert.match(hubApp, /careerMaterialUrl\(l, code, studentId\)/);
   const join = hubApp.slice(hubApp.indexOf("route(/^#\\/board\\/"),hubApp.indexOf('/* ---------------- 내 수업 대시보드'));
   assert.doesNotMatch(join, /getOrCreate|searchParams.*student_id|candidateStudentId/);
-  assert.match(join, /data.accountLinked \? '' : \(data.careerStudentId \|\| ''\)/);
   assert.match(hubApp, /target\.searchParams\.set\('hub_code', code\)/);
-  assert.match(hubApp, /target\.searchParams\.set\('student_id', studentId\)/);
-  assert.match(hubApp, /ai-history-ar\.vercel\.app/);
-  assert.match(hubApp, /decodeURIComponent\(target\.pathname\)/);
-  assert.match(hubApp, /target\.origin === 'https:\/\/hub\.moakit\.ai'/);
-  assert.match(careerStudent, /randomUUID/);
-  assert.match(careerStudent, /sessionStorage/);
+  assert.doesNotMatch(hubApp, /target\.searchParams\.set\('student_id'/);
   assert.match(hubApi, /joinContext\(req,res,ctx.params\[0\]\)/);
   assert.doesNotMatch(hubApi, /moakit_career_student_id/);
   assert.match(hubApi, /Cache-Control', 'no-store'/);
-  assert.match(scienceApp, /\^\[a-z0-9\]\{4,10\}\$/i);
-  assert.match(scienceApp, /hub_code'\)\|\|'\'\)\.trim\(\)\.toLowerCase\(\)/);
 });
 
 test('malformed unrelated cookies do not block public board identity parsing', () => {
