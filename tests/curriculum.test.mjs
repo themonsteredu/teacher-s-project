@@ -29,6 +29,9 @@ test('legacy grades are retained only when explicit curriculum is absent; catego
   for (const grade of ['', '중4', '초7', '초2,초3', '초등 2학년']) assert.deepEqual(C.forProgram({ grade }).links, []);
   assert.deepEqual(C.forProgram({ grade: '초2', curriculum: { links: [] } }).links, []);
   assert.deepEqual(C.forProgram({ grade: '초2', curriculum: null }).links, []);
+  assert.doesNotMatch(C.searchText({ grade: '초5', curriculum: { links } }), /초5/);
+  assert.match(C.searchText({ grade: '초5', curriculum: { links } }), /초2/);
+  assert.doesNotMatch(C.searchText({ grade: '초5', curriculum: { links: [] } }), /초5/);
 });
 
 test('unclassified, test and unspecified-subject filters are distinct', () => {

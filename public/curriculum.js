@@ -58,7 +58,7 @@
   }
   function searchText(program) {
     const c = forProgram(program);
-    return [program?.title, program?.category, program?.grade, program?.description, c.topic,
+    return [program?.title, program?.category, owns(program || {}, 'curriculum') ? '' : program?.grade, program?.description, c.topic,
       ...c.links.map(link => `${linkLabel(link)} ${{ elementary: '초', middle: '중', high: '고' }[link.school]}${link.grade}`),
       c.purpose === 'test' ? '테스트 검증용' : '수업용'].filter(Boolean).join(' ').toLocaleLowerCase('ko');
   }

@@ -6,11 +6,11 @@ import { createRequire } from 'node:module';
 const require = createRequire(import.meta.url);
 const source = readFileSync(new URL('../lib/api.js', import.meta.url), 'utf8');
 
-async function request(role = 'admin', { settings, path = '/api/programs', siteOpen = true, programs = [
+async function request(role = 'admin', { settings, path = '/api/programs', siteOpen = true, projectionError, programs = [
   { id: 1, title: '실제 수업', published: true, lesson_count: 10 },
   { id: 2, title: '준비 중인 수업', published: false, lesson_count: 1 },
 ] } = {}) {
-  const queries = [], module = { exports: {} };
+  const queries = [], projectedRows = [], module = { exports: {} };
   const saved = settings || [
     { key: 'course_plan:1', value: JSON.stringify({ published: false, plan: { variants: [10, 5, 3].map(n => ({ name: `${n}차시 구성`, sessions: Array.from({ length: n }, () => ({ reflection: 'PRIVATE', assets: {} })) })) } }) },
     { key: 'course_plan:2', value: JSON.stringify({ published: true, plan: { variants: [{ name: '단독', sessions: [{}] }] } }) },
@@ -30,6 +30,19 @@ async function request(role = 'admin', { settings, path = '/api/programs', siteO
         queries.push({ sql, params });
         if (sql.includes('FROM programs p')) return sql.includes('WHERE p.published = true') ? programs.filter(p => p.published) : programs;
         if (sql === 'SELECT key,value FROM settings WHERE key = ANY($1::text[])') return saved.filter(s => params[0].includes(s.key));
+        if (sql.includes("jsonb_build_object('published', true")) {
+          if (projectionError) throw Object.assign(new Error('Projection failed'), { code: projectionError });
+          const result = [];
+          for (const row of saved.filter(s => params[0].includes(s.key))) {
+            let data;
+            try { data = JSON.parse(row.value); }
+            catch { throw Object.assign(new Error('Invalid JSON'), { code: '22P02' }); }
+            if (data?.published !== true || !data.plan || typeof data.plan !== 'object' || Array.isArray(data.plan) || !Object.hasOwn(data.plan, 'curriculum')) continue;
+            result.push({ key: row.key, value: JSON.stringify({ published: true, plan: { curriculum: data.plan.curriculum } }) });
+          }
+          projectedRows.push(...result);
+          return result;
+        }
         if (/FROM (program_links|program_files|lessons|boards b) WHERE/.test(sql)) return [];
         throw new Error(`Unexpected database access: ${sql}`);
       },
@@ -38,7 +51,7 @@ async function request(role = 'admin', { settings, path = '/api/programs', siteO
   vm.runInNewContext(source, { module, exports: module.exports, require: id => { if (id in deps) return deps[id]; throw new Error(id); }, process: { env: {} }, console });
   let status, body;
   await module.exports.handleApi({ method: 'GET', headers: {} }, { writeHead: s => { status = s; }, end: text => { body = JSON.parse(text); } }, path, null);
-  return { status, body, queries };
+  return { status, body, queries, projectedRows };
 }
 
 test('admin list summarizes actual configurations in one bounded read without exposing their contents', async () => {
@@ -60,6 +73,11 @@ test('teacher list preserves publication scope and never returns draft summaries
   assert.deepEqual(Array.from(r.queries[1].params[0]), ['course_plan:1']);
   assert.equal('courseSummary' in r.body.programs[0], false);
   assert.match(r.queries[0].sql, /WHERE p.published = true/);
+  assert.match(r.queries[1].sql, /jsonb_build_object\('curriculum', metadata #> '\{plan,curriculum\}'\)/);
+  assert.match(r.queries[1].sql, /metadata->'published' = 'true'::jsonb/);
+  assert.match(r.queries[1].sql, /CASE WHEN key = ANY\(\$1::text\[\]\) THEN value::jsonb END/);
+  assert.doesNotMatch(r.queries[1].sql, /SELECT key,\s*value FROM settings/);
+  assert.deepEqual(r.projectedRows, []);
 });
 
 test('classification is returned only from permitted saved plans, never from a teacher-invisible draft', async () => {
@@ -152,4 +170,62 @@ test('detail legacy omission and explicit empty classification match list behavi
   const curriculum = { links: [], topic: '', purpose: 'teaching' };
   const cleared = await request('teacher', { programs, path, settings: [{ key: 'course_plan:1', value: JSON.stringify({ published: true, plan: { curriculum } }) }] });
   assert.deepEqual(cleared.body.program.curriculum, curriculum);
+});
+
+test('teacher database projection omits lesson bodies and draft classification before returning rows', async () => {
+  const curriculum = { links: [{ school: 'elementary', grade: 2, subject: '국어' }], topic: '이야기', purpose: 'teaching' };
+  const programs = [1, 2].map(id => ({ id, published: true }));
+  const settings = [true, false].map((published, i) => ({ key: `course_plan:${i + 1}`, value: JSON.stringify({ published, plan: {
+    curriculum, variants: [{ name: 'PRIVATE COURSE', sessions: [{ content: 'LARGE PRIVATE BODY'.repeat(10000) }] }],
+  } }) }));
+  const r = await request('teacher', { programs, settings });
+  assert.equal(r.status, 200);
+  assert.equal(r.projectedRows.length, 1);
+  assert.ok(JSON.stringify(r.projectedRows).length < 500);
+  assert.doesNotMatch(JSON.stringify(r.projectedRows), /variants|sessions|PRIVATE/);
+  assert.deepEqual(r.body.programs[0].curriculum, curriculum);
+  assert.equal(Object.hasOwn(r.body.programs[1], 'curriculum'), false);
+});
+
+test('malformed JSON is isolated with the same compact query for exact visible keys only', async () => {
+  const curriculum = { links: [], topic: '정상 분류', purpose: 'teaching' };
+  const programs = [1, 2, 3, 4].map(id => ({ id, published: id !== 4, grade: '초2' }));
+  const settings = [
+    { key: 'course_plan:1', value: '{' },
+    { key: 'course_plan:2', value: JSON.stringify({ published: true, plan: { curriculum } }) },
+    { key: 'course_plan:3', value: JSON.stringify({ published: false, plan: { curriculum } }) },
+    { key: 'course_plan:4', value: '{' },
+    { key: 'site_title', value: 'Not JSON' },
+  ];
+  const r = await request('teacher', { programs, settings });
+  assert.equal(r.status, 200);
+  const reads = r.queries.slice(1);
+  assert.equal(reads.length, 4);
+  assert.deepEqual(reads.map(q => Array.from(q.params[0])), [['course_plan:1', 'course_plan:2', 'course_plan:3'], ['course_plan:1'], ['course_plan:2'], ['course_plan:3']]);
+  assert.ok(reads.every(q => q.sql === reads[0].sql));
+  assert.doesNotMatch(reads[0].sql, /SELECT key,\s*value FROM settings/);
+  assert.equal(Object.hasOwn(r.body.programs[0], 'curriculum'), false);
+  assert.deepEqual(r.body.programs[1].curriculum, curriculum);
+  assert.equal(Object.hasOwn(r.body.programs[2], 'curriculum'), false);
+});
+
+test('teacher projection preserves missing, null and empty curriculum distinctions', async () => {
+  const programs = [1, 2, 3].map(id => ({ id, grade: '초2', published: true }));
+  const plans = [{}, { curriculum: null }, { curriculum: { links: [] } }];
+  const settings = plans.map((plan, i) => ({ key: `course_plan:${i + 1}`, value: JSON.stringify({ published: true, plan }) }));
+  const r = await request('teacher', { programs, settings });
+  assert.equal(Object.hasOwn(r.body.programs[0], 'curriculum'), false);
+  assert.equal(r.projectedRows.length, 2);
+  assert.equal(JSON.parse(r.projectedRows[0].value).plan.curriculum, null);
+  for (const p of r.body.programs.slice(1)) assert.deepEqual(p.curriculum, { links: [], topic: '', purpose: 'teaching' });
+  const C = require('../public/curriculum');
+  assert.equal(C.forProgram(r.body.programs[0]).links[0].grade, 2);
+  assert.deepEqual(C.forProgram(r.body.programs[1]).links, []);
+});
+
+test('unrelated database failures do not trigger a per-key or full-plan fallback', async () => {
+  await assert.rejects(() => request('teacher', { projectionError: '08006' }), e => e.code === '08006');
+  const empty = await request('teacher', { programs: [] });
+  assert.equal(empty.queries.length, 1);
+  assert.deepEqual(empty.projectedRows, []);
 });
