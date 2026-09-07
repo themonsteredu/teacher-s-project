@@ -15,3 +15,9 @@ test('does not accept injected ingest controls or evaluation fields',()=>{const 
 test('invalid counts, durations and malformed sessions fail closed',()=>{for(const p of [{version:1,variants:[]},{version:1,variants:[null]}])assert.throws(()=>normalize(p,context),e=>e.status===400);const p=plan();p.variants[0].sessions[0].minutes=0;assert.throws(()=>normalize(p,context),/시간/);p.variants[0].sessions=[null];assert.throws(()=>normalize(p,context),e=>e.status===400);});
 test('existing plans gain private submission defaults and persist teacher-approved sharing settings',()=>{const p=plan();const s=normalize(p,context).variants[0].sessions[0];assert.equal(s.submissions.sharing,'teacher');p.variants[0].sessions[0].submissions={enabled:false,types:['photo'],sharing:'class'};assert.deepEqual(normalize(p,context).variants[0].sessions[0].submissions,{enabled:false,types:['photo'],sharing:'class'});});
 test('empty types and invented auto-Career submission modes are rejected',()=>{const p=plan();for(const sub of [{enabled:true,types:[],sharing:'teacher'},{enabled:true,types:['auto-career'],sharing:'class'},{enabled:true,types:['photo'],sharing:'public'}]){p.variants[0].sessions[0].submissions=sub;assert.throws(()=>normalize(p,context),e=>e.status===400);}});
+test('optional curriculum preserves old plan shape and explicit removal of legacy grade mapping',()=>{
+ const old=normalize(plan(),context);assert.equal(Object.hasOwn(old,'curriculum'),false);
+ const p=plan();p.curriculum={links:[],topic:'',purpose:'teaching'};
+ assert.deepEqual(normalize(p,context).curriculum,p.curriculum);
+ p.curriculum=null;assert.throws(()=>normalize(p,context),e=>e.status===400);
+});

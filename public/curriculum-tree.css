@@ -1,0 +1,45 @@
+/* Shared school → grade → subject navigator for the catalog and program manager. */
+.ct-layout { display: grid; grid-template-columns: 232px minmax(0, 1fr); align-items: start; gap: 24px; margin-top: 20px; }
+.ct-layout > *, .ct-results { min-width: 0; }
+.ct-panel { padding: 16px 10px; border: 1px solid var(--line); border-radius: 14px; background: #fffdf8; }
+.ct-tree h2 { margin: 0 10px 5px; font-size: 14px; color: var(--text); }
+.ct-hint { margin: 0 10px 14px; font-size: 10px; color: var(--text-2); line-height: 1.8; word-break: keep-all; }
+.ct-filter, .ct-tree summary { display: flex; align-items: center; gap: 7px; width: 100%; min-width: 0; min-height: 42px; padding: 9px 10px; border: 0; border-radius: 8px; background: transparent; color: var(--text-2); font: inherit; font-size: 12px; text-align: left; cursor: pointer; }
+.ct-filter > span:first-child, .ct-tree summary > span:first-child { flex: 1; min-width: 0; overflow-wrap: anywhere; word-break: keep-all; }
+.ct-filter:hover, .ct-tree summary:hover { background: #f1eee7; }
+.ct-filter[aria-pressed="true"] { color: #0a6f61; background: #e6f4f1; font-weight: 700; }
+.ct-filter:focus-visible, .ct-tree summary:focus-visible, .ct-mobile-toggle:focus-visible { outline: 3px solid #0a6f61; outline-offset: 2px; }
+.ct-count { flex-shrink: 0; min-width: 18px; text-align: right; font-size: 11px; font-variant-numeric: tabular-nums; color: var(--text-2); }
+.ct-tree summary { list-style: none; }
+.ct-tree summary::-webkit-details-marker { display: none; }
+.ct-tree summary::before { content: '›'; width: 10px; flex-shrink: 0; color: var(--text-2); font-size: 17px; line-height: 1; transition: transform .15s; }
+.ct-tree details[open] > summary::before { transform: rotate(90deg); }
+.ct-school > summary { font-weight: 700; }
+.ct-branch { margin-left: 12px; padding-left: 5px; border-left: 1px solid var(--line); }
+.ct-other { margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--line); }
+.ct-empty { margin: 4px 10px 10px; font-size: 11px; color: var(--text-2); line-height: 1.8; }
+.ct-mobile-toggle { display: none; }
+.ct-result-label { margin: 0 0 12px; font-size: 12px; color: var(--text-2); line-height: 1.8; }
+.ct-results .deck-cards { grid-template-columns: repeat(auto-fill, minmax(min(250px, 100%), 1fr)); }
+.ct-card-labels { display: flex; flex-wrap: wrap; gap: 5px; margin: 0 0 10px; color: #0a6f61; font-size: 11px; line-height: 1.8; }
+.ct-card-labels span { min-width: 0; padding: 2px 6px; border-radius: 4px; background: #eef5f2; overflow-wrap: anywhere; word-break: keep-all; }
+.ct-test { display: inline-block; margin: 6px 0; padding: 3px 7px; border-radius: 5px; background: #f1efe9; color: #6f695b; font-size: 11px; line-height: 1.8; }
+.ct-layout .pm-item { column-gap: 16px; }
+.ct-layout .pm-list { padding: 0 18px; }
+@media (max-width: 1200px) and (min-width: 901px) {
+  .ct-layout { grid-template-columns: 200px minmax(0, 1fr); gap: 18px; }
+  .ct-layout .pm-item { grid-template-columns: minmax(0, 1fr); gap: 12px; }
+  .ct-layout .pm-actions { justify-content: space-between; }
+}
+@media (max-width: 900px) {
+  .ct-layout { grid-template-columns: minmax(0, 1fr); gap: 16px; margin-top: 16px; }
+  .ct-panel { padding: 0; }
+  .ct-mobile-toggle { display: flex; align-items: center; gap: 9px; width: 100%; min-height: 48px; padding: 12px; border: 0; border-radius: 14px; background: #fffdf8; color: #0a6f61; text-align: left; font: inherit; font-size: 12px; cursor: pointer; }
+  .ct-mobile-toggle > span { flex: 1; min-width: 0; overflow-wrap: anywhere; word-break: keep-all; }
+  .ct-mobile-toggle svg { width: 18px; height: 18px; flex-shrink: 0; }
+  .ct-tree { padding: 12px 10px; border-top: 1px solid var(--line); }
+  .ct-panel.is-collapsed .ct-tree { display: none; }
+  .ct-panel:not(.is-collapsed) .ct-mobile-toggle > svg:last-child { transform: rotate(180deg); }
+  .ct-hint { font-size: 11px; }
+  .ct-filter, .ct-tree summary { min-height: 44px; font-size: 13px; }
+}

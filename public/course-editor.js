@@ -16,7 +16,9 @@ function courseProblems(plan) {
 }
 function coursePreviewHtml(plan, files, index=0) {
   const v=plan.variants[index];
-  return `<div class="ce-preview"><p class="ce-kicker">수업 구성 미리보기</p><h2>${esc(v.name)} · ${v.sessions.length}차시</h2><p class="muted">총 ${v.sessions.reduce((sum,s)=>sum+s.minutes,0)}분 · 자료 연결 확인용</p>${v.sessions.map((s,i)=>`<section><h3>${i+1}차시 · ${esc(s.title||'활동 제목 미입력')}</h3><p>${esc(s.bridge)}</p><div class="ce-preview-assets">${Object.entries(COURSE_SLOTS).map(([k,name])=>{
+  const curriculum=plan.curriculum;
+  const classification=curriculum?`<div class="ce-curriculum-summary">${curriculum.links.map(l=>`<span>${esc(Curriculum.linkLabel(l))}</span>`).join('')||'<span>미분류</span>'}${curriculum.topic?`<p>학습 주제: ${esc(curriculum.topic)}</p>`:''}${curriculum.purpose==='test'?'<strong>테스트·검증용</strong>':''}</div>`:'';
+  return `<div class="ce-preview">${classification}<p class="ce-kicker">수업 구성 미리보기</p><h2>${esc(v.name)} · ${v.sessions.length}차시</h2><p class="muted">총 ${v.sessions.reduce((sum,s)=>sum+s.minutes,0)}분 · 자료 연결 확인용</p>${v.sessions.map((s,i)=>`<section><h3>${i+1}차시 · ${esc(s.title||'활동 제목 미입력')}</h3><p>${esc(s.bridge)}</p><div class="ce-preview-assets">${Object.entries(COURSE_SLOTS).map(([k,name])=>{
     const a=s.assets[k];const f=files.find(f=>String(f.id)===String(a.fileId));
     if(a.fileId) return `<span>${name}: ${esc(f?.name||'삭제된 파일 — 다시 연결 필요')}</span>`;
     return `<span>${name}: ${a.url?'주소 연결됨':'미등록'}</span>`;
@@ -31,11 +33,22 @@ route(/^#\/manage\/(\d+)$/, async id => {
     const plan=saved.plan||{version:1,appUrl:'',variants:[{id:crypto.randomUUID(),name:'전체 과정',sessions:(data.lessons.length?data.lessons:[null]).map(l=>({...blankCourseSession(),title:l?.title||'',sourceLessons:l?[String(l.id)]:[]}))}]};
     draft={plan,info:p,revision:saved.revision,dirty:false,selected:0,lesson:0,step:0,alternative:1};courseDrafts.set(id,draft);
   }
+  draft.plan.curriculum ||= Curriculum.forProgram(p);
   draft.plan.variants.forEach(v=>v.sessions.forEach(s=>{s.submissions ||= {enabled:true,types:['photo','document','text'],sharing:'teacher'};}));
   let busy=false;
   const changed=()=>{draft.dirty=true;const label=document.getElementById('ce-status');if(label)label.textContent='저장하지 않은 변경사항';};
   const field=(label,value,attrs='')=>`<label>${label}<input value="${esc(value)}" ${attrs}></label>`;
   const sessionSummary = s => `${s.minutes}분 · 자료 ${Object.values(s.assets).filter(a=>a.url||a.fileId).length}개 · ${s.record.mode==='submission'?'진로기록 설계':s.submissions.enabled?'학생 제출':'자료 활용'}`;
+  function rootFocusLink(index,field){document.querySelector(`[data-curriculum-link="${index}"][data-field="${field}"]`)?.focus();}
+  function curriculumEditor(c){
+    return `<section class="ce-classification" aria-label="교육과정 연계"><h3>어떤 학년·교과에서 활용하나요?</h3><p class="muted">학교급 → 학년 → 교과 순으로 연결하세요. 같은 수업을 여러 곳에 연결해도 자료는 한 번만 등록합니다.</p>
+    <div class="ce-classification-links">${c.links.map((link,i)=>{
+      const school=Curriculum.SCHOOLS.find(s=>s.id===link.school);
+      return `<div class="ce-classification-row"><span class="ce-classification-number">${i+1}</span><label>학교급<select data-curriculum-link="${i}" data-field="school">${Curriculum.SCHOOLS.map(s=>`<option value="${s.id}" ${s.id===link.school?'selected':''}>${s.label}</option>`).join('')}</select></label><label>학년<select data-curriculum-link="${i}" data-field="grade">${school.grades.map(g=>`<option value="${g}" ${g===link.grade?'selected':''}>${g}학년</option>`).join('')}</select></label><label>연계 교과<input data-curriculum-link="${i}" data-field="subject" value="${esc(link.subject)}" list="ce-subjects-${i}" maxlength="40" placeholder="예: 국어"><datalist id="ce-subjects-${i}">${school.subjects.map(s=>`<option value="${esc(s)}"></option>`).join('')}</datalist></label><button type="button" class="btn btn-ghost btn-sm" data-curriculum-remove="${i}" aria-label="${i+1}번 학년·교과 연결 삭제">연결 삭제</button></div>`;
+    }).join('')||'<p class="ce-classification-empty">아직 연결한 학년·교과가 없습니다. 나중에 지정해도 ‘미분류’에서 찾을 수 있어요.</p>'}</div><button type="button" class="btn btn-soft btn-sm" id="ce-add-link">＋ 학년·교과 연결</button>
+    <p class="ce-note">예: 초등학교 2학년 국어와 초등학교 3학년 과학을 각각 연결합니다. 교과명은 직접 입력할 수 있으며, 교육과정 연계 내용은 등록자가 확인합니다.</p>
+    <div class="ce-classification-extra">${field('학습 주제 (선택)',c.topic,'id="ce-topic" maxlength="120" placeholder="예: 관찰한 내용을 글로 표현하기"')}<label>자료 용도<select id="ce-purpose"><option value="teaching" ${c.purpose==='teaching'?'selected':''}>수업용</option><option value="test" ${c.purpose==='test'?'selected':''}>테스트·검증용</option></select></label></div></section>`;
+  }
   function lessonEditor(v) {
     const i=draft.lesson,s=v.sessions[i];
     return `<div class="ce-lesson-layout"><aside class="ce-lesson-rail" aria-label="차시 목록"><div class="ce-panel-heading"><h3>차시 목록 <span>${v.sessions.length}</span></h3></div><div class="ce-lesson-list">${v.sessions.map((x,j)=>`<button type="button" data-lesson="${j}" aria-pressed="${i===j}"><span class="ce-lesson-number">${j+1}</span><span><strong data-lesson-title="${j}">${esc(x.title||'새 차시')}</strong><small data-lesson-summary="${j}">${esc(sessionSummary(x))}</small></span></button>`).join('')}</div><button type="button" class="btn btn-soft btn-sm" id="ce-add-session">＋ 차시 추가</button></aside>
@@ -55,7 +68,7 @@ route(/^#\/manage\/(\d+)$/, async id => {
     shell('수업 등록',`<div class="course-editor"><div class="ce-main">
     <header class="ce-head"><div><h1>커리큘럼 등록</h1><p>차시별 자료와 활동을 한 번 준비하고, 수업 시간에 맞게 구성하세요.</p></div><span class="ce-status" id="ce-status" role="status">${draft.dirty?'저장하지 않은 변경사항':'구성 편집'}</span></header>
     <nav class="ce-steps" aria-label="등록 순서">${['기본정보','원본 차시','수업 구성','미리보기·공개'].map((t,i)=>`<button type="button" data-step="${i}" aria-current="${draft.step===i?'step':'false'}"><b>${i+1}</b><span>${t}</span></button>`).join('')}</nav>
-    <section class="ce-section" id="ce-step-0" ${draft.step===0?'':'hidden'}><p class="ce-kicker">01 · 프로그램 소개</p><h2>어떤 수업인가요?</h2><div class="ce-basic">${field('수업명',p.title,'id="ce-title" maxlength="200" placeholder="예: AI로 발견하는 우리 주변 생태계"')}<label>대상 학년<select id="ce-grade"><option value="">미지정</option>${GRADES.map(g=>`<option ${g===p.grade?'selected':''}>${g}</option>`).join('')}</select></label></div><label>수업 소개<textarea id="ce-description" rows="3">${esc(p.description)}</textarea></label><div class="ce-common-app">${field('공통 웹앱 주소 (선택)',plan.appUrl,'id="ce-app" type="url" placeholder="https://…"')}<p class="muted">웹앱 하나에 여러 차시가 있어도 주소는 한 번만 입력하세요. 차시마다 다른 주소도 연결할 수 있습니다.</p><button type="button" class="btn btn-soft btn-sm" id="ce-common-app">비어 있는 차시에 공통 웹앱 연결</button></div></section>
+    <section class="ce-section" id="ce-step-0" ${draft.step===0?'':'hidden'}><p class="ce-kicker">01 · 프로그램 소개</p><h2>어떤 수업인가요?</h2>${field('수업명',p.title,'id="ce-title" maxlength="200" placeholder="예: AI로 발견하는 우리 주변 생태계"')}${curriculumEditor(plan.curriculum)}<label>수업 소개<textarea id="ce-description" rows="3">${esc(p.description)}</textarea></label><div class="ce-common-app">${field('공통 웹앱 주소 (선택)',plan.appUrl,'id="ce-app" type="url" placeholder="https://…"')}<p class="muted">웹앱 하나에 여러 차시가 있어도 주소는 한 번만 입력하세요. 차시마다 다른 주소도 연결할 수 있습니다.</p><button type="button" class="btn btn-soft btn-sm" id="ce-common-app">비어 있는 차시에 공통 웹앱 연결</button></div></section>
     <section class="ce-stage-heading" id="ce-step-1" ${draft.step===1?'':'hidden'}><p class="ce-kicker">02 · 원본 차시 만들기</p><h2>전체 과정의 자료와 활동을 준비하세요.</h2><p class="muted">먼저 차시 제목을 등록하고, 각 차시에서 자료·학생 제출·진로기록 계획을 함께 설정합니다. 기존 프로그램은 첫 번째 구성을 원본으로 사용합니다.</p></section>
     <section class="ce-stage-heading" id="ce-step-2" ${draft.step===2?'':'hidden'}><p class="ce-kicker">03 · 수업 구성 만들기</p><h2>필요한 차시를 골라 수업에 맞추세요.</h2><p class="muted">1차시 단독 수업부터 3·5·10차시까지 자유롭게 만듭니다. 복사한 자료와 안내를 수정해도 원본 구성은 유지됩니다.</p><div class="ce-variants" aria-label="운영 구성">${plan.variants.slice(1).map((x,j)=>`<button type="button" data-variant="${j+1}" aria-pressed="${draft.selected===j+1}"><strong data-variant-name="${j+1}">${esc(x.name)}</strong><small>${x.sessions.length}차시</small></button>`).join('')}<button type="button" id="ce-add-variant">＋ 구성 추가</button></div>${plan.variants.length===1?'<div class="ce-empty"><h3>원본 과정만으로도 수업할 수 있어요.</h3><p>짧은 과정이 필요하면 ‘구성 추가’에서 차시를 고르세요. 원본만 사용할 때는 다음으로 넘어가세요.</p></div>':''}</section>
     <section id="ce-lesson-workspace" ${editable?'':'hidden'}><div class="ce-workspace-tools"><div class="ce-panel-heading">${field(draft.selected===0?'원본 구성 이름':'수업 구성 이름',v.name,'id="ce-variant-name" maxlength="80"')}<button type="button" class="btn btn-ghost btn-sm" id="ce-delete-variant" ${draft.selected===0?'disabled hidden':''}>구성 삭제</button></div><div class="ce-toolbar"><button type="button" class="btn btn-soft btn-sm" id="ce-outline">차시 목록 붙여넣기</button><button type="button" class="btn btn-soft btn-sm" id="ce-bulk-files">자료 여러 개 등록</button><a class="ce-library-link" href="#/resources/${id}">공통 자료 관리</a></div></div>${lessonEditor(v)}</section>
@@ -89,7 +102,27 @@ route(/^#\/manage\/(\d+)$/, async id => {
       const option=root.querySelector(`#ce-lesson-select option[value="${i}"]`);if(option)option.textContent=`${i+1}차시 · ${s.title||'새 차시'}`;
     };
     root.querySelector('#ce-title').oninput=e=>{p.title=e.target.value;changed();};
-    root.querySelector('#ce-grade').onchange=e=>{p.grade=e.target.value;changed();};
+    root.querySelector('#ce-topic').oninput=e=>{draft.plan.curriculum.topic=e.target.value;changed();};
+    root.querySelector('#ce-purpose').onchange=e=>{draft.plan.curriculum.purpose=e.target.value;changed();};
+    root.querySelector('#ce-add-link').onclick=()=>{
+      const c=draft.plan.curriculum;
+      if(c.links.length>=40)return toast('학년·교과 연결은 최대 40개입니다.',true);
+      const last=c.links.at(-1);c.links.push({school:last?.school||'elementary',grade:last?.grade||1,subject:''});changed();draw();
+      rootFocusLink(c.links.length-1,'subject');
+    };
+    root.querySelectorAll('[data-curriculum-remove]').forEach(b=>b.onclick=()=>{draft.plan.curriculum.links.splice(Number(b.dataset.curriculumRemove),1);changed();draw();document.getElementById('ce-add-link')?.focus();});
+    root.querySelectorAll('[data-curriculum-link]').forEach(el=>{
+      const handle=e=>{
+        const i=Number(el.dataset.curriculumLink),link=draft.plan.curriculum.links[i],key=el.dataset.field;
+        link[key]=key==='grade'?Number(e.target.value):e.target.value;
+        if(key==='school'){
+          const school=Curriculum.SCHOOLS.find(s=>s.id===link.school);
+          if(!school.grades.includes(link.grade))link.grade=school.grades[0];
+          changed();draw();rootFocusLink(i,'grade');
+        }else changed();
+      };
+      if(el.dataset.field==='subject')el.oninput=handle;else el.onchange=handle;
+    });
     root.querySelector('#ce-description').oninput=e=>{p.description=e.target.value;changed();};
     root.querySelector('#ce-app').oninput=e=>{draft.plan.appUrl=e.target.value;changed();};
     root.querySelector('#ce-variant-name').oninput=e=>{v.name=e.target.value;changed();const label=root.querySelector(`[data-variant-name="${draft.selected}"]`);if(label)label.textContent=v.name||'구성 이름';};
@@ -127,13 +160,14 @@ route(/^#\/manage\/(\d+)$/, async id => {
     if(busy)return;
     const msg=document.getElementById('ce-message');
     if(!p.title.trim()){msg.textContent='수업명을 입력하세요.';return;}
+    try{draft.plan.curriculum=Curriculum.normalize(draft.plan.curriculum);}catch(e){msg.textContent=e.message;return;}
     if(publish){const problems=courseProblems(draft.plan);if(problems.length){msg.textContent=`공개 전 확인할 항목 ${problems.length}개: ${problems.slice(0,6).join(' / ')}`;return;}}
     busy=true;document.querySelectorAll('.course-editor button,.course-editor input,.course-editor select,.course-editor textarea').forEach(b=>b.disabled=true);
     msg.textContent='저장 중…';
     try{
       const r=await api('PUT',`/api/programs/${id}/course-plan`,{revision:draft.revision,plan:draft.plan,publish});
       draft.revision=r.revision;draft.plan=r.plan;
-      await api('PATCH',`/api/programs/${id}`,{title:p.title,grade:p.grade,description:p.description,...(publish?{published:true}:{})});
+      await api('PATCH',`/api/programs/${id}`,{title:p.title,description:p.description,...(publish?{published:true}:{})});
       draft.dirty=false;draw();document.getElementById('ce-message').textContent=publish?'수업 구성과 자료가 공개되었습니다. 학생 입장·기록 연동은 별도 확인이 필요합니다.':'수업 구성을 저장했습니다. 다른 기기에서도 이어서 편집할 수 있습니다.';
     }catch(e){draw();document.getElementById('ce-message').textContent=e.message;}finally{busy=false;}
   }

@@ -395,64 +395,90 @@ function renderClosed(notice) {
   setTimeout(() => navigate(), 30000);
 }
 
+/* ---------------- 교육과정 분류 탐색 (목록·관리 공통) ---------------- */
+function curriculumFilterKey(filter = {}) {
+  return JSON.stringify(filter.kind ? { kind: filter.kind } : Object.fromEntries(['school', 'grade', 'subject'].filter(key => Object.hasOwn(filter, key)).map(key => [key, filter[key]])));
+}
+function curriculumFilterLabel(filter = {}) {
+  if (filter.kind === 'unclassified') return '미분류';
+  if (filter.kind === 'test') return '테스트·검증용';
+  if (!filter.school) return '전체 수업';
+  return [Curriculum.schoolLabel(filter.school), filter.grade ? `${filter.grade}학년` : '', Object.hasOwn(filter, 'subject') ? filter.subject || '교과 미지정' : ''].filter(Boolean).join(' › ');
+}
+function curriculumTree(programs, filter = {}, id = 'curriculum-tree') {
+  const count = value => programs.filter(program => Curriculum.matches(program, value)).length;
+  const button = (value, label) => `<button type="button" class="ct-filter" data-ct-filter="${esc(curriculumFilterKey(value))}" aria-pressed="${curriculumFilterKey(filter) === curriculumFilterKey(value)}"><span>${esc(label)}</span><span class="ct-count">${count(value)}</span></button>`;
+  const schools = Curriculum.SCHOOLS.map(school => {
+    const schoolFilter = { school: school.id };
+    const grades = school.grades.filter(grade => count({ ...schoolFilter, grade }) || (filter.school === school.id && filter.grade === grade));
+    return `<details class="ct-school" ${filter.school === school.id ? 'open' : ''}><summary><span>${esc(school.label)}</span><span class="ct-count">${count(schoolFilter)}</span></summary>
+      <div class="ct-branch">${button(schoolFilter, `${school.label} 전체`)}${grades.map(grade => {
+        const gradeFilter = { ...schoolFilter, grade };
+        const subjects = [...new Set(programs.flatMap(program => Curriculum.forProgram(program).links.filter(link => link.school === school.id && link.grade === grade).map(link => link.subject)))].sort((a, b) => a.localeCompare(b, 'ko'));
+        return `<details class="ct-grade" ${filter.school === school.id && filter.grade === grade ? 'open' : ''}><summary><span>${grade}학년</span><span class="ct-count">${count(gradeFilter)}</span></summary><div class="ct-branch">${button(gradeFilter, `${grade}학년 전체`)}${subjects.map(subject => button({ ...gradeFilter, subject }, subject || '교과 미지정')).join('')}</div></details>`;
+      }).join('')}${!grades.length ? '<p class="ct-empty">등록된 수업이 없습니다.</p>' : ''}</div>
+    </details>`;
+  }).join('');
+  return `<aside class="ct-panel is-collapsed" id="${esc(id)}" aria-label="교육과정 분류"><button type="button" class="ct-mobile-toggle" aria-expanded="false" aria-controls="${esc(id)}-nav">${icon('layers')}<span>교육과정 분류 · <span data-ct-current>${esc(curriculumFilterLabel(filter))}</span></span>${icon('down')}</button>
+    <nav class="ct-tree" id="${esc(id)}-nav" aria-label="학교급, 학년, 교과 필터"><h2>교육과정 연계</h2><p class="ct-hint">등록된 수업 수 · 여러 분류에 연결 가능</p>${button({}, '전체 수업')}${schools}<div class="ct-other">${button({ kind: 'unclassified' }, '미분류')}${button({ kind: 'test' }, '테스트·검증용')}</div></nav></aside>`;
+}
+function bindCurriculumTree(root, onSelect) {
+  if (!root) return;
+  root.querySelectorAll('[data-ct-filter]').forEach(button => {
+    button.onclick = () => {
+      const filter = JSON.parse(button.dataset.ctFilter);
+      root.querySelectorAll('[data-ct-filter]').forEach(item => item.setAttribute('aria-pressed', String(item.dataset.ctFilter === button.dataset.ctFilter)));
+      const current = root.querySelector('[data-ct-current]');
+      if (current) current.textContent = curriculumFilterLabel(filter);
+      onSelect(filter);
+    };
+  });
+  const toggle = root.querySelector('.ct-mobile-toggle');
+  if (toggle) toggle.onclick = () => {
+    const collapsed = root.classList.toggle('is-collapsed');
+    toggle.setAttribute('aria-expanded', String(!collapsed));
+  };
+}
+function curriculumProgramMeta(program) {
+  const info = Curriculum.forProgram(program);
+  return [...new Set([...info.links.map(link => Curriculum.linkLabel(link)), ...(info.links.length ? [] : ['미분류']), info.topic, program.category].filter(Boolean))];
+}
+
 /* ---------------- 카탈로그 (#/) ---------------- */
 const CARD_DECO = ['📚', '🧭', '🎨', '🔬'];
-let catalogTab = 'all';
+let catalogFilter = {};
 
 route(/^#\/$/, async () => {
   const data = await api('GET', '/api/programs');
+  // The API already limits this list to the signed-in teacher's visible programs.
   const all = data.programs;
-  // 학년 탭 (등록된 학년만 표시, GRADES 순서대로)
-  const grades = [...new Set(all.map((p) => p.grade || ''))].filter(Boolean)
-    .sort((a, b) => GRADES.indexOf(a) - GRADES.indexOf(b));
-  const hasEtc = all.some((p) => !p.grade);
-  const tabs = [['all', `전체 (${all.length})`],
-    ...grades.map((g) => [g, `${g} (${all.filter((p) => p.grade === g).length})`]),
-    ...(hasEtc && grades.length ? [['', `학년 미지정 (${all.filter((p) => !p.grade).length})`]] : [])];
-  if (catalogTab !== 'all' && !tabs.some(([k]) => k === catalogTab)) catalogTab = 'all';
-  const kw = state.search.toLowerCase();
-  const list = all.filter((p) =>
-    (catalogTab === 'all' || (p.grade || '') === catalogTab)
-    && (!kw || p.title.toLowerCase().includes(kw) || String(p.description).toLowerCase().includes(kw)));
-
-  const metaText = (p) => {
-    const parts = [];
-    if (p.grade) parts.push(`🎓 ${p.grade}`);
-    if (p.category) parts.push(`📁 ${p.category}`);
-    if (p.linkCount) parts.push(`🔗 링크 ${p.linkCount}`);
-    if (p.aiappCount) parts.push(`🖥️ 웹앱 ${p.aiappCount}`);
-    if (p.videoCount) parts.push(`▶ 영상 ${p.videoCount}`);
-    if (p.fileCount) parts.push(`📎 자료 ${p.fileCount}`);
-    return parts.join(' · ') || '준비 중';
-  };
-  const card = (p, i) => `
-    <div class="deck-card">
+  const kw = state.search.trim().normalize('NFKC').toLocaleLowerCase();
+  const card = (p, i) => {
+    const details = [p.linkCount ? `링크 ${p.linkCount}` : '', p.aiappCount ? `웹앱 ${p.aiappCount}` : '', p.videoCount ? `영상 ${p.videoCount}` : '', p.fileCount ? `자료 ${p.fileCount}` : ''].filter(Boolean).join(' · ');
+    return `<div class="deck-card">
       <div class="deck-thumb dg-${i % 4}"><div class="deco">${CARD_DECO[i % 4]}</div><div class="orb"></div><div class="dt">${esc(p.title)}</div></div>
       <div class="body">
-        <div class="desc">${esc(String(p.description).split('\n')[0].replace(/^#+\s*/, '')) || '설명 없음'}</div>
-        <div class="meta">
-          <span class="small muted">${metaText(p)}</span>
-          <span style="display:flex;gap:6px;align-items:center">
-            ${isAdmin() && !p.published ? '<span class="badge gray">비공개</span>' : ''}
-            <a href="#/program/${p.id}" class="btn btn-primary btn-sm" style="white-space:nowrap">${icon('play')} 열기</a>
-          </span>
-        </div>
-      </div>
-    </div>`;
-
-  shell('프로그램', `
-    <div class="page-head">
-      <div><div class="ph-t">수업프로그램</div><div class="desc">수업에 바로 쓸 수 있는 프로그램 모음입니다.${state.search ? ` — 검색: "${esc(state.search)}"` : ''}</div></div>
+        <p class="ct-card-labels">${curriculumProgramMeta(p).map(value => `<span>${esc(value)}</span>`).join('')}</p>
+        ${Curriculum.forProgram(p).purpose === 'test' ? '<span class="ct-test">테스트·검증용</span>' : ''}
+        <div class="desc">${esc(String(p.description || '').split('\n')[0].replace(/^#+\s*/, '')) || '설명 없음'}</div>
+        <div class="meta"><span class="small muted">${esc(details || '자료 준비 중')}</span><span style="display:flex;gap:6px;align-items:center">
+          ${isAdmin() && !p.published ? '<span class="badge gray">비공개</span>' : ''}
+          <a href="#/program/${esc(p.id)}" class="btn btn-primary btn-sm" style="white-space:nowrap">${icon('play')} 열기</a>
+        </span></div>
+      </div></div>`;
+  };
+  shell('프로그램', `<div class="page-head">
+      <div><div class="ph-t">수업프로그램</div><div class="desc">학년과 교과를 선택해 수업을 찾아보세요.${state.search ? ` — 검색: "${esc(state.search)}"` : ''}</div></div>
       ${state.search ? '<button class="btn btn-ghost btn-sm" id="clear-search">검색 지우기</button>' : ''}
       ${isAdmin() ? `<a class="btn btn-primary" href="#/manage">${icon('edit')} 프로그램 관리</a>` : ''}
-    </div>
-    ${tabs.length > 1 ? `<div class="tabs">${tabs.map(([k, label]) => `<button data-ctab="${esc(k)}" class="${catalogTab === k ? 'active' : ''}">${esc(label)}</button>`).join('')}</div>` : ''}
-    <div class="deck-cards">
-      ${list.map(card).join('') || `<p class="empty-note">${state.search ? '검색 결과가 없습니다.' : '아직 공개된 프로그램이 없습니다.'}</p>`}
-    </div>`);
-  document.querySelectorAll('[data-ctab]').forEach((b) => {
-    b.onclick = () => { catalogTab = b.dataset.ctab; navigate(); };
-  });
+    </div><div class="ct-layout">${curriculumTree(all, catalogFilter, 'catalog-tree')}<div class="ct-results"><p class="ct-result-label" id="catalog-result-count" role="status" aria-live="polite"></p><div class="deck-cards" id="catalog-list"></div></div></div>`);
+  const draw = () => {
+    const list = all.filter(program => Curriculum.matches(program, catalogFilter) && (!kw || Curriculum.searchText(program).normalize('NFKC').toLocaleLowerCase().includes(kw)));
+    document.getElementById('catalog-result-count').textContent = `${curriculumFilterLabel(catalogFilter)} · ${list.length}개 수업`;
+    document.getElementById('catalog-list').innerHTML = list.map(card).join('') || '<p class="empty-note">조건에 맞는 공개 수업이 없습니다. 다른 분류를 선택하거나 검색어를 지워보세요.</p>';
+  };
+  bindCurriculumTree(document.getElementById('catalog-tree'), filter => { catalogFilter = filter; draw(); });
+  draw();
   const clearBtn = document.getElementById('clear-search');
   if (clearBtn) clearBtn.onclick = () => { state.search = ''; navigate(); };
 });
@@ -580,7 +606,7 @@ route(/^#\/program\/(\d+)$/, async (id) => {
     <div class="page-head">
       <div>
         <div class="ph-t">${esc(p.title)} ${p.published ? '' : '<span class="badge gray">비공개</span>'}</div>
-        <div class="desc">${p.grade ? `🎓 ${esc(p.grade)} · ` : ''}${p.category ? `📁 ${esc(p.category)} · ` : ''}${lessons.length ? `${lessons.length}차시 · ` : ''}업데이트 ${esc(p.updated_at)}</div>
+        <div class="desc">${curriculumProgramMeta(p).map(value => esc(value)).join(' · ')}${lessons.length ? ` · ${lessons.length}차시` : ''} · 업데이트 ${esc(p.updated_at)}</div>${Curriculum.forProgram(p).purpose === 'test' ? '<span class="ct-test">테스트·검증용</span>' : ''}
       </div>
       <div style="display:flex;gap:8px">
         ${isAdmin() ? `
@@ -1297,11 +1323,11 @@ async function downloadAll(boardId, btn) {
 }
 
 /* ---------------- 프로그램 관리 (#/manage, admin) ---------------- */
-const programManagerView = { search: '', status: 'all' };
+const programManagerView = { search: '', status: 'all', curriculum: {} };
 function programMatchesView(p, view = programManagerView) {
   const query = view.search.trim().normalize('NFKC').toLocaleLowerCase();
-  const content = [p.title, p.grade, p.category].filter(Boolean).join(' ').normalize('NFKC').toLocaleLowerCase();
-  return (!query || content.includes(query)) && (view.status === 'all' || (view.status === 'published' ? p.published : !p.published));
+  const content = Curriculum.searchText(p).normalize('NFKC').toLocaleLowerCase();
+  return (!query || content.includes(query)) && (view.status === 'all' || (view.status === 'published' ? p.published : !p.published)) && Curriculum.matches(p, view.curriculum || {});
 }
 function programLessonLabel(p) {
   const summary = p.courseSummary;
@@ -1316,7 +1342,7 @@ function programManagerRow(p) {
   return `<article class="pm-item" data-program="${esc(p.id)}">
     <div class="pm-info">
       <div class="pm-heading"><h2><a href="#/manage/${esc(p.id)}">${esc(p.title)}</a></h2><span class="pm-status ${p.published ? 'is-published' : ''}">${p.published ? '공개' : '비공개'}</span></div>
-      <p class="pm-meta">${[p.grade || '학년 미지정', p.category, programLessonLabel(p)].filter(Boolean).map(v => `<span>${esc(v)}</span>`).join('')}</p>
+      <p class="pm-meta">${[...curriculumProgramMeta(p), programLessonLabel(p)].map(v => `<span>${esc(v)}</span>`).join('')}</p>${Curriculum.forProgram(p).purpose === 'test' ? '<span class="ct-test">테스트·검증용</span>' : ''}
     </div>
     <div class="pm-actions">
       <a class="btn btn-soft pm-configure" href="#/manage/${esc(p.id)}">${icon('layers')} 수업 구성</a>
@@ -1338,17 +1364,19 @@ route(/^#\/manage$/, async () => {
   shell('프로그램 관리', `
     <section class="program-manager" id="program-manager" aria-label="수업 목록 관리">
     <div class="page-head">
-      <div><div class="ph-t">수업 목록</div><div class="desc">수업을 선택해 차시와 자료를 구성하세요.</div></div>
+      <div><div class="ph-t">수업 목록</div><div class="desc">학년·교과별로 정리하고, 수업을 선택해 차시와 자료를 구성하세요.</div></div>
       <button class="btn btn-primary" id="btn-new">${icon('plus')} 수업 등록</button>
     </div>
     <div class="pm-toolbar">
-      <label class="pm-search">${icon('search')}<input type="search" id="pm-search" aria-label="수업 이름, 학년, 분류 검색" placeholder="수업 이름 · 학년 · 분류 검색" value="${esc(programManagerView.search)}" autocomplete="off"></label>
+      <label class="pm-search">${icon('search')}<input type="search" id="pm-search" aria-label="수업 이름, 학년, 교과, 주제 검색" placeholder="수업 이름 · 학년 · 교과 · 주제 검색" value="${esc(programManagerView.search)}" autocomplete="off"></label>
       <div class="pm-filters" role="group" aria-label="공개 상태 필터">
         ${[['all', '전체'], ['published', '공개'], ['private', '비공개']].map(([value, label]) => `<button type="button" data-pm-status="${value}" aria-pressed="${programManagerView.status === value}">${label} <span data-pm-count="${value}"></span></button>`).join('')}
       </div>
     </div>
-    <p class="pm-result-count" id="pm-result-count" role="status" aria-live="polite"></p>
-    <div class="pm-list" id="pm-list"></div>
+    <div class="ct-layout"><div id="pm-tree-host">${curriculumTree(data.programs, programManagerView.curriculum, 'manager-tree')}</div><div class="ct-results">
+      <p class="pm-result-count" id="pm-result-count" role="status" aria-live="polite"></p>
+      <div class="pm-list" id="pm-list"></div>
+    </div></div>
     </section>`, { showSearch: false });
 
   const manager = document.getElementById('program-manager');
@@ -1367,13 +1395,13 @@ route(/^#\/manage$/, async () => {
 
   const drawRows = () => {
     const filtered = data.programs.filter(p => programMatchesView(p));
-    document.getElementById('pm-result-count').textContent = `${filtered.length}개 수업 · 전체 ${data.programs.length}개`;
+    document.getElementById('pm-result-count').textContent = `${curriculumFilterLabel(programManagerView.curriculum)} · ${filtered.length}개 수업 · 전체 ${data.programs.length}개`;
     const counts = { all: data.programs.length, published: data.programs.filter(p => p.published).length, private: data.programs.filter(p => !p.published).length };
     manager.querySelectorAll('[data-pm-count]').forEach(el => { el.textContent = counts[el.dataset.pmCount]; });
     manager.querySelectorAll('[data-pm-status]').forEach(button => button.setAttribute('aria-pressed', String(button.dataset.pmStatus === programManagerView.status)));
     list.innerHTML = filtered.map(programManagerRow).join('') || `<div class="pm-empty"><p>${data.programs.length ? '조건에 맞는 수업이 없습니다.' : '아직 등록한 수업이 없습니다.'}</p>${data.programs.length ? '<button class="btn btn-ghost" type="button" id="pm-reset">검색·필터 초기화</button>' : '<p class="small muted">수업 등록을 눌러 첫 수업을 만들어 보세요.</p>'}</div>`;
     const reset = document.getElementById('pm-reset');
-    if (reset) reset.onclick = () => { programManagerView.search = ''; programManagerView.status = 'all'; search.value = ''; drawRows(); search.focus(); };
+    if (reset) reset.onclick = () => { programManagerView.search = ''; programManagerView.status = 'all'; programManagerView.curriculum = {}; search.value = ''; drawTree(); drawRows(); search.focus(); };
     list.querySelectorAll('.pm-more').forEach(menu => { menu.ontoggle = () => { if (menu.open) closeMenus(menu); }; });
     list.querySelectorAll('[data-pub]').forEach(button => {
       button.onclick = async () => {
@@ -1399,12 +1427,18 @@ route(/^#\/manage$/, async () => {
         try {
           await api('DELETE', `/api/programs/${program.id}`);
           data.programs = data.programs.filter(p => p.id !== program.id);
+          drawTree();
           toast('삭제되었습니다.');
           if (manager.isConnected) { drawRows(); search.focus(); }
         } catch (err) { if (!err.handled) toast(err.message, true); button.disabled = false; }
       };
     });
   };
+  const drawTree = () => {
+    document.getElementById('pm-tree-host').innerHTML = curriculumTree(data.programs, programManagerView.curriculum, 'manager-tree');
+    bindCurriculumTree(document.getElementById('manager-tree'), filter => { programManagerView.curriculum = filter; drawRows(); });
+  };
+  bindCurriculumTree(document.getElementById('manager-tree'), filter => { programManagerView.curriculum = filter; drawRows(); });
   search.oninput = () => { programManagerView.search = search.value; drawRows(); };
   manager.querySelectorAll('[data-pm-status]').forEach(button => { button.onclick = () => { programManagerView.status = button.dataset.pmStatus; drawRows(); }; });
   drawRows();
@@ -1412,28 +1446,24 @@ route(/^#\/manage$/, async () => {
   document.getElementById('btn-new').onclick = () => {
     const back = openModal(`
       <h3>새 프로그램</h3>
-      <div class="m-sub">수업을 만든 뒤 운영 구성과 구성별 자료를 등록합니다. 처음에는 비공개 상태입니다.</div>
+      <div class="m-sub">제목을 정하면 다음 화면에서 학년·교과 연결, 원본 차시와 자료를 등록합니다. 처음에는 비공개 상태입니다.</div>
       <div class="form-grid" style="grid-template-columns:1fr 1fr">
         <div style="grid-column:1/-1"><label>제목</label><input id="np-title" placeholder="예: AI로 탐구하는 삼국시대"></div>
-        <div><label>학년</label><select id="np-grade">
-          <option value="">미지정</option>
-          ${GRADES.map((g) => `<option value="${g}">${g}</option>`).join('')}
-        </select></div>
-        <div><label>카테고리 (폴더)</label><input id="np-cat" placeholder="예: 진로, 과학, 창체" maxlength="50"></div>
         <div style="grid-column:1/-1"><label>설명</label><textarea id="np-desc" rows="4" class="input" placeholder="## 제목, - 목록, **강조** 문법을 쓸 수 있습니다"></textarea></div>
       </div>
       <div class="m-actions">
         <button class="btn btn-ghost" id="np-cancel">취소</button>
-        <button class="btn btn-primary" id="np-save">만들기</button>
+        <button class="btn btn-primary" id="np-save">만들고 학년·교과 설정</button>
       </div>
       <div class="msg" id="np-msg"></div>`);
     back.querySelector('#np-cancel').onclick = () => back.remove();
-    back.querySelector('#np-save').onclick = async () => {
+    const save = back.querySelector('#np-save');
+    save.onclick = async () => {
+      if (save.disabled) return;
+      save.disabled = true;
       try {
         const r = await api('POST', '/api/programs', {
           title: back.querySelector('#np-title').value,
-          grade: back.querySelector('#np-grade').value,
-          category: back.querySelector('#np-cat').value,
           description: back.querySelector('#np-desc').value,
         });
         back.remove();
@@ -1442,6 +1472,7 @@ route(/^#\/manage$/, async () => {
       } catch (err) {
         const msg = back.querySelector('#np-msg');
         msg.textContent = err.message; msg.className = 'msg err';
+        save.disabled = false;
       }
     };
   };
@@ -1513,10 +1544,10 @@ route(/^#\/resources\/(\d+)$/, async (id) => {
       <h2>기본 정보</h2>
       <div class="form-grid" style="grid-template-columns:2fr 1fr 1fr">
         <div><label>제목</label><input id="ed-title" value="${esc(p.title)}"></div>
-        <div><label>학년</label><select id="ed-grade">
+        <div><label>기존 학년 분류</label><select id="ed-grade">
           <option value="">미지정</option>
           ${GRADES.map((g) => `<option value="${g}" ${p.grade === g ? 'selected' : ''}>${g}</option>`).join('')}
-        </select></div>
+        </select><p class="small muted">기존 자료의 학년 표시입니다. 교육과정 연결은 <a href="#/manage/${esc(p.id)}">수업 구성 → 기본정보</a>에서 설정하세요.</p></div>
         <div><label>카테고리 (폴더)</label><input id="ed-cat" value="${esc(p.category)}" maxlength="50"></div>
       </div>
       <div class="form-grid mt" style="grid-template-columns:1fr">
