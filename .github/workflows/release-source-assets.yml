@@ -1,0 +1,33 @@
+name: Prepare verified Hub release assets
+on:
+  push:
+    branches: [ops/hub-release-source-19639d7]
+    paths: [.github/workflows/release-source-assets.yml]
+permissions:
+  contents: read
+jobs:
+  release-assets:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: 19639d7025d36f67b03bcf76b55e00133e570b40
+          persist-credentials: false
+      - name: Export public release assets
+        shell: python
+        run: |
+          import base64, hashlib, json
+          from pathlib import Path
+          assets = [
+            "public/brand/moahub-product.jpg",
+            "public/fonts/SCDreamBold.woff2",
+            "public/fonts/SCDreamExtraBold.woff2",
+            "public/fonts/SCDreamRegular.woff2",
+          ]
+          for name in assets:
+              data = Path(name).read_bytes()
+              blob_sha = hashlib.sha1(b"blob " + str(len(data)).encode() + b"\0" + data).hexdigest()
+              encoded = base64.b64encode(data).decode()
+              for offset in range(0, len(encoded), 8000):
+                  print("RELEASE_ASSET " + json.dumps({"file": name, "sha": blob_sha, "size": len(data), "offset": offset, "data": encoded[offset:offset+8000]}))
