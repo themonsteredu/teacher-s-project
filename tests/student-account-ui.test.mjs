@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import vm from 'node:vm';
 import {readFileSync} from 'node:fs';
 const script=readFileSync(new URL('../public/student-accounts.js',import.meta.url),'utf8');
+const helpers=['account-roster.js','account-manager.js'].map(name=>readFileSync(new URL('../public/'+name,import.meta.url),'utf8'));
 const tick=()=>new Promise(resolve=>setImmediate(resolve));
 function page(search=''){
   const elements=new Map(),pending=[],events={window:new Map(),document:new Map()};
@@ -10,7 +11,7 @@ function page(search=''){
   function element(tag='div'){
     return {tagName:tag,hidden:false,textContent:'',children:[],style:{},dataset:{},href:'/app',disabled:false,
       append(...children){this.children.push(...children);},replaceChildren(...children){this.children=[...children];},
-      querySelector(){return element('button');},reset(){},add(option){this.children.push(option);}};
+      querySelector(){return element('button');},querySelectorAll(){return [];},reset(){},add(option){this.children.push(option);}};
   }
   const get=id=>{if(!elements.has(id))elements.set(id,element());return elements.get(id);};
   get('manager-pane').hidden=true;
@@ -18,6 +19,7 @@ function page(search=''){
   const context=vm.createContext({document,location:{search},URLSearchParams,
     window:{addEventListener:(event,listener)=>on('window',event,listener)},Option:function(){},confirm:()=>false,
     fetch:(url,options)=>new Promise(resolve=>pending.push({url,options,reply(data,status=200){resolve({ok:status<400,status,json:async()=>data});}}))});
+  helpers.forEach(source=>vm.runInContext(source,context));
   vm.runInContext(script,context);
   return {elements,context,pending,get,document,dispatch:(target,event,value={})=>events[target].get(event)?.forEach(listener=>listener(value))};
 }
@@ -102,3 +104,4 @@ test('refocusing a still-visible window clears data before revalidating an accou
   assert.equal(p.pending[0].url,'/api/student-accounts/me');
   p.pending.shift().reply({error:'다시 로그인하세요.'},401);await tick();privateStateCleared(p);
 });
+

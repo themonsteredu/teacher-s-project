@@ -1,5 +1,40 @@
 # School-issued student accounts and Career Log — integration draft
 
+## 2026-09-09: numbered student roster and account download
+
+The operator reports school creation and manager assignment working after correcting
+the configured HTTPS origin and redeploying. The older deployment notes below are
+historical; they do not establish completion of the remaining Career Log E2E gates.
+
+- In school account management, select a school and a grade/class, then paste two
+  Excel columns: student number and name. For multiple classes, use four columns:
+  grade, class, number and name. CSV UTF-8/TSV imports and a CSV template are also
+  available. Native `.xlsx` files must be copied as cells or saved as CSV UTF-8.
+- Preview the roster before issuance. Each request supports 1–100 new students;
+  grade 1–6, class 1–99 and number 1–999 are required. Repeated names are allowed;
+  repeated numbers in the same school/class are rejected both in the browser and
+  server. Never re-import continuing students as new accounts when classes change.
+- Download newly issued accounts as an Excel-compatible UTF-8 CSV containing school,
+  grade, class, number, name, username and temporary password. Initial passwords are
+  held only in the current page memory, cleared on school/tab/page changes and when
+  the page is hidden. A lost issuance response can be recovered through the roster
+  and a per-student password reset; the old plaintext password cannot be retrieved.
+- Existing roster downloads revalidate school access and include usernames, without
+  passwords. CSV output escapes spreadsheet formula prefixes. Display and export
+  show numeric grade/class/number order. Give each student only their own account.
+- Membership edits keep the same account ID, username and random Career UUID.
+  Structured metadata uses the existing `class_name` column as
+  `2학년 1반 3번`; legacy free-form labels remain readable, with missing numeric
+  fields shown as blanks until explicitly edited. No database migration or new
+  environment variable is required. These numbers never generate an identity.
+- Every issue/edit transaction takes the same per-school transaction advisory lock
+  before checking active membership numbers. Concurrent requests cannot claim the
+  same place through these endpoints; other schools use distinct lock inputs.
+  Imports are atomic. The lock is advisory, so future membership writers must use
+  this same guard. Direct operator SQL is outside this application-level guarantee.
+- Original Career records, schemas, RLS, API authentication and source bindings are
+  unchanged. This feature alone does not complete cross-app Career Log E2E.
+
 This branch ports the account implementation from Hub PR #21 onto the current Hub
 production code and prepares authenticated submission integration. It is NOT
 production enabled. Porting files does not change or merge PR #21 or History PR #6.
