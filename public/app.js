@@ -369,12 +369,23 @@ route(/^#\/login$/, () => {
         location.hash = `#/board/${code}`;
         return;
       }
+      // 서버가 멀면 몇 초 걸릴 수 있다 — 버튼을 잠가 두 번 눌리는 것을 막고, 기다리는 중임을 보여준다
+      const btn = e.target.querySelector('button[type="submit"]');
+      if (btn.disabled) return;
+      btn.disabled = true;
+      btn.textContent = '로그인 중…';
       try {
         const data = await api('POST', '/api/login', { username: f.get('username'), password: f.get('password') });
         state.me = data.user;
         state.settings = data.settings;
-        location.hash = data.user.mustChangePassword ? '#/password' : '#/';
-      } catch (err) { render(err.message); }
+        const next = data.user.mustChangePassword ? '#/password' : '#/';
+        // 이미 그 주소에 있으면 hashchange가 나지 않으므로 직접 그린다
+        if (location.hash === next) navigate(); else location.hash = next;
+      } catch (err) {
+        btn.disabled = false;
+        btn.textContent = '로그인';
+        render(err.message);
+      }
     };
   };
   render();
@@ -449,6 +460,8 @@ const CARD_DECO = ['📚', '🧭', '🎨', '🔬'];
 let catalogFilter = {};
 
 route(/^#\/$/, async () => {
+  // 목록을 받기 전에 셸부터 그린다 — 로그인 직후 화면이 바로 바뀌어야 "안 되는 줄 알고" 다시 누르지 않는다
+  shell('프로그램', '<p class="empty-note">수업 목록을 불러오는 중…</p>');
   const data = await api('GET', '/api/programs');
   // The API already limits this list to the signed-in teacher's visible programs.
   const all = data.programs;
@@ -2090,12 +2103,21 @@ function bindPasswordForm() {
       msg.className = 'msg err';
       return;
     }
+    const btn = e.target.querySelector('button[type="submit"]');
+    if (btn.disabled) return;
+    btn.disabled = true;
+    btn.textContent = '변경 중…';
+    msg.textContent = '';
     try {
       await api('POST', '/api/password', { current: f.get('current'), next: f.get('next') });
       state.me.mustChangePassword = false;
       toast('비밀번호가 변경되었습니다.');
       setTimeout(() => { location.hash = '#/'; }, 500);
-    } catch (err) { msg.textContent = err.message; msg.className = 'msg err'; }
+    } catch (err) {
+      btn.disabled = false;
+      btn.textContent = '변경하기';
+      msg.textContent = err.message; msg.className = 'msg err';
+    }
   };
 }
 

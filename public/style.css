@@ -92,6 +92,7 @@ svg.ic { width: 18px; height: 18px; stroke: currentColor; stroke-width: 1.8; fil
   transition: transform .05s, box-shadow .12s, background .12s;
 }
 .btn:active { transform: translateY(1px); }
+.btn[disabled] { opacity: .6; cursor: wait; }
 .btn-primary {
   background: linear-gradient(135deg, var(--blue-600), #3b76f0);
   color: #fff; box-shadow: 0 6px 16px -6px rgba(37, 99, 235, .55);
