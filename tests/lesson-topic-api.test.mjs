@@ -7,13 +7,13 @@ const require = createRequire(import.meta.url);
 const source = readFileSync(new URL('../lib/api.js', import.meta.url), 'utf8');
 
 // 차시 주제(topic): 생성·수정 API가 값을 다듬어 저장하는지 — DB는 기록만 하는 스텁
-async function request(method, path, body) {
+async function request(method, path, body, { academy = false } = {}) {
   const queries = [], module = { exports: {} };
   const deps = {
     'node:crypto': require('node:crypto'), '../public/curriculum': require('../public/curriculum'), './password': {}, './cookies': {}, './storage': {},
     './auth': { getSessionUser: async () => ({ user: { id: 1, role: 'admin' } }), roleLevel: r => ({ teacher: 1, admin: 2 }[r] || 0) },
     './db': {
-      TS: c => c, ready: async () => {}, log: async () => {}, getSettings: async () => ({ site_open: true }),
+      TS: c => c, ready: async () => {}, log: async () => {}, getSettings: async () => ({ site_open: true }), ACADEMY_ID: academy ? 'academy-1' : null,
       one: async (sql, params) => {
         queries.push({ sql, params: Array.from(params || []) });
         if (sql.startsWith('SELECT * FROM programs')) return { id: params[0], title: '수업' };
@@ -69,4 +69,20 @@ test('교사는 차시 주제를 고칠 수 없다', async () => {
   let status;
   await module.exports.handleApi({ method: 'PATCH', headers: {} }, { writeHead: s => { status = s; }, end() {} }, '/api/lessons/9', { topic: 'x' });
   assert.equal(status, 403);
+});
+
+test('전환 모드(ACADEMY_ID)에서는 topic 컬럼이 없으므로 이름만 저장하고 주제는 거절한다', async () => {
+  const plain = await request('POST', '/api/programs/5/lessons', { title: '나를 알아보기', topic: '' }, { academy: true });
+  assert.equal(plain.status, 200);
+  const insert = plain.queries.find(q => q.sql.startsWith('INSERT INTO lessons'));
+  assert.equal(insert.sql, 'INSERT INTO lessons (program_id, position, title) VALUES ($1, $2, $3) RETURNING id');
+  assert.deepEqual(insert.params, [5, 3, '나를 알아보기']);
+  const withTopic = await request('POST', '/api/programs/5/lessons', { title: '나를 알아보기', topic: '주제' }, { academy: true });
+  assert.equal(withTopic.status, 400);
+  assert.equal(withTopic.queries.some(q => q.sql.startsWith('INSERT')), false);
+  const patched = await request('PATCH', '/api/lessons/9', { topic: '주제' }, { academy: true });
+  assert.equal(patched.status, 400);
+  assert.equal(patched.queries.some(q => q.sql.startsWith('UPDATE')), false);
+  const renamed = await request('PATCH', '/api/lessons/9', { title: '새 이름' }, { academy: true });
+  assert.equal(renamed.status, 200);
 });

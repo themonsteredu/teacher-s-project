@@ -1726,7 +1726,8 @@ route(/^#\/resources\/(\d+)$/, async (id) => {
         const cur = lessons.find((l) => l.id === Number(b.dataset.ltopic));
         const topic = prompt('이 차시의 수업 주제 (예: 인공지능이란 무엇일까?) — 비우면 주제를 지웁니다', cur?.topic || '');
         if (topic === null) return;
-        await api('PATCH', `/api/lessons/${b.dataset.ltopic}`, { topic: topic.trim() });
+        try { await api('PATCH', `/api/lessons/${b.dataset.ltopic}`, { topic: topic.trim() }); }
+        catch (e) { toast(e.message, true); return; }
         navigate();
       };
     });
