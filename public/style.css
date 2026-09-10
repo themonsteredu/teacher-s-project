@@ -93,6 +93,12 @@ svg.ic { width: 18px; height: 18px; stroke: currentColor; stroke-width: 1.8; fil
 }
 .btn:active { transform: translateY(1px); }
 .btn[disabled] { opacity: .6; cursor: wait; }
+/* 프로그램 상세 · 전체 탭: 공통 자료 → 차시 묶음 (같은 이름의 링크가 차시마다 반복되므로 머리말로 구분) */
+.lesson-group { display: flex; flex-direction: column; gap: 8px; }
+.lesson-group.block { display: block; }
+.lesson-group + .lesson-group { margin-top: 6px; padding-top: 12px; border-top: 1px dashed var(--line); }
+.lesson-group-title { font-size: 12px; font-weight: 800; color: var(--teal-deep, #0a6f61); letter-spacing: .01em; }
+.lesson-group.block .lesson-group-title { margin: 4px 0 8px; }
 .btn-primary {
   background: linear-gradient(135deg, var(--blue-600), #3b76f0);
   color: #fff; box-shadow: 0 6px 16px -6px rgba(37, 99, 235, .55);
