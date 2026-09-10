@@ -15,7 +15,7 @@ async function save({ links = [], files = [], body, user = { id: 1, role: 'teach
     './auth': { getSessionUser: async () => user && ({ user }), roleLevel: () => 1 },
     './db': {
       TS: column => column, ready: async () => {}, getSettings: async () => ({ site_open: true }),
-      one: async () => ({ id: 16, program_id: 11, created_by: 1 }),
+      one: async (sql) => sql === 'SELECT value FROM settings WHERE key=$1' ? null : ({ id: 16, program_id: 11, created_by: 1 }),
       q: async (sql, args) => {
         if (sql.startsWith('SELECT id FROM program_links')) return links.map(id => ({ id }));
         if (sql.startsWith('SELECT id FROM program_files')) return files.map(id => ({ id }));

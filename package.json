@@ -5,7 +5,7 @@
   "main": "server.js",
   "scripts": {
     "start": "node --no-warnings server.js",
-    "check": "node --check server.js && node --check public/app.js && node --check public/curriculum.js && node --check public/course-editor.js && node --check public/course-authoring.js && node --check public/course-upload.js && node --check public/student-board.js && node --check lib/student-board.js && node --check lib/storage.js && node --check lib/course-plan.js && node --check lib/career-log.js && node --check lib/career-log-integrations.js && node --test tests/*.test.mjs"
+    "check": "node --check server.js && node --check public/app.js && node --check public/curriculum.js && node --check public/course-editor.js && node --check public/course-authoring.js && node --check public/course-upload.js && node --check public/account-roster.js && node --check public/account-manager.js && node --check public/student-accounts.js && node --check lib/student-accounts/http.js && node --check lib/student-accounts/roster.js && node --check lib/student-accounts/service.js && node --check lib/student-accounts/identity.js && node --check lib/submission-career.js && node --check public/student-board.js && node --check lib/student-board.js && node --check lib/storage.js && node --check lib/course-plan.js && node --check lib/career-log.js && node --check lib/career-log-integrations.js && node --test tests/*.test.mjs"
   },
   "engines": {
     "node": ">=22.13.0"
