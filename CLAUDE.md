@@ -10,6 +10,8 @@
 - Vercel 프로젝트 `teacher-s-project` (팀 `themonsteredu`)
 - **프로덕션 브랜치는 `main`이 아니라 `claude/wonderful-babbage-ihufst`다.** PR base를 여기로 잡아야 배포된다
 - 형제 레포: `themonsteredu/pinpoint`(모아킷 홈 `moakit.ai`, 브랜드 원본), `themonsteredu/aiapp`(모아랩 `job.moakit.ai`)
+- **함수 리전은 `vercel.json`의 `regions: ["icn1"]`(서울)이 정한다.** 2026-09-10 확인: 직접 배포(CLI/MCP 번들)로 올린 프로덕션(`dpl_CipQ…`)이 `iad1`(미국 동부)에서 실행돼 로그인·비밀번호 변경이 요청마다 수 초씩 걸렸다. 배포 뒤에는 `get_deployment`의 `regions`가 `icn1`인지 확인한다 — 함수는 DB와 같은 리전에 둔다(이 계정의 Supabase 프로젝트는 모두 서울 `ap-northeast-2`)
+- 원래 DB인 Supabase `lesson-hub` 프로젝트는 2026-09-10 기준 INACTIVE(일시정지)였는데 프로덕션 로그인은 됐다 → `DATABASE_URL`이 다른 DB를 가리킨다. 어느 DB인지는 Vercel 환경변수에서만 알 수 있다(MCP로는 안 보임). 관리자 계정은 그 DB에 새로 시드된 `superadmin`이었다
 
 ## 주소 구조 (바뀐 부분)
 
@@ -44,6 +46,11 @@
 우측 카드는 **실제 화면 캡처가 아니라** 프로그램에 담기는 것(수업 링크·웹앱/영상·첨부자료·학생 활동 보드)을 보여주는 도식이다. 허브 화면 캡처가 준비되면 교체한다. 캡처로 바꿀 때는 모아랩(`aiapp`)의 `public/brand/showcase/` 규격(800×500, 16:10)을 따르면 두 사이트가 같은 결이 된다.
 
 성과 수치처럼 확인되지 않은 값은 넣지 않는다.
+
+## 부팅(콜드스타트)
+
+- `lib/db.js`의 `ready()`는 콜드스타트마다 불리지만, `settings`의 `sys:bootstrap` 지문(SCHEMA·MIGRATIONS·CURRICULUM 본문 해시)이 현재 코드와 같고 admin 계정이 있으면 **조회 1번으로 끝난다**. 스키마·교육과정을 바꾸면 지문이 달라져 다음 콜드스타트에 전체 초기화(DDL·시드)가 한 번 돈다. 강제로 다시 돌리려면 `DELETE FROM settings WHERE key = 'sys:bootstrap'`
+- `sys:` 접두사 설정은 `getSettings()`가 프런트에 내보내지 않는다 (`course_plan:`·`sb:`와 같은 취급)
 
 ## 확인
 
