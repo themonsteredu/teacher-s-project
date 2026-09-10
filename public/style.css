@@ -93,6 +93,24 @@ svg.ic { width: 18px; height: 18px; stroke: currentColor; stroke-width: 1.8; fil
 }
 .btn:active { transform: translateY(1px); }
 .btn[disabled] { opacity: .6; cursor: wait; }
+/* 프로그램 상세 · 전체 탭: 공통 자료 → 차시 묶음 (같은 이름의 링크가 차시마다 반복되므로 머리말로 구분) */
+.lesson-group + .lesson-group { margin-top: 2px; padding-top: 8px; border-top: 1px dashed var(--line); }
+.lesson-group-title {
+  display: flex; align-items: center; gap: 8px; cursor: pointer; list-style: none; user-select: none;
+  padding: 6px 0; font-size: 13px; font-weight: 800; color: var(--teal-deep, #0a6f61); letter-spacing: .01em;
+}
+.lesson-group-title::-webkit-details-marker { display: none; }
+.lesson-group-title::before { content: '▸'; font-size: 12px; opacity: .6; transition: transform .12s; }
+details[open] > .lesson-group-title::before { transform: rotate(90deg); }
+.lesson-group-title .badge { margin-left: auto; }
+.lesson-group-title:focus-visible { outline: 2px solid var(--teal, #17b6a0); outline-offset: 2px; border-radius: 6px; }
+.lesson-group-name { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.lesson-group-topic { font-size: 12px; font-weight: 500; color: var(--muted, #6b7280); }
+.lesson-group-body { display: flex; flex-direction: column; gap: 8px; margin-top: 4px; }
+/* 차시 탭을 고르면 탭 아래 한 줄로 그 차시의 주제 */
+.lesson-topic-line { margin: -6px 0 16px; font-size: 13px; font-weight: 700; color: var(--teal-deep, #0a6f61); }
+.lesson-topic-line span { display: inline-block; margin: 0 6px; padding: 1px 7px; border-radius: 6px; background: var(--teal-soft, #e3f4f0); font-size: 11px; font-weight: 800; }
+.lesson-group-body.block { display: block; }
 .btn-primary {
   background: linear-gradient(135deg, var(--blue-600), #3b76f0);
   color: #fff; box-shadow: 0 6px 16px -6px rgba(37, 99, 235, .55);
