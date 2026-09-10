@@ -93,24 +93,34 @@ svg.ic { width: 18px; height: 18px; stroke: currentColor; stroke-width: 1.8; fil
 }
 .btn:active { transform: translateY(1px); }
 .btn[disabled] { opacity: .6; cursor: wait; }
-/* 프로그램 상세 · 전체 탭: 공통 자료 → 차시 묶음 (같은 이름의 링크가 차시마다 반복되므로 머리말로 구분) */
-.lesson-group + .lesson-group { margin-top: 2px; padding-top: 8px; border-top: 1px dashed var(--line); }
-.lesson-group-title {
-  display: flex; align-items: center; gap: 8px; cursor: pointer; list-style: none; user-select: none;
-  padding: 6px 0; font-size: 13px; font-weight: 800; color: var(--teal-deep, #0a6f61); letter-spacing: .01em;
+/* 프로그램 상세: 왼쪽 세로 차시 목록 + 오른쪽엔 고른 차시의 자료만 (가로 탭·펼친 목록 없음) */
+.lesson-layout { display: grid; grid-template-columns: 236px minmax(0, 1fr); gap: 20px; align-items: start; }
+.lesson-nav { position: sticky; top: 12px; max-height: calc(100vh - 24px); overflow: auto; background: #fff; border: 1px solid var(--line); border-radius: 14px; padding: 10px; }
+.lesson-nav-title { font-size: 11px; font-weight: 800; letter-spacing: .06em; color: var(--text-2); padding: 4px 10px 8px; }
+.lesson-nav-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
+.lesson-nav-list button {
+  width: 100%; display: flex; align-items: center; gap: 8px; text-align: left; padding: 9px 10px; border-radius: 10px;
+  border: 1px solid transparent; background: transparent; color: var(--text); font-size: 13px; font-weight: 700; cursor: pointer; word-break: keep-all;
 }
-.lesson-group-title::-webkit-details-marker { display: none; }
-.lesson-group-title::before { content: '▸'; font-size: 12px; opacity: .6; transition: transform .12s; }
-details[open] > .lesson-group-title::before { transform: rotate(90deg); }
-.lesson-group-title .badge { margin-left: auto; }
-.lesson-group-title:focus-visible { outline: 2px solid var(--teal, #17b6a0); outline-offset: 2px; border-radius: 6px; }
-.lesson-group-name { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
-.lesson-group-topic { font-size: 12px; font-weight: 500; color: var(--muted, #6b7280); }
-.lesson-group-body { display: flex; flex-direction: column; gap: 8px; margin-top: 4px; }
-/* 차시 탭을 고르면 탭 아래 한 줄로 그 차시의 주제 */
-.lesson-topic-line { margin: -6px 0 16px; font-size: 13px; font-weight: 700; color: var(--teal-deep, #0a6f61); }
-.lesson-topic-line span { display: inline-block; margin: 0 6px; padding: 1px 7px; border-radius: 6px; background: var(--teal-soft, #e3f4f0); font-size: 11px; font-weight: 800; }
-.lesson-group-body.block { display: block; }
+.lesson-nav-list button:hover { background: var(--teal-soft, #eef7f5); }
+.lesson-nav-list button.active { background: var(--navy-800); color: #fff; }
+.lesson-nav-list .ln-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1; }
+.lesson-nav-list .ln-topic { font-size: 11.5px; font-weight: 500; color: var(--text-2); }
+.lesson-nav-list .ln-count { font-size: 11px; font-weight: 700; color: var(--text-2); flex-shrink: 0; }
+.lesson-nav-list button.active .ln-topic, .lesson-nav-list button.active .ln-count { color: rgba(255, 255, 255, .78); }
+.lesson-nav-select { display: none; }
+.lesson-main-col { max-width: 820px; }
+.lesson-main-head { margin: 2px 0 14px; }
+.lmh-name { font-size: 17px; font-weight: 800; }
+.lmh-topic { margin-top: 4px; font-size: 13px; color: var(--text-2); }
+.lmh-topic span { display: inline-block; margin-right: 6px; padding: 1px 7px; border-radius: 6px; background: var(--teal-soft, #e3f4f0); color: var(--teal-deep, #0a6f61); font-size: 11px; font-weight: 800; }
+@media (max-width: 920px) {
+  .lesson-layout { grid-template-columns: 1fr; gap: 12px; }
+  .lesson-nav { position: static; max-height: none; padding: 10px 12px; }
+  .lesson-nav-title, .lesson-nav-list { display: none; }
+  .lesson-nav-select { display: flex; align-items: center; gap: 10px; font-size: 12px; font-weight: 700; color: var(--text-2); }
+  .lesson-nav-select select { flex: 1; min-width: 0; font: inherit; font-size: 14px; font-weight: 700; color: var(--text); padding: 9px 10px; border: 1px solid var(--line-strong); border-radius: 10px; background: #fff; }
+}
 .btn-primary {
   background: linear-gradient(135deg, var(--blue-600), #3b76f0);
   color: #fff; box-shadow: 0 6px 16px -6px rgba(37, 99, 235, .55);
