@@ -514,7 +514,7 @@ const lessonLabel = (l, i) => /차시/.test(l.title) ? esc(l.title) : `${i + 1}�
 function groupByLesson(items, lessons) {
   const groups = [
     { name: '공통 자료', common: true, items: items.filter((x) => !x.lesson_id) },
-    ...lessons.map((l, i) => ({ name: lessonLabel(l, i), items: items.filter((x) => x.lesson_id === l.id) })),
+    ...lessons.map((l, i) => ({ name: lessonLabel(l, i), topic: l.topic || '', items: items.filter((x) => x.lesson_id === l.id) })),
   ];
   const known = new Set(lessons.map((l) => l.id));
   const rest = items.filter((x) => x.lesson_id && !known.has(x.lesson_id));
@@ -624,7 +624,7 @@ route(/^#\/program\/(\d+)$/, async (id) => {
       const body = `<div class="lesson-group-body${column ? '' : ' block'}">${g.items.map((r) => r.html).join('')}</div>`;
       if (!g.name) return `<div class="lesson-group">${body}</div>`;
       return `<details class="lesson-group"${g.common ? ' open' : ''}>
-        <summary class="lesson-group-title">${g.name}<span class="badge gray">${g.items.length}</span></summary>${body}</details>`;
+        <summary class="lesson-group-title"><span class="lesson-group-name">${g.name}${g.topic ? `<small class="lesson-group-topic">${esc(g.topic)}</small>` : ''}</span><span class="badge gray">${g.items.length}</span></summary>${body}</details>`;
     }).join('')
     : rows.map((r) => r.html).join('');
 
@@ -665,7 +665,8 @@ route(/^#\/program\/(\d+)$/, async (id) => {
       <button data-lesson-tab="all" class="${sel === 'all' ? 'active' : ''}">전체</button>
       <button data-lesson-tab="0" class="${sel === 0 ? 'active' : ''}">공통 자료</button>
       ${lessons.map((l, i) => `<button data-lesson-tab="${l.id}" class="${sel === l.id ? 'active' : ''}">${lessonLabel(l, i)}</button>`).join('')}
-    </div>` : ''}
+    </div>
+    ${selLesson && selLesson.topic ? `<p class="lesson-topic-line">${selLessonName}<span>주제</span>${esc(selLesson.topic)}</p>` : ''}` : ''}
     ${hasLeft
       ? `<div class="grid main-cols"><div class="col-stack">${leftHtml}</div><div class="col-stack">${rightHtml}</div></div>`
       : `<div class="col-stack" style="max-width:760px">${rightHtml}</div>`}`);
@@ -1609,11 +1610,13 @@ route(/^#\/resources\/(\d+)$/, async (id) => {
         ${lessons.map((l, i) => `
           <div class="deck-line">
             <div class="dl-left"><span class="dl-ico">${i + 1}</span>
-              <div class="dl-body"><div class="dl-title">${lessonLabel(l, i)}</div></div></div>
+              <div class="dl-body"><div class="dl-title">${lessonLabel(l, i)}</div>
+                <div class="dl-meta small muted">${l.topic ? `주제 · ${esc(l.topic)}` : '주제 없음 — "주제" 버튼으로 입력하면 목차와 차시 화면에 보입니다'}</div></div></div>
             <div class="dl-actions">
               <button class="btn btn-ghost btn-sm" data-lmv2="${l.id}" data-dir="-1" title="위로">${icon('up')}</button>
               <button class="btn btn-ghost btn-sm" data-lmv2="${l.id}" data-dir="1" title="아래로">${icon('down')}</button>
               <button class="btn btn-ghost btn-sm" data-lrename="${l.id}">이름 변경</button>
+              <button class="btn btn-ghost btn-sm" data-ltopic="${l.id}">주제</button>
               <button class="btn btn-danger btn-sm" data-ldel2="${l.id}" title="차시 삭제 (자료는 공통으로 이동)">${icon('trash')}</button>
             </div>
           </div>`).join('') || '<p class="empty-note">차시가 없습니다. 차시 없이 공통 자료만 써도 됩니다.</p>'}
@@ -1704,7 +1707,8 @@ route(/^#\/resources\/(\d+)$/, async (id) => {
     document.getElementById('add-lesson').onclick = async () => {
       const title = prompt('차시 이름을 입력하세요. (예: 나를 알아보기)');
       if (!title || !title.trim()) return;
-      await api('POST', `/api/programs/${p.id}/lessons`, { title: title.trim() });
+      const topic = prompt('이 차시의 수업 주제 (예: 인공지능이란 무엇일까?) — 나중에 입력해도 됩니다', '') || '';
+      await api('POST', `/api/programs/${p.id}/lessons`, { title: title.trim(), topic: topic.trim() });
       toast('차시가 추가되었습니다.');
       navigate();
     };
@@ -1714,6 +1718,15 @@ route(/^#\/resources\/(\d+)$/, async (id) => {
         const title = prompt('새 차시 이름', cur ? cur.title : '');
         if (!title || !title.trim()) return;
         await api('PATCH', `/api/lessons/${b.dataset.lrename}`, { title: title.trim() });
+        navigate();
+      };
+    });
+    document.querySelectorAll('[data-ltopic]').forEach((b) => {
+      b.onclick = async () => {
+        const cur = lessons.find((l) => l.id === Number(b.dataset.ltopic));
+        const topic = prompt('이 차시의 수업 주제 (예: 인공지능이란 무엇일까?) — 비우면 주제를 지웁니다', cur?.topic || '');
+        if (topic === null) return;
+        await api('PATCH', `/api/lessons/${b.dataset.ltopic}`, { topic: topic.trim() });
         navigate();
       };
     });

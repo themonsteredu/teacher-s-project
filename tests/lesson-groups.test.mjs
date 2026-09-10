@@ -11,7 +11,7 @@ vm.runInContext(source, context);
 // vm 안에서 만든 배열은 프로토타입이 달라 deepStrictEqual이 실패하므로 JSON으로 평면화한다
 const group = (items, lessons) => JSON.parse(JSON.stringify(vm.runInContext('groupByLesson', context)(items, lessons)));
 
-const lessons = [{ id: 11, title: 'AI 단서를 찾아라!' }, { id: 12, title: '2차시 · 로봇 길 찾기' }, { id: 13, title: '<b>주의</b>' }];
+const lessons = [{ id: 11, title: 'AI 단서를 찾아라!', topic: '인공지능이란 무엇일까?' }, { id: 12, title: '2차시 · 로봇 길 찾기' }, { id: 13, title: '<b>주의</b>' }];
 
 test('전체 탭 묶음은 공통 자료가 먼저, 그다음 차시 순서이고 빈 차시는 빠진다', () => {
   const items = [{ id: 1, lesson_id: 12 }, { id: 2, lesson_id: null }, { id: 3, lesson_id: 11 }, { id: 4, lesson_id: 11 }];
@@ -20,6 +20,7 @@ test('전체 탭 묶음은 공통 자료가 먼저, 그다음 차시 순서이�
     ['공통 자료', [2]], ['1차시 · AI 단서를 찾아라!', [3, 4]], ['2차시 · 로봇 길 찾기', [1]],
   ]);
   assert.equal(groups[0].common, true);
+  assert.deepEqual(groups.map(g => g.topic), [undefined, '인공지능이란 무엇일까?', '']);
   assert.equal(groups[1].common, undefined);
 });
 
