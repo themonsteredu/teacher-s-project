@@ -513,7 +513,7 @@ const lessonLabel = (l, i) => /차시/.test(l.title) ? esc(l.title) : `${i + 1}�
 // 항목은 { lesson_id, ... } 이면 된다 — 링크·웹앱·첨부자료가 같은 함수를 쓴다.
 function groupByLesson(items, lessons) {
   const groups = [
-    { name: '공통 자료', items: items.filter((x) => !x.lesson_id) },
+    { name: '공통 자료', common: true, items: items.filter((x) => !x.lesson_id) },
     ...lessons.map((l, i) => ({ name: lessonLabel(l, i), items: items.filter((x) => x.lesson_id === l.id) })),
   ];
   const known = new Set(lessons.map((l) => l.id));
@@ -618,8 +618,14 @@ route(/^#\/program\/(\d+)$/, async (id) => {
     ...htmlApps.map((f) => ({ lesson_id: f.lesson_id, html: htmlAppRow(f) })),
     ...links.map((l) => ({ lesson_id: l.lesson_id, html: linkRow(l) })),
   ];
+  // 차시 묶음은 접이식(details): 공통 자료만 펼쳐 두고 차시는 접어 둔다 — 10차시면 링크 40개라 펼쳐 놓으면 끝없이 스크롤된다.
   const sectioned = (rows, column) => (sel === 'all' && lessons.length)
-    ? groupByLesson(rows, lessons).map((g) => `<div class="lesson-group${column ? '' : ' block'}">${g.name ? `<div class="lesson-group-title">${g.name}</div>` : ''}${g.items.map((r) => r.html).join('')}</div>`).join('')
+    ? groupByLesson(rows, lessons).map((g) => {
+      const body = `<div class="lesson-group-body${column ? '' : ' block'}">${g.items.map((r) => r.html).join('')}</div>`;
+      if (!g.name) return `<div class="lesson-group">${body}</div>`;
+      return `<details class="lesson-group"${g.common ? ' open' : ''}>
+        <summary class="lesson-group-title">${g.name}<span class="badge gray">${g.items.length}</span></summary>${body}</details>`;
+    }).join('')
     : rows.map((r) => r.html).join('');
 
   // 왼쪽(소개·영상) / 오른쪽(링크·자료·보드) 분리 — 왼쪽이 비면 한 단 전체폭으로
