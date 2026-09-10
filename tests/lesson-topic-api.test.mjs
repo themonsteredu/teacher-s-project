@@ -15,14 +15,14 @@ async function request(method, path, body) {
     './db': {
       TS: c => c, ready: async () => {}, log: async () => {}, getSettings: async () => ({ site_open: true }),
       one: async (sql, params) => {
-        queries.push({ sql, params });
+        queries.push({ sql, params: Array.from(params || []) });
         if (sql.startsWith('SELECT * FROM programs')) return { id: params[0], title: '수업' };
         if (sql.startsWith('SELECT * FROM lessons')) return { id: params[0], title: '1차시', topic: '' };
         if (sql.includes('MAX(position)')) return { p: 3 };
         if (sql.startsWith('INSERT INTO lessons')) return { id: 77 };
         throw new Error(`Unexpected database access: ${sql}`);
       },
-      q: async (sql, params) => { queries.push({ sql, params }); return []; },
+      q: async (sql, params) => { queries.push({ sql, params: Array.from(params || []) }); return []; },
     },
   };
   vm.runInNewContext(source, { module, exports: module.exports, require: id => { if (id in deps) return deps[id]; throw new Error(id); }, process: { env: {} }, console });
@@ -39,7 +39,7 @@ test('새 차시는 주제와 함께 저장되고, 주제는 공백 정리·200�
   assert.match(insert.sql, /\(program_id, position, title, topic\)/);
   assert.equal(insert.params[2], 'AI 단서를 찾아라!');
   assert.equal(insert.params[3].length, 200);
-  assert.equal(insert.params[3].slice(0, 24), '인공지능이란 무엇일까? 생활 속 AI x');
+  assert.equal(insert.params[3].slice(0, 24), '인공지능이란 무엇일까? 생활 속 AI xxx');
 });
 
 test('주제 없이 만든 차시는 빈 주제로 저장된다', async () => {
