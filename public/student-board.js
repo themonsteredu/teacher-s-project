@@ -212,31 +212,76 @@ async function renderStudentClass(code, join, careerStudentId) {
   }
   render();await feed();
 }
+function sbLessonTitle(session,index) {
+  const title=String(session.title||'').replace(/^\s*\d+\s*차시\s*(?:[·:.\-]\s*)?/,'');
+  return `${index+1}차시 · ${title||'수업'}`;
+}
 async function loadSubmissionSettings(el,boardId) {
-  let data,busy=false,schools=[],schoolError='';
+  let data,busy=false,schools=[],schoolError='',selected='',drafts=[],activeSession='';
   try{data=await sbRequest('GET',`/api/boards/${boardId}/submission-settings`);}catch(e){el.textContent=e.message;return;}
   if(data.careerAvailable){try{schools=(await sbRequest('GET','/api/student-accounts/schools')).schools||[];}catch(e){schoolError=e.message;}}
+  const message=text=>{el.querySelector('#sbt-message').textContent=text;};
+  const dirty=()=>message('저장 전 변경사항이 있습니다.');
+  const capture=()=>{
+    const draft=drafts.find(s=>s.id===selected),enabled=el.querySelector('#sbt-enabled');
+    if(!draft||!enabled)return;
+    draft.submissions={enabled:enabled.checked,types:Object.keys(SB_TYPES).filter(k=>el.querySelector(`[data-sbt-type="${k}"]`).checked),sharing:el.querySelector('#sbt-sharing').value};
+  };
+  const today=()=>{
+    const i=data.config.sessions.findIndex(s=>s.id===activeSession);
+    el.querySelector('#sbt-today').textContent=i<0?'차시를 선택하세요':sbLessonTitle(data.config.sessions[i],i);
+  };
+  const drawLesson=()=>{
+    const c=data.config,i=c.sessions.findIndex(s=>s.id===selected),s=c.sessions[i];
+    const pane=el.querySelector('#sbt-lesson-panel');
+    if(!s){pane.innerHTML='<p class="small muted">운영 구성을 적용하면 차시를 설정할 수 있습니다.</p>';return;}
+    const setting=drafts[i].submissions;
+    pane.innerHTML=`<div class="sbt-lesson-heading"><h3>${esc(sbLessonTitle(s,i))}</h3><button type="button" class="btn btn-soft btn-sm" id="sbt-use-today" ${selected===activeSession?'disabled':''}>${selected===activeSession?'오늘 수업으로 선택됨':'오늘 수업으로 선택'}</button></div>
+      <label class="sbt-toggle"><input type="checkbox" id="sbt-enabled" ${setting.enabled?'checked':''}><span><strong>학생 제출 받기</strong><small>끄면 이 차시의 새 제출을 받지 않습니다.</small></span></label>
+      <fieldset class="sbt-types"><legend>받을 수 있는 형식</legend>${Object.entries(SB_TYPES).map(([k,n])=>`<label><input type="checkbox" data-sbt-type="${k}" ${setting.types.includes(k)?'checked':''}>${n}</label>`).join('')}</fieldset>
+      <label class="sbt-field">제출물 공개 범위<select id="sbt-sharing"><option value="teacher" ${setting.sharing==='teacher'?'selected':''}>선생님만 열람</option><option value="class" ${setting.sharing==='class'?'selected':''}>교사 확인 후 우리 반 공개</option></select></label>
+      <p class="small muted sbt-privacy">새 제출물은 먼저 선생님에게만 보입니다. 우리 반 공개는 제출물마다 직접 선택합니다.</p>`;
+    pane.querySelectorAll('input,select').forEach(input=>input.onchange=dirty);
+    el.querySelector('#sbt-use-today').onclick=()=>{capture();activeSession=selected;today();drawLesson();dirty();};
+  };
   const draw=()=>{
     const c=data.config;
-    el.innerHTML=`<h2>차시·학생 제출 설정</h2><p class="small muted">이 수업의 운영 구성과 제출 방법을 정하세요. 공유 자료는 아래에서 선택합니다.</p><div class="sc-teacher-variant"><label>운영 구성<select id="sbt-variant"><option value="${esc(c.variantId)}">${esc(c.name)} · ${c.sessions.length}차시 (현재)</option>${data.variants.filter(v=>v.id!==c.variantId).map(v=>`<option value="${esc(v.id)}">${esc(v.name)} · ${v.count}차시</option>`).join('')}</select></label><button class="btn btn-soft" id="sbt-apply">구성 적용</button></div>${sbCareerSettingsHtml(c,data.careerAvailable===true,schools,schoolError)}<label class="sc-share-consent"><input type="checkbox" id="sbt-share"> 이 구성의 학생 웹앱·활동지도 학생에게 공유</label><div class="sc-settings-scroll"><table class="sc-settings"><thead><tr><th>차시</th><th>오늘 수업</th><th>제출 받기</th><th>허용 형식</th><th>공개 범위</th></tr></thead><tbody>${c.sessions.map((s,i)=>`<tr><th>${i+1}차시<br>${esc(s.title)}</th><td><input type="radio" name="sbt-active" data-active="${esc(s.id)}" aria-label="${i+1}차시를 오늘 수업으로" ${c.activeSession===s.id?'checked':''}></td><td><input type="checkbox" data-enabled="${i}" aria-label="${i+1}차시 제출 받기" ${s.submissions.enabled?'checked':''}></td><td>${Object.entries(SB_TYPES).map(([k,n])=>`<label><input type="checkbox" data-type="${i}:${k}" ${s.submissions.types.includes(k)?'checked':''}>${n}</label>`).join('')}</td><td><select data-sharing="${i}" aria-label="${i+1}차시 공개 범위"><option value="teacher" ${s.submissions.sharing==='teacher'?'selected':''}>선생님만 열람</option><option value="class" ${s.submissions.sharing==='class'?'selected':''}>교사 확인 후 우리 반 공개</option></select></td></tr>`).join('')}</tbody></table></div><p class="small muted">우리 반 공개를 허용해도 새 제출물은 먼저 선생님에게만 보입니다. 아래 제출 카드의 ‘우리 반에 공개’로 공개하세요. 학생 계정 연결과 차시의 기록 설정을 모두 켜야 진로기록을 저장합니다. 제출 카드에서 실제 저장 결과를 확인하세요.</p><button class="btn btn-primary" id="sbt-save">제출 설정 저장</button><button class="btn btn-soft" id="sbt-records">이 수업의 진로기록 확인</button><p id="sbt-message" role="status"></p>`;
+    drafts=c.sessions.map(s=>({id:s.id,submissions:{...s.submissions,types:[...s.submissions.types]}}));
+    activeSession=c.activeSession;
+    if(!c.sessions.some(s=>s.id===selected))selected=c.activeSession||c.sessions[0]?.id||'';
+    el.innerHTML=`<h2>학생 제출 설정</h2><p class="small muted">차시를 골라 제출 방법을 설정하세요.</p>
+      <div class="sbt-today"><span>오늘 수업</span><strong id="sbt-today"></strong></div>
+      <label class="sbt-field sbt-picker">설정할 차시<select id="sbt-lesson">${c.sessions.map((s,i)=>`<option value="${esc(s.id)}" ${s.id===selected?'selected':''}>${esc(sbLessonTitle(s,i))}</option>`).join('')}</select></label>
+      <section class="sbt-lesson-panel" id="sbt-lesson-panel" aria-label="선택한 차시의 제출 설정"></section>
+      <details class="sbt-advanced"><summary>운영 구성·자료 공유</summary><div class="sc-teacher-variant"><label>운영 구성<select id="sbt-variant"><option value="${esc(c.variantId)}">${esc(c.name)} · ${c.sessions.length}차시 (현재)</option>${data.variants.filter(v=>v.id!==c.variantId).map(v=>`<option value="${esc(v.id)}">${esc(v.name)} · ${v.count}차시</option>`).join('')}</select></label><button class="btn btn-soft" id="sbt-apply">구성 적용</button></div><label class="sc-share-consent"><input type="checkbox" id="sbt-share"> 전체 차시의 학생 웹앱·활동지를 함께 공유</label><p class="small muted">차시별 자료는 아래 수업자료에서 선택할 수 있습니다.</p></details>
+      <details class="sbt-advanced"><summary>학생 계정·진로기록</summary>${sbCareerSettingsHtml(c,data.careerAvailable===true,schools,schoolError)}<button class="btn btn-soft" id="sbt-records">이 수업의 진로기록 확인</button></details>
+      <div class="sbt-actions"><button class="btn btn-primary" id="sbt-save">제출 설정 저장</button><p id="sbt-message" role="status" aria-live="polite"></p></div>`;
+    today();drawLesson();
+    el.querySelector('#sbt-lesson').onchange=e=>{capture();selected=e.target.value;drawLesson();};
+    el.querySelectorAll('#sbt-share,#sbt-career,#sbt-school').forEach(input=>input.onchange=dirty);
     el.querySelector('#sbt-records').onclick=async()=>{const button=el.querySelector('#sbt-records');button.disabled=true;try{const result=await sbRequest('GET',`/api/boards/${boardId}/career-records`);const modal=openModal(`<h3>이 수업의 진로기록</h3><p>최근 200건의 제출 원본과 실제 저장 결과입니다. 교사 확인 여부와 저장 성공은 별개입니다.</p>${result.records.map(r=>`<section class="ce-preview"><h4>${esc(r.studentName)} · ${esc(r.record.artifact)}</h4><p>${esc(r.record.raw_data.submission.session_title)}</p><p>${esc(r.record.process)}</p><span>${sbCareerLabel(r.state)}</span>${r.recordId?`<p class="small muted">저장 번호 ${esc(r.recordId)}</p>`:''}<details><summary>제출한 글 보기</summary><p class="sc-original-text">${esc(r.record.raw_data.submission.content||'글 설명 없음')}</p></details></section>`).join('')||'<p>진로기록으로 제출한 활동이 없습니다.</p>'}<div class="m-actions"><button class="btn btn-primary" id="sbt-records-close">닫기</button></div>`);modal.querySelector('#sbt-records-close').onclick=()=>modal.remove();}catch(e){toast(e.message,true);}finally{button.disabled=false;}};
     el.querySelector('#sbt-save').onclick=()=>save(false);el.querySelector('#sbt-apply').onclick=()=>save(true);
   };
   async function save(changeVariant){
     if(busy)return;
+    capture();
     const c=data.config,variantId=changeVariant?el.querySelector('#sbt-variant').value:c.variantId;
     if(changeVariant&&variantId===c.variantId)return;
     if(changeVariant&&!confirm('새 운영 구성을 적용할까요? 기존 제출물은 해당 차시 이름으로 보관됩니다.'))return;
-    const sessions=c.sessions.map((s,i)=>({id:s.id,submissions:{enabled:el.querySelector(`[data-enabled="${i}"]`).checked,types:Object.keys(SB_TYPES).filter(k=>el.querySelector(`[data-type="${i}:${k}"]`).checked),sharing:el.querySelector(`[data-sharing="${i}"]`).value}}));
-    if(!changeVariant&&sessions.some(s=>!s.submissions.types.length)){el.querySelector('#sbt-message').textContent='차시마다 제출 형식을 하나 이상 선택하세요.';return;}
-    const activeSession=el.querySelector('[data-active]:checked')?.dataset.active||c.activeSession;
+    const sessions=drafts;
+    const invalid=sessions.find(s=>!s.submissions.types.length);
+    if(!changeVariant&&invalid){selected=invalid.id;el.querySelector('#sbt-lesson').value=selected;drawLesson();message('이 차시의 제출 형식을 하나 이상 선택하세요.');el.querySelector('[data-sbt-type]').focus();return;}
     const shareStudentMaterials=el.querySelector('#sbt-share').checked;
     const careerEnabled=el.querySelector('#sbt-career').checked;
     const selectedSchool=el.querySelector('#sbt-school').value||c.career?.schoolId||null;
-    if(careerEnabled&&(!selectedSchool||!data.careerAvailable||schoolError)){el.querySelector('#sbt-message').textContent=schoolError||'학생 계정 연결 상태와 담당 학교를 확인하세요.';return;}
+    if(careerEnabled&&(!selectedSchool||!data.careerAvailable||schoolError)){message(schoolError||'학생 계정 연결 상태와 담당 학교를 확인하세요.');return;}
     const career={enabled:careerEnabled,schoolId:careerEnabled?selectedSchool:null};
-    busy=true;el.querySelectorAll('button,input,select').forEach(b=>b.disabled=true);
-    try{const r=await sbRequest('PUT',`/api/boards/${boardId}/submission-settings`,{revision:c.revision,variantId,sessions,activeSession,shareStudentMaterials,career});data.config=r.config;draw();el.querySelector('#sbt-message').textContent='설정이 저장되었습니다.';if(shareStudentMaterials){const card=document.getElementById('share-card');if(card)loadShareCard(card,boardId);}}catch(e){el.querySelector('#sbt-message').textContent=e.message;}finally{busy=false;el.querySelectorAll('button,input,select').forEach(b=>b.disabled=false);const toggle=el.querySelector('#sbt-career'),school=el.querySelector('#sbt-school');const unavailable=!data.careerAvailable||!schools.length||!!schoolError;if(toggle)toggle.disabled=unavailable&&!toggle.checked;if(school)school.disabled=unavailable;}
+    busy=true;const controls=[...el.querySelectorAll('button,input,select')].map(node=>({node,disabled:node.disabled}));controls.forEach(({node})=>node.disabled=true);message('설정을 저장하고 있습니다…');
+    try{
+      const r=await sbRequest('PUT',`/api/boards/${boardId}/submission-settings`,{revision:c.revision,variantId,sessions,activeSession,shareStudentMaterials,career});
+      data.config=r.config;draw();message('설정이 저장되었습니다.');
+      if(shareStudentMaterials){const card=document.getElementById('share-card');if(card)loadShareCard(card,boardId);}
+    }catch(e){message(e.message);}finally{busy=false;controls.forEach(({node,disabled})=>node.disabled=disabled);}
   }
   draw();
 }
