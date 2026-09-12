@@ -75,3 +75,22 @@ test('rate limit refuses verification before querying account passwords',async()
   await assert.rejects(createService(db.pool,'hub').login('m'+'b'.repeat(20),'password','loopback'),e=>e.status===429);
   assert.ok(!db.calls.some(c=>c.sql.startsWith('SELECT *')));
 });
+test('a school opened to this product is manageable by an admin without a manager binding, never by a teacher',async()=>{
+  const db=database(sql=>sql.includes('moakit_accounts.school_access')?{rowCount:1,rows:[{}]}:{rowCount:0,rows:[]});
+  const api=createService(db.pool,'moakit-hub');
+  assert.deepEqual(await api.list({id:1,role:'admin'},school),[]);
+  await assert.rejects(api.list({id:1,role:'teacher'},school),e=>e.status===403);
+  assert.equal(db.calls.some(c=>/^(INSERT|UPDATE|DELETE)/.test(c.sql)),false);
+});
+test('opening a school to another product is admin-only, checks the product and audits',async()=>{
+  const db=database(sql=>sql.startsWith('SELECT 1')?{rowCount:1,rows:[{}]}:{rowCount:1,rows:[]});
+  const api=createService(db.pool,'moakit-hub');
+  await assert.rejects(api.setAccess({id:1,role:'teacher'},school,'moakit-lab',true),e=>e.status===403);
+  await assert.rejects(api.setAccess({id:1,role:'admin'},school,'moakit-hub',true),e=>e.status===400);
+  await assert.rejects(api.setAccess({id:1,role:'admin'},school,'moakit-other',true),e=>e.status===400);
+  await api.setAccess({id:1,role:'admin'},school,'moakit-lab',true);
+  assert.ok(db.calls.some(c=>c.sql.startsWith('INSERT INTO moakit_accounts.school_access')&&c.args[1]==='moakit-lab'&&c.args[2]==='moakit-hub:1'));
+  assert.ok(db.calls.some(c=>c.sql.startsWith('INSERT INTO moakit_accounts.audit')&&c.args[2]==='access_opened:moakit-lab'));
+  await api.setAccess({id:1,role:'admin'},school,'moakit-lab',false);
+  assert.ok(db.calls.some(c=>c.sql.startsWith('DELETE FROM moakit_accounts.school_access')&&c.args[1]==='moakit-lab'));
+});

@@ -52,6 +52,21 @@ student page here lists MoaLab records too (`source = 'job'`, labelled
 "모아랩 진로 수업"). Implementation: aiapp `lib/school-accounts.js`,
 design notes in aiapp `docs/job-career-log.md`.
 
+## 2026-09-12: MoaLab issues accounts too, and schools can be opened across products
+
+MoaLab now has the same school-account management (its `#/school-accounts` page,
+issuer `moakit-lab`), so a school that never uses MoaHub still gets central MoaKit
+accounts from day one. A new central table `moakit_accounts.school_access`
+(`db/moakit-accounts-0002-school-access.sql`, applied to production as migration
+`moakit_accounts_school_access`) records which other product a school is opened to.
+An admin of that product then sees the school (listed with `via: 'open'`) and can
+issue/manage students and grant managers without a manager binding; ordinary
+teachers still need a manager binding. The manager page shows a
+"모아랩(job.moakit.ai)에 열기" checkbox (admin only) and MoaLab shows the mirror
+"모아허브에 열기". `GET /schools` now returns `{id, name, via, openedTo}`;
+`PATCH /schools/:id/access {issuer, enabled}` opens or closes. Audit actions:
+`access_opened:<issuer>` / `access_closed:<issuer>`.
+
 ## Implemented
 
 - `/student-accounts.html`: teacher school management, batch issue (1–100 students),
