@@ -6,12 +6,21 @@ const require=createRequire(import.meta.url);
 const {createService,fileSpec,sameOrigin}=require('../lib/student-board');
 const {parseCookies}=require('../lib/cookies');
 const copy=x=>JSON.parse(JSON.stringify(x));
-function fixture(){
+function fixture({academy=false}={}){
   const accounts=new Map(),deliveries=[],recordIds=new Map(),schoolId=randomUUID();
   const settings=new Map(),posts=[],locks=[],objects=new Map(),signed=[],materialWrites=[],b={id:7,program_id:11,created_by:3,code:'abcd12',is_open:true},program={published:true};
   let inTx=false,nextId=1,queue=Promise.resolve(),breakReceipt=false,site='1',deliveryFails=false,accountAvailable=true,manager=true;
   const cfg={revision:null,variantId:'',name:'기본 수업',activeSession:'lesson-1',sessions:[{id:'lesson-1',title:'관찰하기',minutes:40,bridge:'',sourceLessons:['1'],assets:{},submissions:{enabled:true,types:['photo','document','text'],sharing:'teacher'}}]};
   const run=async(sql,a=[])=>{
+    if(academy && sql.startsWith('INSERT INTO settings') && sql.includes('ON CONFLICT'))throw Error('ON CONFLICT is not supported on hub.settings');
+    if(academy && sql.startsWith('SELECT b.id FROM boards') && sql.includes('FOR SHARE'))throw Error('FOR SHARE cannot be applied to the nullable side of an outer join');
+    if(sql.startsWith('SELECT b.hub_id AS id FROM edu.sessions')){
+      assert.equal(academy,true);
+      assert.match(sql,/b.academy_id=hub.current_academy\(\)/);
+      assert.match(sql,/p.academy_id=b.academy_id/);
+      assert.match(sql,/FOR SHARE OF b,p/);
+      return b.is_open&&program.published&&String(a[0])===String(b.id)?[{id:b.id}]:[];
+    }
     if(sql.startsWith('SELECT pg_advisory')){locks.push(a[0]);return[];}
     if(sql.startsWith('SELECT id FROM program_links'))return[];
     if(sql.startsWith('INSERT INTO program_links')){materialWrites.push({kind:a[1],url:a[3]});return[{id:100+materialWrites.length}];}
@@ -39,7 +48,7 @@ function fixture(){
     throw new Error('Unmocked SQL: '+sql);
   };
   const c={q:run,one:async(s,a)=>(await run(s,a))[0]||null};
-  const db={q:async(s,a)=>{assert.equal(inTx,false,'must not borrow a second pool client inside a transaction');return run(s,a);},one:async(s,a)=>{assert.equal(inTx,false,'must not borrow a second pool client inside a transaction');return c.one(s,a);},transaction:async work=>{
+  const db={ACADEMY_ID:academy?'2348f837-0dd4-44fa-854c-e050d72391aa':null,q:async(s,a)=>{assert.equal(inTx,false,'must not borrow a second pool client inside a transaction');return run(s,a);},one:async(s,a)=>{assert.equal(inTx,false,'must not borrow a second pool client inside a transaction');return c.one(s,a);},transaction:async work=>{
     const previous=queue;let release;queue=new Promise(r=>release=r);await previous;
     const oldSettings=new Map(settings),oldPosts=copy(posts);inTx=true;
     try{return await work(c);}catch(e){settings.clear();for(const [k,v]of oldSettings)settings.set(k,v);posts.splice(0,posts.length,...oldPosts);throw e;}finally{inTx=false;release();}
@@ -208,4 +217,40 @@ test('Science follows the selected lesson material and recording gates, not mere
  f.cfg.sessions[0].record.mode='none';f.setConfig();await assert.rejects(()=>f.api.authorizeActivity(req,f.response(),'abcd12',body),e=>e.status===403);
  f.cfg.sessions[0].record.mode='submission';f.cfg.sessions[0].submissions.enabled=false;f.setConfig();await assert.rejects(()=>f.api.authorizeActivity(req,f.response(),'abcd12',body),e=>e.status===403);
  f.cfg.sessions[0].submissions.enabled=true;f.cfg.sessions[0].submissions.types=['photo'];f.setConfig();await assert.rejects(()=>f.api.authorizeActivity(req,f.response(),'abcd12',body),e=>e.status===400);
+});
+
+for (const academy of [false,true]) {
+ test(`${academy?'tenant views':'legacy tables'}: settings, guest join, private attachment and retry work together`,async()=>{
+  const f=fixture({academy}),teacher={id:3,role:'teacher'};
+  const first=await f.api.saveSettings(7,teacher,copy(f.cfg));
+  const changed=copy(first.config);changed.sessions[0].submissions.sharing='class';
+  const saved=await f.api.saveSettings(7,teacher,changed);
+  assert.notEqual(saved.config.revision,first.config.revision);
+  await assert.rejects(()=>f.api.saveSettings(7,teacher,changed),e=>e.status===409);
+  await assert.rejects(()=>f.api.saveSettings(7,{id:8,role:'teacher'},saved.config),e=>e.status===403);
+  const a=await f.join(),b=await f.join(),res=f.response();
+  const upload=await f.api.sign(a,res,'abcd12',{sessionId:'lesson-1',name:'활동.png',size:20});
+  const receipt=JSON.parse(f.settings.get(`sb:upload:7:${upload.uploadId}`));f.objects.set(receipt.path,{size:20,mime:'image/png'});
+  const body=f.body({uploadId:upload.uploadId}),post=await f.api.submit(a,res,'abcd12',body);
+  assert.equal(f.posts[0].hidden,true);assert.equal((await f.api.list(b,res,'abcd12')).posts.length,0);
+  const retry=await f.api.submit(a,res,'abcd12',body);assert.equal(retry.id,post.id);assert.equal(retry.replayed,true);
+  await f.api.moderate(post.id,teacher,false);assert.equal((await f.api.list(b,res,'abcd12')).posts.length,1);
+  assert.equal(f.deliveries.length,0);
+ });
+ test(`${academy?'tenant views':'legacy tables'}: receipt failures roll back and closed gates prevent new submissions`,async()=>{
+  const f=fixture({academy}),req=await f.join();f.failReceipt=true;
+  await assert.rejects(()=>f.api.submit(req,f.response(),'abcd12',f.body()),/receipt/);
+  assert.equal(f.posts.length,0);assert.equal([...f.settings.keys()].filter(k=>/^sb:(post|event):/.test(k)).length,0);
+  f.failReceipt=false;f.site='0';await assert.rejects(()=>f.api.submit(req,f.response(),'abcd12',f.body()),e=>e.status===403);
+  f.site='1';f.b.is_open=false;await assert.rejects(()=>f.api.submit(req,f.response(),'abcd12',f.body()),e=>e.status===403);
+  assert.equal(f.posts.length,0);
+ });
+}
+test('tenant view Career retry keeps the original record and checks the live school',async()=>{
+ const f=fixture({academy:true});f.enableCareer();f.deliveryFails=true;
+ const token=f.account(),req=await f.join(token),submitted=await f.api.submit(req,f.response(),'abcd12',f.bodyFor(req));
+ assert.equal(submitted.career.state,'pending');f.deliveryFails=false;
+ f.accounts.get(token).schools=[];await assert.rejects(()=>f.api.saveCareer(req,f.response(),'abcd12',submitted.id,{draftScope:req.draftScope}),e=>e.status===403);
+ f.accounts.get(token).schools=[f.schoolId];const saved=await f.api.saveCareer(req,f.response(),'abcd12',submitted.id,{draftScope:req.draftScope});
+ assert.equal(saved.state,'saved');assert.equal(f.posts.length,1);assert.deepEqual(f.deliveries[0],f.deliveries[1]);
 });

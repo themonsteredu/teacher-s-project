@@ -1256,26 +1256,52 @@ async function loadShareCard(el, boardId) {
       <span class="sr-tag">${tag}</span>
       <span class="sr-label">${esc(label)}${sub ? ` <span class="small muted">${esc(sub)}</span>` : ''}</span>
     </label>`;
+  const groups = [{ id:'common', title:'공통 자료' }, ...(d.lessons || []).map(l => ({id:String(l.id), title:l.title}))];
+  const known = new Set(groups.map(g => g.id));
+  const groupFor = item => known.has(String(item.lesson_id)) ? String(item.lesson_id) : 'common';
+  for (const g of groups) {
+    g.links = d.links.filter(l => groupFor(l) === g.id);
+    g.files = d.files.filter(f => groupFor(f) === g.id);
+  }
+  const available = groups.filter(g => g.links.length + g.files.length);
   el.innerHTML = `
-    <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap">
-      <div>
-        <h2 style="margin:0 0 2px">학생에게 보여줄 수업자료</h2>
-        <div class="small muted">체크한 자료만 학생이 참여 코드로 들어와서 볼 수 있어요. 체크를 풀면 즉시 사라집니다.</div>
-      </div>
-      <button class="btn btn-primary btn-sm" id="share-save">저장</button>
+    <h2>학생에게 보여줄 수업자료</h2>
+    <p class="small muted">자료를 체크하고 저장하면 학생 화면에 적용됩니다.</p>
+    <label class="share-filter">자료를 볼 차시<select id="share-lesson"><option value="all">전체 차시</option>${available.map(g=>`<option value="${esc(g.id)}">${esc(g.title)}</option>`).join('')}</select></label>
+    <div class="share-groups">
+      ${available.map((g,i)=>`<details class="share-group" data-share-group="${esc(g.id)}" ${i===0?'open':''}><summary><span>${esc(g.title)}</span><small data-share-count></small></summary><div class="share-list">
+        ${g.links.map(l=>row(sharedL.has(String(l.id)), 'link', l.id, KIND_TAG[l.kind] || '🔗 링크', l.label || l.url, '')).join('')}
+        ${g.files.map(f=>row(sharedF.has(String(f.id)), 'file', f.id, '📎 자료', f.name, (f.size / 1024 / 1024).toFixed(1) + 'MB')).join('')}
+      </div></details>`).join('')}
     </div>
-    <div class="share-list" style="margin-top:12px">
-      ${d.links.map((l) => row(sharedL.has(String(l.id)), 'link', l.id, KIND_TAG[l.kind] || '🔗 링크', l.label || l.url, '')).join('')}
-      ${d.files.map((f) => row(sharedF.has(String(f.id)), 'file', f.id, '📎 자료', f.name, (f.size / 1024 / 1024).toFixed(1) + 'MB')).join('')}
-    </div>
-    <div class="msg" id="share-msg" style="margin-top:8px"></div>`;
-  document.getElementById('share-save').onclick = async () => {
+    <div class="share-actions"><button class="btn btn-primary" id="share-save">공유 자료 저장</button><p class="small muted" id="share-total"></p></div>
+    <div class="msg" id="share-msg" role="status" aria-live="polite"></div>`;
+  const updateCounts = (changed=false) => {
+    el.querySelectorAll('[data-share-group]').forEach(group=>{
+      group.querySelector('[data-share-count]').textContent=`${group.querySelectorAll('[data-share]:checked').length} / ${group.querySelectorAll('[data-share]').length}개 선택`;
+    });
+    const count=el.querySelectorAll('[data-share]:checked').length;
+    el.querySelector('#share-total').textContent=changed?`${count}개 선택 · 저장하면 적용됩니다`:`학생에게 ${count}개 자료 공유 중`;
+  };
+  el.querySelector('#share-lesson').onchange=e=>{
+    el.querySelectorAll('[data-share-group]').forEach(group=>{
+      group.hidden=e.target.value!=='all'&&group.dataset.shareGroup!==e.target.value;
+      if(e.target.value!=='all'&&!group.hidden)group.open=true;
+    });
+  };
+  el.querySelectorAll('[data-share]').forEach(input=>input.onchange=()=>{updateCounts(true);el.querySelector('#share-msg').textContent='저장 전 변경사항이 있습니다.';});
+  updateCounts();
+  let saving=false;
+  el.querySelector('#share-save').onclick = async () => {
+    if(saving)return;
     const link_ids = []; const file_ids = [];
     el.querySelectorAll('[data-share]:checked').forEach((c) => {
       const [t, i] = c.dataset.share.split(':');
       (t === 'link' ? link_ids : file_ids).push(i);
     });
-    const msg = document.getElementById('share-msg');
+    const msg = el.querySelector('#share-msg');
+    saving=true;
+    el.querySelectorAll('button,input,select').forEach(control=>control.disabled=true);
     msg.textContent = '저장 중…'; msg.className = 'msg';
     try {
       const saved = await api('PUT', `/api/boards/${boardId}/items`, { link_ids, file_ids });
@@ -1286,8 +1312,10 @@ async function loadShareCard(el, boardId) {
       } else {
         msg.textContent = `저장됐어요 — 학생에게 ${saved.count}개 자료가 보입니다.`;
         msg.className = 'msg ok';
+        updateCounts();
       }
     } catch (e) { if (!e.handled) { msg.textContent = e.message; msg.className = 'msg err'; } }
+    finally { saving=false;el.querySelectorAll('button,input,select').forEach(control=>control.disabled=false); }
   };
 }
 

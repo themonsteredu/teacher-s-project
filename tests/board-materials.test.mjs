@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import vm from 'node:vm';
+import {domFixture,esc} from './dom-fixture.mjs';
 const require = createRequire(import.meta.url);
 const source = readFileSync(new URL('../lib/api.js', import.meta.url), 'utf8');
 async function save({ links = [], files = [], body, user = { id: 1, role: 'teacher' } }) {
@@ -68,26 +69,29 @@ test('unauthenticated requests cannot replace sharing', async () => {
 });
 
 const app = readFileSync(new URL('../public/app.js', import.meta.url), 'utf8');
-test('share UI preserves bigint IDs, restores mixed-type checks and reports actual count', async () => {
-  const handlers = {};
-  const msg = {};
-  const el = { innerHTML: '', querySelectorAll: () => [{ dataset: { share: 'link:9007199254740993' } }] };
+test('share UI preserves filtered/collapsed selections, bigint IDs and actual saved count', async () => {
+  const document=domFixture('<main></main>'),el=document.querySelector('main');
   let submitted;
   const context = {
     api: async (method, path, body) => {
-      if (method === 'GET') return { links: [{ id: '9007199254740993', kind: 'aiapp', label: 'Activity' }], files: [{ id: 30, name: 'File', size: 0 }], sharedLinkIds: ['9007199254740993'], sharedFileIds: ['30'] };
+      if (method === 'GET') return { lessons:[{id:2,title:'2차시 · 관찰'}],links: [{ id: '9007199254740993', kind: 'aiapp', label: 'Activity',lesson_id:2 }], files: [{ id: 30, name: 'File', size: 0 }], sharedLinkIds: ['9007199254740993'], sharedFileIds: ['30'] };
       submitted = body;
       return { count: 0 };
     },
-    document: { getElementById: id => id === 'share-msg' ? msg : (handlers[id] ??= {}) },
-    esc: s => s, KIND_TAG: {},
+    document,esc,KIND_TAG: {},
   };
   vm.createContext(context);
   vm.runInContext(app.slice(app.indexOf('async function loadShareCard('), app.indexOf('/* ---- 제출 현황')), context);
   await context.loadShareCard(el, 16);
-  assert.match(el.innerHTML, /data-share="file:30" checked/);
-  await handlers['share-save'].onclick();
+  assert.equal(el.querySelector('[data-share="file:30"]').checked,true);
+  assert.equal(el.querySelector('[data-share="link:9007199254740993"]').checked,true);
+  const filter=el.querySelector('#share-lesson');filter.value='common';filter.onchange({target:filter});
+  assert.equal(el.querySelector('[data-share-group="2"]').hidden,true);
+  await el.querySelector('#share-save').onclick();
   assert.equal(submitted.link_ids[0], '9007199254740993');
-  assert.match(msg.textContent, /1개 중 0개/);
+  assert.equal(submitted.file_ids[0],'30');
+  const msg=el.querySelector('#share-msg');
+  assert.match(msg.textContent, /2개 중 0개/);
   assert.equal(msg.className, 'msg err');
+  assert.equal(el.querySelector('#share-save').disabled,false);
 });
