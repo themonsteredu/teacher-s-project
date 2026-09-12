@@ -39,6 +39,19 @@ This branch ports the account implementation from Hub PR #21 onto the current Hu
 production code and prepares authenticated submission integration. It is NOT
 production enabled. Porting files does not change or merge PR #21 or History PR #6.
 
+## 2026-09-12: the same account also signs in to MoaLab (job.moakit.ai)
+
+MoaLab accepts these school-issued accounts on its own login form (username
+pattern `m` + 20 hex). It verifies the password against the same central
+`moakit_accounts` tables, links its own student row by `school_account_id`, and
+writes Career records with the account's `career_student_id`. So one student's
+Hub school-lesson records and MoaLab career-lesson records share one UUID.
+Password changes on either site update the central account and revoke Hub
+student sessions; a Hub reset propagates to MoaLab at the next login. The
+student page here lists MoaLab records too (`source = 'job'`, labelled
+"모아랩 진로 수업"). Implementation: aiapp `lib/school-accounts.js`,
+design notes in aiapp `docs/job-career-log.md`.
+
 ## Implemented
 
 - `/student-accounts.html`: teacher school management, batch issue (1–100 students),

@@ -18,9 +18,11 @@ function clearStudent() {
 }
 function appendRecord(record) {
   const article=document.createElement('article'),heading=document.createElement('h3'),when=document.createElement('p'),process=document.createElement('p');
-  heading.textContent=record.artifact||'활동 결과물';
+  // 같은 학생 번호로 모아랩(job.moakit.ai) 진로 수업에서 남긴 기록도 함께 나온다.
+  const job=record.source==='job'&&record.raw_data&&typeof record.raw_data.job==='object'?record.raw_data.job:null;
+  heading.textContent=record.artifact||(job&&typeof job.deck_title==='string'?job.deck_title:'')||'활동 결과물';
   const date=new Date(record.occurred_at);
-  when.textContent=Number.isNaN(date.getTime())?'활동 날짜 확인 중':date.toLocaleString('ko-KR');
+  when.textContent=(Number.isNaN(date.getTime())?'활동 날짜 확인 중':date.toLocaleString('ko-KR'))+(job?' · 모아랩 진로 수업':'');
   when.className='muted';process.textContent=record.process||'';
   article.append(heading,when,process);
   if(record.reflection){const reflection=document.createElement('p');reflection.textContent='내가 남긴 생각: '+record.reflection;article.append(reflection);}
