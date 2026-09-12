@@ -2,14 +2,14 @@
 window.AccountManager = {
   init({request,message,clearStudent,refreshStudent}) {
     const $=id=>document.getElementById(id),IO=window.AccountRoster;
-    let epoch=0,schoolId='',schoolName='',busy=false,students=[],issued=[],preview=[],previewSignature='',editing=null,fileEpoch=0;
+    let epoch=0,schoolId='',schoolName='',busy=false,students=[],issued=[],preview=[],previewSignature='',editing=null,fileEpoch=0,schoolsData=[];
     const stamp=()=>({epoch,schoolId});
     const current=s=>s.epoch===epoch&&s.schoolId===schoolId&&document.visibilityState!=='hidden';
     function clearIssued(){issued=[];$('issued-values').textContent='';$('issued').hidden=true;}
     function clearPreview(){preview=[];previewSignature='';$('roster-preview').hidden=true;$('roster-preview-rows').replaceChildren();$('issue-accounts').disabled=true;}
-    function clearSchool(){++epoch;++fileEpoch;clearIssued();clearPreview();students=[];editing=null;schoolId='';schoolName='';$('schools').value='';$('roster-form').reset();$('member-form').reset();$('manager-form').reset();$('roster-form').hidden=true;$('manager-form').hidden=true;$('member-form').hidden=true;$('students').replaceChildren();$('student-count').textContent='';$('download-students').disabled=true;changeMode();}
+    function clearSchool(){++epoch;++fileEpoch;clearIssued();clearPreview();students=[];editing=null;schoolId='';schoolName='';$('schools').value='';$('roster-form').reset();$('member-form').reset();$('manager-form').reset();$('roster-form').hidden=true;$('manager-form').hidden=true;$('access-form').hidden=true;$('member-form').hidden=true;$('students').replaceChildren();$('student-count').textContent='';$('download-students').disabled=true;changeMode();}
     function setBusy(value){busy=value;$('schools').disabled=value;$('student-tab').disabled=value;$('manager-tab').disabled=value;
-      for(const id of ['roster-form','member-form','manager-form','school-form'])for(const control of $(id).querySelectorAll('input,textarea,select,button'))control.disabled=value;
+      for(const id of ['roster-form','member-form','manager-form','school-form','access-form'])for(const control of $(id).querySelectorAll('input,textarea,select,button'))control.disabled=value;
       $('issue-accounts').disabled=value||!preview.length;
       for(const button of $('students').querySelectorAll('button'))button.disabled=value;
     }
@@ -37,7 +37,10 @@ window.AccountManager = {
       }
     }
     async function loadStudents(snap=stamp()) {let result;try{result=await request(`schools/${snap.schoolId}/students`);}catch(e){if(!current(snap))return;if(e.status===401||e.status===403)clearSchool();throw e;}if(!current(snap))return;students=result.students;renderStudents();}
-    async function loadSchools(){const expected=epoch,result=await request('schools');if(expected!==epoch)return;$('schools').replaceChildren(new Option('학교를 선택하세요',''));for(const s of result.schools)$('schools').add(new Option(s.name,s.id));}
+    async function loadSchools(){const expected=epoch,result=await request('schools');if(expected!==epoch)return;schoolsData=result.schools;$('schools').replaceChildren(new Option('학교를 선택하세요',''));for(const s of result.schools)$('schools').add(new Option(s.name,s.id));}
+    // 관리자에게만: 이 학교를 모아랩에 열었는지 표시하고 바꾼다. 모아랩이 열어 준 학교는 그 사실을 알린다.
+    function renderAccess(){const info=schoolsData.find(s=>s.id===schoolId);$('access-form').hidden=!schoolId||$('manager-pane').dataset.admin!=='true';if(!info)return;$('open-lab').checked=(info.openedTo||[]).includes('moakit-lab');$('access-status').textContent=info.via==='open'?'모아랩에서 이 학교를 모아허브에 열어 주어 관리자 권한으로 관리합니다.':'';}
+    $('open-lab').onchange=()=>action(async()=>{const snap=stamp();if(!snap.schoolId)return;const enabled=$('open-lab').checked;await request(`schools/${snap.schoolId}/access`,'PATCH',{issuer:'moakit-lab',enabled});if(!current(snap))return;await loadSchools();$('schools').value=snap.schoolId;renderAccess();message(enabled?'모아랩에 열었습니다. 모아랩 관리자가 이 학교의 학생 계정을 관리할 수 있습니다.':'모아랩 열기를 해제했습니다.');});
     function changeMode(){clearPreview();const single=$('roster-mode').value==='class';$('class-fields').hidden=!single;$('roster-grade').required=single;$('roster-class').required=single;$('roster-text').placeholder=single?'1\t김하나\n2\t이두나':'2\t1\t1\t김하나\n2\t2\t1\t이두나';$('roster-columns').textContent=single?'번호 · 이름 두 열을 엑셀에서 복사해 붙여넣으세요.':'학년 · 반 · 번호 · 이름 네 열을 엑셀에서 복사해 붙여넣으세요.';}
     function buildPreview(){
       clearPreview();if(!schoolId)throw new Error('담당 학교를 먼저 선택하세요.');
@@ -74,7 +77,7 @@ window.AccountManager = {
     $('download-students').onclick=()=>action(async()=>{const snap=stamp();await loadStudents(snap);if(current(snap))download(['학교','학년','반','번호','이름','아이디','기존 소속'],students.map(s=>[schoolName,...rowValues(s),s.grade?'':s.class_name||'']),filename('학생명단'));});
     $('schools').onchange=async()=>{
       if(busy){$('schools').value=schoolId;return;}const nextId=$('schools').value,nextName=$('schools').selectedOptions[0]?.textContent||'';clearSchool();schoolId=nextId;schoolName=nextName;$('schools').value=nextId;
-      $('roster-form').hidden=!schoolId;$('manager-form').hidden=!schoolId||$('manager-pane').dataset.admin!=='true';
+      $('roster-form').hidden=!schoolId;$('manager-form').hidden=!schoolId||$('manager-pane').dataset.admin!=='true';renderAccess();
       if(schoolId)try{await loadStudents();}catch(e){message(e.message);}
     };
     $('member-form').onsubmit=event=>{event.preventDefault();action(async()=>{

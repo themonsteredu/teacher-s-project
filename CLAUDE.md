@@ -47,6 +47,13 @@
 
 성과 수치처럼 확인되지 않은 값은 넣지 않는다.
 
+## 학생 계정 (모아랩 공통)
+
+- 학교 학생 계정(`lib/student-accounts/`, 중앙 테이블 `moakit_accounts`)은 모아랩(`aiapp`)도 같은 아이디·비밀번호로 받는다. 진로기록 `student_id`는 계정의 `career_student_id`라서 학교 수업·진로 수업 기록이 한 학생으로 모인다. 자세한 건 `docs/student-accounts.md` 2026-09-12 항목과 aiapp `docs/job-career-log.md`
+- 비밀번호 형식(`scrypt1`)·잠금 규칙(`login_limits`)을 바꾸면 aiapp `lib/school-accounts.js`도 같이 바꿔야 한다
+- 학생 화면(`public/student-accounts.js`)의 기록 목록에는 모아랩 기록(`source='job'`)도 나온다
+- 모아랩도 같은 계정을 발급한다(issuer `moakit-lab`). 학교를 다른 제품에 여는 표는 `moakit_accounts.school_access` — 정의 `db/moakit-accounts-0002-school-access.sql`, 열린 제품의 관리자는 담당자 지정 없이 학교를 관리한다(`service.js`의 `authorize`·`schools`·`setAccess`). 관리 화면의 `모아랩에 열기` 체크박스가 그 스위치다
+
 ## 부팅(콜드스타트)
 
 - `lib/db.js`의 `ready()`는 콜드스타트마다 불리지만, `settings`의 `sys:bootstrap` 지문(SCHEMA·MIGRATIONS·CURRICULUM 본문 해시)이 현재 코드와 같고 admin 계정이 있으면 **조회 1번으로 끝난다**. 스키마·교육과정을 바꾸면 지문이 달라져 다음 콜드스타트에 전체 초기화(DDL·시드)가 한 번 돈다. 강제로 다시 돌리려면 `DELETE FROM settings WHERE key = 'sys:bootstrap'`
