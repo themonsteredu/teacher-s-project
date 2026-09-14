@@ -10,7 +10,7 @@ const source = readFileSync(new URL('../lib/api.js', import.meta.url), 'utf8');
 async function request(method, path, body, { academy = false } = {}) {
   const queries = [], module = { exports: {} };
   const deps = {
-    'node:crypto': require('node:crypto'), '../public/curriculum': require('../public/curriculum'), './password': {}, './cookies': {}, './storage': {},
+    'node:crypto': require('node:crypto'), '../public/curriculum': require('../public/curriculum'), './password': {}, './cookies': {}, './storage': {}, './worksheet-headers': require('../lib/worksheet-headers'),
     './auth': { getSessionUser: async () => ({ user: { id: 1, role: 'admin' } }), roleLevel: r => ({ teacher: 1, admin: 2 }[r] || 0) },
     './db': {
       TS: c => c, ready: async () => {}, log: async () => {}, getSettings: async () => ({ site_open: true }), ACADEMY_ID: academy ? 'academy-1' : null,
@@ -61,7 +61,7 @@ test('주제만 고치면 이름은 건드리지 않고, 빈 문자열은 주제
 test('교사는 차시 주제를 고칠 수 없다', async () => {
   const module = { exports: {} };
   const deps = {
-    'node:crypto': require('node:crypto'), '../public/curriculum': require('../public/curriculum'), './password': {}, './cookies': {}, './storage': {},
+    'node:crypto': require('node:crypto'), '../public/curriculum': require('../public/curriculum'), './password': {}, './cookies': {}, './storage': {}, './worksheet-headers': require('../lib/worksheet-headers'),
     './auth': { getSessionUser: async () => ({ user: { id: 2, role: 'teacher' } }), roleLevel: r => ({ teacher: 1, admin: 2 }[r] || 0) },
     './db': { TS: c => c, ready: async () => {}, getSettings: async () => ({ site_open: true }), one: async () => { throw new Error('no db'); }, q: async () => { throw new Error('no db'); } },
   };

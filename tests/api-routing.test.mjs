@@ -51,6 +51,7 @@ async function fixture(t) {
     './cookies': require('../lib/cookies'),
     './storage': { storageEnabled: false },
     './student-board': require('../lib/student-board'),
+    './worksheet-headers': require('../lib/worksheet-headers'),
   });
   let handler;
   loadCommonJs('server.js', {

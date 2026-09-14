@@ -204,6 +204,7 @@ function menuItems() {
       ['#/tools', 'box', '내 도구함'],
       ['#/users', 'users', '교사 계정'],
       ['#/site', 'power', '사이트 설정'],
+      ['/worksheet-headers.html', 'fileText', '활동지 머리글'],
       ['#/logs', 'fileText', '이용 기록'],
     );
   }

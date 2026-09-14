@@ -54,6 +54,13 @@
 - 학생 화면(`public/student-accounts.js`)의 기록 목록에는 모아랩 기록(`source='job'`)도 나온다
 - 모아랩도 같은 계정을 발급한다(issuer `moakit-lab`). 학교를 다른 제품에 여는 표는 `moakit_accounts.school_access` — 정의 `db/moakit-accounts-0002-school-access.sql`, 열린 제품의 관리자는 담당자 지정 없이 학교를 관리한다(`service.js`의 `authorize`·`schools`·`setAccess`). 관리 화면의 `모아랩에 열기` 체크박스가 그 스위치다
 
+## 학교별 활동지 머리글
+
+- 활동지(인쇄용 `<article class="sheet">`가 있는 `/lessons/**.html`)는 `<head>`에 `<script defer src="../_shared/worksheet-header.js"></script>` 한 줄을 넣으면 `?school=<학교코드>`(예: `?school=boseong`)로 열릴 때 맨 위가 그 학교 양식(왼쪽·오른쪽 문구 → 로고 → 굵은 선 → 교육영역·학습주제 표)으로 인쇄된다. 학교를 안 고르면 원래 모습 그대로다
+- 학교 목록·로고·문구는 관리자 메뉴 **활동지 머리글**(`/worksheet-headers.html`)에서 바꾼다. 저장은 `settings`의 `ws:school:<slug>` 키(JSON, `lib/worksheet-headers.js`). 보성초는 코드에 내장돼 있어 DB가 비어도 나오고, 저장하면 DB 값이 우선한다. `ws:` 접두사도 `getSettings()`가 프런트에 내보내지 않는다
+- **Vercel은 `public/` 정적 파일을 `server.js`를 거치지 않고 직접 내보낸다** (2026-09-14 확인: `/lessons/_shared/base.css` 응답에 `X-Frame-Options`가 없음). 그래서 교안 HTML에 스크립트를 서버에서 끼워 넣을 수 없고, 파일마다 `<script>` 한 줄을 직접 넣는다
+- 교육영역·학습주제 기본값은 활동지의 `LESSON.area`·`LESSON.topic`(또는 `.sheet`의 `data-area`·`data-topic`)이고, 인쇄 전에 "활동지 · 저장 관리" 칸에서 고칠 수 있다
+
 ## 부팅(콜드스타트)
 
 - `lib/db.js`의 `ready()`는 콜드스타트마다 불리지만, `settings`의 `sys:bootstrap` 지문(SCHEMA·MIGRATIONS·CURRICULUM 본문 해시)이 현재 코드와 같고 admin 계정이 있으면 **조회 1번으로 끝난다**. 스키마·교육과정을 바꾸면 지문이 달라져 다음 콜드스타트에 전체 초기화(DDL·시드)가 한 번 돈다. 강제로 다시 돌리려면 `DELETE FROM settings WHERE key = 'sys:bootstrap'`

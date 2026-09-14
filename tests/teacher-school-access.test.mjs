@@ -45,7 +45,7 @@ async function call(method,path,{bound=true,allowed=false,role='teacher',account
     catch(error){effects.order.push('ROLLBACK');throw error;}
   };
   const dependencies={
-    'node:crypto':require('node:crypto'),'./db':db,'./password':{},'./cookies':{},
+    'node:crypto':require('node:crypto'),'./db':db,'./password':{},'./cookies':{},'./worksheet-headers':require('../lib/worksheet-headers'),
     './auth':{getSessionUser:async()=>({user:{id:1,role}}),roleLevel:r=>r==='admin'?2:1},
     './storage':{storageEnabled:true,createSignedDownload:async()=>{effects.signed++;return 'https://storage.example/signed';},removeObject:async()=>{effects.removed++;effects.order.push('REMOVE_OBJECT');}},
     './student-accounts/http':{authorizeSchool:async(user,school)=>{
