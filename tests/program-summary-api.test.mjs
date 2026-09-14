@@ -16,7 +16,7 @@ async function request(role = 'admin', { settings, path = '/api/programs', siteO
     { key: 'course_plan:2', value: JSON.stringify({ published: true, plan: { variants: [{ name: '단독', sessions: [{}] }] } }) },
   ];
   const deps = {
-    'node:crypto': require('node:crypto'), '../public/curriculum': require('../public/curriculum'), './password': {}, './cookies': {}, './storage': {},
+    'node:crypto': require('node:crypto'), '../public/curriculum': require('../public/curriculum'), './password': {}, './cookies': {}, './storage': {}, './worksheet-headers': require('../lib/worksheet-headers'),
     './auth': { getSessionUser: async () => role ? { user: { id: 1, role } } : null, roleLevel: r => ({ teacher: 1, admin: 2 }[r] || 0) },
     './db': {
       TS: c => c, ready: async () => {}, getSettings: async () => ({ site_open: siteOpen }),

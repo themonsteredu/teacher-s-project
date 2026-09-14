@@ -12,7 +12,7 @@ async function save({ links = [], files = [], body, user = { id: 1, role: 'teach
   const module = { exports: {} };
   const dependencies = {
     'node:crypto': require('node:crypto'),
-    './password': {}, './cookies': {}, './storage': {},
+    './password': {}, './cookies': {}, './storage': {}, './worksheet-headers': require('../lib/worksheet-headers'),
     './auth': { getSessionUser: async () => user && ({ user }), roleLevel: () => 1 },
     './db': {
       TS: column => column, ready: async () => {}, getSettings: async () => ({ site_open: true }),
