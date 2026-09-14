@@ -136,3 +136,20 @@
 .ce-classification-empty{margin:0;color:var(--muted,#756f63);font-size:14px;line-height:1.7}
 .ce-curriculum-summary{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 20px}.ce-curriculum-summary>span{font-size:13px;padding:7px 10px;background:#eaf6f2;color:#0a6f61;border-radius:8px}.ce-curriculum-summary>p{flex-basis:100%;margin:4px 0}
 @media(max-width:760px){.ce-classification{padding:18px 0}.ce-classification-row{grid-template-columns:1fr 1fr;gap:10px;padding:12px 0;border-bottom:1px solid var(--line,#e9e4d9)}.ce-classification-number{display:none}.ce-classification-row label:nth-of-type(3){grid-column:1/-1}.ce-classification-row>button{grid-column:2;justify-self:end}.ce-classification-extra{grid-template-columns:1fr}.ce-classification-row input,.ce-classification-row select,.ce-classification-extra input,.ce-classification-extra select{font-size:16px}}
+
+/* Teacher lesson list: materials beside the matching topic. */
+.course-lesson-list{margin:24px 0;border-top:1px solid var(--line,#dce5df)}
+.course-lesson-row{border-bottom:1px solid var(--line,#dce5df)}
+.course-lesson-line{display:flex;align-items:center;gap:20px;padding:10px 0}
+.course-lesson-toggle{flex:1;min-width:0;display:flex;align-items:center;gap:18px;text-align:left;border:0;background:transparent;color:inherit;font:inherit;cursor:pointer;padding:14px 8px;min-height:52px;word-break:keep-all}
+.course-lesson-number{flex-shrink:0;color:var(--muted,#61716b);font-size:14px}
+.course-lesson-title{font-weight:700;line-height:1.6;overflow-wrap:anywhere}
+.course-lesson-chevron{display:inline-block;margin-left:12px;color:#0a6f61;transition:transform .15s}
+.course-lesson-toggle[aria-expanded=true] .course-lesson-chevron{transform:rotate(180deg)}
+.course-lesson-toggle:focus-visible{outline:3px solid #0a6f61;outline-offset:2px;border-radius:6px}
+.course-lesson-actions{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:8px;flex-shrink:0;max-width:50%}
+.course-lesson-actions .btn{min-height:44px;white-space:nowrap}
+.course-lesson-description{padding:0 16px 20px 76px;line-height:1.8;word-break:keep-all}
+.course-lesson-description[hidden]{display:none}
+.course-lesson-description p{margin:0 0 8px}
+@media(max-width:760px){.course-lesson-line{flex-wrap:wrap;gap:0}.course-lesson-toggle{flex-basis:100%;gap:12px}.course-lesson-actions{max-width:100%;padding:0 8px 12px 8px;justify-content:flex-start;flex-shrink:1}.course-lesson-description{padding:4px 8px 18px}.course-lesson-actions .btn{padding:10px 14px}}
