@@ -189,13 +189,26 @@ route(/^#\/manage\/(\d+)$/, async id => {
   }
   draw();
 });
+
+function courseLessonListHtml(sessions, files) {
+  return `<div class="course-lesson-list">${sessions.map((s,i)=>`<article class="course-lesson-row"><div class="course-lesson-line"><button type="button" class="course-lesson-toggle" data-course-toggle="${i}" aria-expanded="false" aria-controls="course-description-${i}"><span class="course-lesson-number">${i+1}차시</span><span class="course-lesson-title">${esc(s.title||'수업')}<span class="course-lesson-chevron" aria-hidden="true">⌄</span></span></button><div class="course-lesson-actions" aria-label="${i+1}차시 자료">${Object.entries(COURSE_SLOTS).map(([k,label])=>{const a=s.assets[k],f=files.find(f=>String(f.id)===a.fileId);if(f){const html=/\.html?$/i.test(f.name)||f.mime==='text/html';const viewable=/^(application\/pdf|image\/)/.test(f.mime);return html?`<button class="btn btn-soft btn-sm" data-course-slide="${f.id}">${k==='app'?'수업 시작':label}</button>`:viewable?`<button class="btn btn-soft btn-sm" data-course-file="${f.id}">${k==='app'?'수업 시작':label}</button>`:f.downloadable||isAdmin()?`<a class="btn btn-soft btn-sm" href="/api/files/${f.id}/download" target="_blank" rel="noopener">${k==='app'?'수업 시작':label} 받기</a>`:`<span class="small muted">${k==='app'?'수업 시작':label}: 열람용 PDF 필요</span>`;}if(a.url)return `<a class="btn btn-soft btn-sm" href="${esc(a.url)}" target="_blank" rel="noopener noreferrer">${k==='app'?'수업 시작':label}</a>`;return '';}).join('')}</div></div><div class="course-lesson-description" id="course-description-${i}" hidden><p>${esc(s.bridge||'이 차시의 자료를 열어 수업을 시작하세요.')}</p>${s.minutes?`<span class="small muted">수업 시간 · ${esc(String(s.minutes))}분</span>`:''}</div></article>`).join('')}</div>`;
+}
+
 route(/^#\/course\/(\d+)$/, async id=>{
   const [data,saved]=await Promise.all([api('GET',`/api/programs/${id}`),api('GET',`/api/programs/${id}/course-plan`)]);
   if(!saved.plan){shell('운영 구성',`<div class="card"><h2>등록된 운영 구성이 없습니다.</h2><p>기존 수업 자료는 그대로 사용할 수 있습니다.</p><a class="btn btn-soft" href="#/program/${id}">수업 자료로 돌아가기</a></div>`);return;}
   let selected=0;
   const draw=()=>{
     const plan=saved.plan,v=plan.variants[selected];
-    shell('구성별 수업 자료',`<div class="card"><h1>${esc(data.program.title)}</h1><p class="muted">교사용 구성별 자료 · 학생에게 공유할 자료는 수업 보드에서 별도로 선택합니다.</p><label>운영 구성<select id="course-selection">${plan.variants.map((x,i)=>`<option value="${i}" ${i===selected?'selected':''}>${esc(x.name)} · ${x.sessions.length}차시</option>`).join('')}</select></label>${coursePreviewHtml(plan,data.files,selected)}<div class="deck-list">${v.sessions.map((s,i)=>`<div class="deck-line"><strong>${i+1}차시 자료 열기</strong><div class="dl-actions">${Object.entries(COURSE_SLOTS).map(([k,label])=>{const a=s.assets[k],f=data.files.find(f=>String(f.id)===a.fileId);if(f){const html=/\.html?$/i.test(f.name)||f.mime==='text/html';const viewable=/^(application\/pdf|image\/)/.test(f.mime);return html?`<button class="btn btn-soft btn-sm" data-course-slide="${f.id}">${label}</button>`:viewable?`<button class="btn btn-soft btn-sm" data-course-file="${f.id}">${label}</button>`:f.downloadable||isAdmin()?`<a class="btn btn-soft btn-sm" href="/api/files/${f.id}/download" target="_blank" rel="noopener">${label} 받기</a>`:`<span class="small muted">${label}: 열람용 PDF 필요</span>`;}if(a.url)return `<a class="btn btn-soft btn-sm" href="${esc(a.url)}" target="_blank" rel="noopener noreferrer">${label}</a>`;return '';}).join('')}</div></div>`).join('')}</div><a class="btn btn-ghost" href="#/program/${id}">수업으로 돌아가기</a></div>`);
+    shell('구성별 수업 자료',`<div class="card"><h1>${esc(data.program.title)}</h1><p class="muted">교사용 구성별 자료 · 학생에게 공유할 자료는 수업 보드에서 별도로 선택합니다.</p><label>운영 구성<select id="course-selection">${plan.variants.map((x,i)=>`<option value="${i}" ${i===selected?'selected':''}>${esc(x.name)} · ${x.sessions.length}차시</option>`).join('')}</select></label>${courseLessonListHtml(v.sessions,data.files)}<a class="btn btn-ghost" href="#/program/${id}">수업으로 돌아가기</a></div>`);
+    document.querySelectorAll('[data-course-toggle]').forEach(button=>button.onclick=()=>{
+      const open=button.getAttribute('aria-expanded')!=='true';
+      document.querySelectorAll('[data-course-toggle]').forEach(other=>{
+        const expanded=other===button&&open;
+        other.setAttribute('aria-expanded',String(expanded));
+        document.getElementById(other.getAttribute('aria-controls')).hidden=!expanded;
+      });
+    });
     document.getElementById('course-selection').onchange=e=>{selected=Number(e.target.value);draw();};
     document.querySelectorAll('[data-course-file]').forEach(b=>b.onclick=()=>openFileViewer(b.dataset.courseFile));
     document.querySelectorAll('[data-course-slide]').forEach(b=>b.onclick=()=>openSlidePresent(`/api/files/${b.dataset.courseSlide}/open`,'수업 자료'));
