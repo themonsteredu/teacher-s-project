@@ -518,6 +518,13 @@ function lessonNavItems(lessons, links, files) {
     ...lessons.map((l, i) => ({ key: l.id, name: lessonLabel(l, i), topic: l.topic || '', count: count((x) => x.lesson_id === l.id) })),
   ];
 }
+// 본문에 쌓이는 묶음: 공통 자료가 먼저, 그다음 차시 순. match로 그 묶음의 링크·파일을 고른다.
+function lessonSections(lessons) {
+  return [
+    { key: 0, name: '공통 자료', topic: '모든 차시에서 함께 쓰는 자료', dl: '공통', match: (x) => !x.lesson_id },
+    ...lessons.map((l, i) => ({ key: l.id, name: lessonLabel(l, i), topic: l.topic || '', dl: '이 차시', match: (x) => x.lesson_id === l.id })),
+  ];
+}
 
 route(/^#\/program\/(\d+)$/, async (id) => {
   let data;
@@ -525,21 +532,28 @@ route(/^#\/program\/(\d+)$/, async (id) => {
   catch (e) { if (state.me) { toast(e.message, true); location.hash = '#/'; } return; }
   const p = data.program;
   const lessons = data.lessons || [];
-  // 차시 탭: 'all'(전체) | 0(공통) | 차시 id
-  let sel = detailLessonSel[p.id] ?? 'all';
-  if (sel !== 'all' && sel !== 0 && !lessons.some((l) => l.id === sel)) sel = 'all';
-  const inTab = (x) => sel === 'all' || (sel === 0 ? !x.lesson_id : x.lesson_id === sel);
+  // 펴 둘 묶음: 0(공통) | 차시 id. 앞서 고른 것이 있으면 그것, 없으면 첫 차시를 편다.
+  const openKey = lessons.some((l) => l.id === detailLessonSel[p.id]) || detailLessonSel[p.id] === 0
+    ? detailLessonSel[p.id]
+    : (lessons[0]?.id ?? 0);
   const isLessonUrl = (u) => /^\/lessons\//.test(String(u || ''));
   const isToolUrl = (u) => /^\/api\/tools\/\d+\/open/.test(String(u || '')); // 도구함 웹앱
-  // 레포 교안(/lessons/…)·도구함 웹앱: 실행(발표)로 표시. 그 외 링크는 기존대로 새 탭.
-  const lessonLinks = data.links.filter((l) => isLessonUrl(l.url) && inTab(l));
-  const toolLinks = data.links.filter((l) => isToolUrl(l.url) && inTab(l));
-  const links = data.links.filter((l) => l.kind !== 'video' && !isLessonUrl(l.url) && !isToolUrl(l.url) && inTab(l));
-  const videos = data.links.filter((l) => l.kind === 'video' && !isLessonUrl(l.url) && inTab(l));
   // HTML 파일 = 실행형 웹앱 (수업용 PPT를 HTML로 만든 경우 등) — 링크·웹앱 카드에 실행 버튼으로 표시
   const isHtmlFile = (f) => /\.(html?|htm)$/i.test(f.name) || f.mime === 'text/html';
-  const htmlApps = data.files.filter((f) => isHtmlFile(f) && inTab(f));
-  const docFiles = data.files.filter((f) => !isHtmlFile(f) && inTab(f));
+  // 한 묶음(공통·차시·전체)의 링크·파일을 종류별로 갈라 놓는다.
+  // 레포 교안(/lessons/…)·도구함 웹앱: 실행(발표)로 표시. 그 외 링크는 기존대로 새 탭.
+  const groupParts = (match) => {
+    const ls = data.links.filter(match);
+    const fs = data.files.filter(match);
+    return {
+      lessonLinks: ls.filter((l) => isLessonUrl(l.url)),
+      toolLinks: ls.filter((l) => isToolUrl(l.url)),
+      links: ls.filter((l) => l.kind !== 'video' && !isLessonUrl(l.url) && !isToolUrl(l.url)),
+      videos: ls.filter((l) => l.kind === 'video' && !isLessonUrl(l.url)),
+      htmlApps: fs.filter(isHtmlFile),
+      docFiles: fs.filter((f) => !isHtmlFile(f)),
+    };
+  };
   const htmlAppRow = (f) => `
     <button class="btn btn-primary" data-slide="${f.id}" data-slidename="${esc(f.name.replace(/\.(html?|htm)$/i, ''))}" style="justify-content:flex-start;gap:8px;padding-right:14px;width:100%;text-align:left">
       ${icon('play')} <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(f.name.replace(/\.(html?|htm)$/i, ''))}</span>
@@ -602,23 +616,25 @@ route(/^#\/program\/(\d+)$/, async (id) => {
       <div class="dl-actions"><a class="btn btn-soft btn-sm" href="#/boardview/${b.id}">열기</a></div>
     </div>`;
 
-  // 현재 차시 탭 이름 + 이 탭에서 다운로드 가능한 파일 (보기 전용 제외, 관리자는 전부)
-  const selLesson = typeof sel === 'number' && sel > 0 ? lessons.find((l) => l.id === sel) : null;
-  const selLessonName = selLesson ? lessonLabel(selLesson, lessons.indexOf(selLesson)) : '';
-  const dlAllFiles = docFiles.filter((f) => f.downloadable || isAdmin());
+  // 묶음마다 "전체 받기"가 하나씩 생기므로 id 대신 키로 구분해 눌렀을 때 찾아 쓴다
+  const dlGroups = new Map();
 
-  // 화면 조각: 소개·영상 / 운영 구성 / 자료(링크·첨부) / 보드 — 화면마다 조합이 다르다
-  const videoCard = videos.length ? `<div class="card"><h2>영상</h2>${videos.map((v) => `
+  // 화면 조각: 소개·영상 / 운영 구성 / 자료(링크·첨부) / 보드
+  const videoCardFor = (videos) => videos.length ? `<div class="card"><h2>영상</h2>${videos.map((v) => `
       ${v.label ? `<div class="field-label" style="margin:8px 0 6px">${esc(v.label)}</div>` : ''}
       ${videoEmbed(v.url)}`).join('')}</div>` : '';
-  const introHtml = `${p.description && sel === 'all' ? `<div class="card"><h2>소개</h2><div class="doc-body" style="line-height:1.9">${renderBodyMd(p.description)}</div></div>` : ''}${videoCard}`;
   const courseCard = `<div class="card"><h2>운영 구성</h2><p class="small muted">등록된 구성에 맞춰 웹앱·PPT·활동지·교안을 확인합니다.</p><a class="btn btn-soft" href="#/course/${p.id}">구성별 자료 보기</a></div>`;
-  const appRows = [...lessonLinks.map(lessonRow), ...toolLinks.map(toolAppRow), ...htmlApps.map(htmlAppRow), ...links.map(linkRow)].join('');
-  const materialsHtml = `
+  // 한 묶음의 자료 화면. dlKey를 주면 첨부가 둘 이상일 때 "전체 받기" 버튼이 붙는다.
+  const materialsFor = (parts, dlKey, dlLabel) => {
+    const appRows = [...parts.lessonLinks.map(lessonRow), ...parts.toolLinks.map(toolAppRow), ...parts.htmlApps.map(htmlAppRow), ...parts.links.map(linkRow)].join('');
+    const dlAllFiles = parts.docFiles.filter((f) => f.downloadable || isAdmin());
+    if (dlKey != null && dlAllFiles.length >= 2) dlGroups.set(String(dlKey), dlAllFiles);
+    return `
     ${appRows ? `<div class="card"><h2>수업 링크 · 웹앱</h2><div style="display:flex;flex-direction:column;gap:8px">${appRows}</div></div>` : ''}
-    ${docFiles.length ? `<div class="card"><h2>첨부자료</h2>
-      ${dlAllFiles.length >= 2 ? `<div style="margin-bottom:10px"><button class="btn btn-soft btn-sm" id="dl-all">${icon('download')} ${sel === 0 ? '공통' : (sel === 'all' ? '보이는' : '이 차시')} 자료 전체 받기 (${dlAllFiles.length})</button></div>` : ''}
-      ${docFiles.map(fileRow).join('')}</div>` : ''}`;
+    ${parts.docFiles.length ? `<div class="card"><h2>첨부자료</h2>
+      ${dlKey != null && dlAllFiles.length >= 2 ? `<div style="margin-bottom:10px"><button class="btn btn-soft btn-sm" data-dl-group="${esc(String(dlKey))}">${icon('download')} ${dlLabel} 자료 전체 받기 (${dlAllFiles.length})</button></div>` : ''}
+      ${parts.docFiles.map(fileRow).join('')}</div>` : ''}`;
+  };
   const boardCard = `
     <div class="card">
       <h2>학생 활동 보드 <span class="sub">${isAdmin() ? '전체 반 보드' : '내가 만든 우리 반 보드'} — 학생들이 코드로 들어와 결과물을 올립니다</span></h2>
@@ -626,21 +642,32 @@ route(/^#\/program\/(\d+)$/, async (id) => {
       <div class="mt"><button class="btn btn-soft btn-sm" id="new-board">${icon('plus')} 새 보드 만들기</button></div>
     </div>`;
   const twoCols = (left, right) => `<div class="grid main-cols"><div class="col-stack">${left}</div><div class="col-stack">${right}</div></div>`;
+  const introCard = p.description ? `<div class="card" id="lesson-intro"><h2>소개</h2><div class="doc-body" style="line-height:1.9">${renderBodyMd(p.description)}</div></div>` : '';
 
-  // 차시가 있는 수업: 왼쪽 세로 목록에서 고른 것만 오른쪽에 보인다 — 자료를 한 화면에 쏟아붓지 않는다.
-  //  - 수업 소개(all): 소개·영상 + 운영 구성 + 보드
-  //  - 공통 자료(0) / 차시(id): 그 묶음의 링크·첨부(+영상) + 보드
+  // 차시가 있는 수업: 소개를 맨 위에 두고 공통 자료 → 1차시 → … 순으로 한 화면에 쌓는다.
+  // 차시마다 접었다 펴므로 15차시여도 화면이 길어지지 않고, 흐름과 자료를 같이 본다.
   // 차시가 없는 수업: 예전처럼 한 화면(소개 + 전체 자료)
   const navItems = lessonNavItems(lessons, data.links, data.files);
-  const materialsHead = sel === 0
-    ? '<div class="lesson-main-head"><div class="lmh-name">공통 자료</div><div class="lmh-topic">모든 차시에서 함께 쓰는 자료</div></div>'
-    : `<div class="lesson-main-head"><div class="lmh-name">${selLessonName}</div>${selLesson?.topic ? `<div class="lmh-topic"><span>주제</span>${esc(selLesson.topic)}</div>` : ''}</div>`;
-  const materialsView = `${materialsHead}${videoCard}${materialsHtml.trim() || '<p class="empty-note">여기에 등록된 자료가 아직 없습니다.</p>'}${boardCard}`;
+  // 묶음 하나 = 접었다 펴는 <details>
+  const sectionGroups = lessonSections(lessons);
+  const section = (g) => {
+    const parts = groupParts(g.match);
+    const body = `${videoCardFor(parts.videos)}${materialsFor(parts, g.key, g.dl)}`;
+    const count = parts.lessonLinks.length + parts.toolLinks.length + parts.links.length + parts.videos.length + parts.htmlApps.length + parts.docFiles.length;
+    return `<details class="lesson-sec" id="lesson-sec-${g.key}" data-sec="${g.key}"${g.key === openKey ? ' open' : ''}>
+      <summary><span class="ls-text"><span class="ls-name">${g.name}</span>${g.topic ? `<small class="ls-topic">${esc(g.topic)}</small>` : ''}</span>
+        <span class="ls-count">${count ? `자료 ${count}` : '자료 없음'}</span><span class="ls-caret" aria-hidden="true">${icon('down')}</span></summary>
+      <div class="ls-body">${body.trim() || '<p class="empty-note">여기에 등록된 자료가 아직 없습니다.</p>'}</div>
+    </details>`;
+  };
+  const allParts = groupParts(() => true);
   const mainHtml = !lessons.length
-    ? (introHtml ? twoCols(introHtml, courseCard + materialsHtml + boardCard) : `<div class="col-stack" style="max-width:760px">${courseCard}${materialsHtml}${boardCard}</div>`)
-    : sel === 'all'
-      ? (introHtml ? twoCols(introHtml, courseCard + boardCard) : `<div class="col-stack" style="max-width:760px">${courseCard}${boardCard}</div>`)
-      : `<div class="col-stack lesson-main-col">${materialsView}</div>`;
+    ? (introCard || allParts.videos.length
+        ? twoCols(introCard + videoCardFor(allParts.videos), courseCard + materialsFor(allParts, 'all', '보이는') + boardCard)
+        : `<div class="col-stack" style="max-width:760px">${courseCard}${materialsFor(allParts, 'all', '보이는')}${boardCard}</div>`)
+    : `<div class="col-stack lesson-main-col">${introCard}
+        <div class="lesson-secs">${sectionGroups.map(section).join('')}</div>
+        ${courseCard}${boardCard}</div>`;
 
   shell(p.title, `
     <div class="page-head">
@@ -656,10 +683,10 @@ route(/^#\/program\/(\d+)$/, async (id) => {
       </div>
     </div>
     ${lessons.length ? `<div class="lesson-layout">
-      <aside class="lesson-nav" aria-label="차시 목록">
-        <div class="lesson-nav-title">차시 목록</div>
-        <label class="lesson-nav-select">보기<select id="lesson-select">${navItems.map((n) => `<option value="${n.key}"${sel === n.key ? ' selected' : ''}>${n.name}${n.topic ? ` — ${esc(n.topic)}` : ''}</option>`).join('')}</select></label>
-        <ul class="lesson-nav-list">${navItems.map((n) => `<li><button type="button" data-lesson-tab="${n.key}" class="${sel === n.key ? 'active' : ''}"${sel === n.key ? ' aria-current="true"' : ''}>
+      <aside class="lesson-nav" aria-label="차시 바로가기">
+        <div class="lesson-nav-title">바로가기</div>
+        <label class="lesson-nav-select">바로가기<select id="lesson-select">${navItems.map((n) => `<option value="${n.key}"${n.key === openKey ? ' selected' : ''}>${n.name}${n.topic ? ` — ${esc(n.topic)}` : ''}</option>`).join('')}</select></label>
+        <ul class="lesson-nav-list">${navItems.map((n) => `<li><button type="button" data-lesson-jump="${n.key}" class="${n.key === openKey ? 'active' : ''}"${n.key === openKey ? ' aria-current="true"' : ''}>
           <span class="ln-text"><span>${n.name}</span>${n.topic ? `<small class="ln-topic">${esc(n.topic)}</small>` : ''}</span>${n.count ? `<span class="ln-count">${n.count}</span>` : ''}</button></li>`).join('')}</ul>
       </aside>
       <div class="lesson-main">${mainHtml}</div>
@@ -674,17 +701,19 @@ route(/^#\/program\/(\d+)$/, async (id) => {
   document.querySelectorAll('[data-slideurl]').forEach((b) => {
     b.onclick = () => openSlidePresent(b.dataset.slideurl, b.dataset.slidename);
   });
-  const dlAllBtn = document.getElementById('dl-all');
-  if (dlAllBtn) dlAllBtn.onclick = () => {
-    // 팝업 차단 회피를 위해 파일마다 살짝 간격을 두고 순차 다운로드
-    dlAllFiles.forEach((f, i) => setTimeout(() => {
-      const a = document.createElement('a');
-      a.href = `/api/files/${f.id}/download`;
-      a.download = '';
-      document.body.appendChild(a); a.click(); a.remove();
-    }, i * 700));
-    toast(`${dlAllFiles.length}개 파일을 순서대로 내려받습니다.`);
-  };
+  document.querySelectorAll('[data-dl-group]').forEach((btn) => {
+    btn.onclick = () => {
+      const group = dlGroups.get(btn.dataset.dlGroup) || [];
+      // 팝업 차단 회피를 위해 파일마다 살짝 간격을 두고 순차 다운로드
+      group.forEach((f, i) => setTimeout(() => {
+        const a = document.createElement('a');
+        a.href = `/api/files/${f.id}/download`;
+        a.download = '';
+        document.body.appendChild(a); a.click(); a.remove();
+      }, i * 700));
+      toast(`${group.length}개 파일을 순서대로 내려받습니다.`);
+    };
+  });
   document.getElementById('new-board').onclick = () => {
     const back = openModal(`
       <h3>새 활동 보드</h3>
@@ -722,19 +751,36 @@ route(/^#\/program\/(\d+)$/, async (id) => {
     };
   };
 
-  document.querySelectorAll('[data-lesson-tab]').forEach((b) => {
-    b.onclick = () => {
-      const v = b.dataset.lessonTab;
-      detailLessonSel[p.id] = v === 'all' ? 'all' : Number(v);
-      navigate();
-    };
-  });
+  // 바로가기: 화면을 갈아 끼우지 않고 그 차시를 펴서 그 자리로 내려간다 — 소개와 차시를 함께 본다
   const lessonSelect = document.getElementById('lesson-select'); // 모바일: 세로 목록 대신 드롭다운
-  if (lessonSelect) lessonSelect.onchange = () => {
-    const v = lessonSelect.value;
-    detailLessonSel[p.id] = v === 'all' ? 'all' : Number(v);
-    navigate();
+  const markActive = (key) => {
+    document.querySelectorAll('[data-lesson-jump]').forEach((b) => {
+      const on = b.dataset.lessonJump === String(key);
+      b.classList.toggle('active', on);
+      if (on) b.setAttribute('aria-current', 'true'); else b.removeAttribute('aria-current');
+    });
+    if (lessonSelect) lessonSelect.value = String(key);
   };
+  const jumpTo = (v) => {
+    const target = v === 'all'
+      ? (document.getElementById('lesson-intro') || document.querySelector('.lesson-main'))
+      : document.getElementById(`lesson-sec-${Number(v)}`);
+    if (!target) return;
+    if (v !== 'all') { target.open = true; detailLessonSel[p.id] = Number(v); markActive(Number(v)); }
+    target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
+  document.querySelectorAll('[data-lesson-jump]').forEach((b) => {
+    b.onclick = () => jumpTo(b.dataset.lessonJump);
+  });
+  if (lessonSelect) lessonSelect.onchange = () => jumpTo(lessonSelect.value);
+  // 차시를 직접 펴면 그것을 기억한다 — 다시 들어와도 같은 차시가 펴져 있다
+  document.querySelectorAll('.lesson-sec').forEach((sec) => {
+    sec.addEventListener('toggle', () => {
+      if (!sec.open) return;
+      detailLessonSel[p.id] = Number(sec.dataset.sec);
+      markActive(Number(sec.dataset.sec));
+    });
+  });
   const pubBtn = document.getElementById('pub-toggle');
   if (pubBtn) pubBtn.onclick = async () => {
     await api('PATCH', `/api/programs/${p.id}`, { published: !p.published });
