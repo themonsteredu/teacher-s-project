@@ -136,6 +136,18 @@ svg.ic { width: 18px; height: 18px; stroke: currentColor; stroke-width: 1.8; fil
 .ls-body > .card { margin: 0; }
 .ls-body > .card:only-child { border: 0; padding: 0; box-shadow: none; }
 #lesson-intro { scroll-margin-top: calc(var(--header-h) + 12px); }
+/* 소개는 접어 둔다 — 길어도 차시가 화면 밖으로 밀리지 않게 */
+.intro-body { line-height: 1.9; max-height: 13.5em; overflow: hidden; position: relative; }
+.intro-body.is-open { max-height: none; }
+.intro-body:not(.is-open)::after {
+  content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: 3em;
+  background: linear-gradient(rgba(255, 255, 255, 0), #fff); pointer-events: none;
+}
+.intro-more {
+  margin-top: 8px; padding: 6px 12px; min-height: 36px; border: 1px solid var(--line-strong);
+  border-radius: 9px; background: #fff; color: var(--navy-800); font: inherit; font-size: 13px; font-weight: 700; cursor: pointer;
+}
+.intro-more:hover { background: var(--teal-soft, #eef7f5); }
 @media (max-width: 920px) {
   /* minmax(0,…): 안쪽에 줄지 않는 것이 있어도 칸이 화면보다 넓어지지 않는다 */
   .lesson-layout { grid-template-columns: minmax(0, 1fr); gap: 12px; }

@@ -642,7 +642,8 @@ route(/^#\/program\/(\d+)$/, async (id) => {
       <div class="mt"><button class="btn btn-soft btn-sm" id="new-board">${icon('plus')} 새 보드 만들기</button></div>
     </div>`;
   const twoCols = (left, right) => `<div class="grid main-cols"><div class="col-stack">${left}</div><div class="col-stack">${right}</div></div>`;
-  const introCard = p.description ? `<div class="card" id="lesson-intro"><h2>소개</h2><div class="doc-body" style="line-height:1.9">${renderBodyMd(p.description)}</div></div>` : '';
+  // 소개가 길면 차시가 화면 밖으로 밀린다. 접어 두고 넘칠 때만 "더 보기"를 붙인다.
+  const introCard = p.description ? `<div class="card" id="lesson-intro"><h2>소개</h2><div class="doc-body intro-body" id="intro-body">${renderBodyMd(p.description)}</div></div>` : '';
 
   // 차시가 있는 수업: 소개를 맨 위에 두고 공통 자료 → 1차시 → … 순으로 한 화면에 쌓는다.
   // 차시마다 접었다 펴므로 15차시여도 화면이 길어지지 않고, 흐름과 자료를 같이 본다.
@@ -750,6 +751,21 @@ route(/^#\/program\/(\d+)$/, async (id) => {
       } catch (err) { if (!err.handled) { msg.textContent = err.message; msg.className = 'msg err'; } }
     };
   };
+
+  // 소개가 접힌 높이를 넘을 때만 "더 보기"를 붙인다. 짧은 소개는 그대로 다 보인다.
+  const introBody = document.getElementById('intro-body');
+  if (introBody && introBody.scrollHeight > introBody.clientHeight + 4) {
+    const more = document.createElement('button');
+    more.type = 'button';
+    more.className = 'intro-more';
+    more.textContent = '더 보기';
+    more.onclick = () => {
+      const open = introBody.classList.toggle('is-open');
+      more.textContent = open ? '접기' : '더 보기';
+      if (!open) document.getElementById('lesson-intro').scrollIntoView({ block: 'start' });
+    };
+    introBody.after(more);
+  }
 
   // 바로가기: 화면을 갈아 끼우지 않고 그 차시를 펴서 그 자리로 내려간다 — 소개와 차시를 함께 본다
   const lessonSelect = document.getElementById('lesson-select'); // 모바일: 세로 목록 대신 드롭다운
