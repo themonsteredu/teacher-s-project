@@ -46,3 +46,17 @@ public/lessons/
   → 화면을 꽉 채우고 상·하단 고정, 본문만 스크롤된다.
 - 학생 앱은 최상위를 `.wrap` 으로 두면 배경이 화면 전체, 카드는 가운데 크게 배치된다.
 - 위 구조가 아닌 교안을 화면 꽉 채우려면 `<html data-present="fill">` 를 준다.
+
+## 학교별 활동지 머리글 (인쇄)
+
+인쇄용 활동지(`<article class="sheet">`)가 있는 교안은 `<head>`에 한 줄을 넣는다:
+
+```html
+<script defer src="../_shared/worksheet-header.js"></script>
+```
+
+- 주소에 `?school=<학교코드>`(예: `?school=boseong`)를 붙이거나, 활동지 화면의 "활동지 · 저장 관리"에서 학교를 고르면
+  맨 위가 그 학교 양식(왼쪽·오른쪽 문구 → 로고 → 굵은 선 → 교육영역·학습주제 표)으로 인쇄된다.
+- 학교 목록·로고·문구는 관리자 메뉴 **활동지 머리글**(`/worksheet-headers.html`)에서 바꾼다.
+- 교육영역·학습주제 기본값은 `const LESSON={ "area": "…", "topic": "…" }` 또는 `<article class="sheet" data-area="…" data-topic="…">`.
+- 기존 `#school` 입력칸(활동지 학교명)이 있으면 그 자리에 학교 선택·교육영역·학습주제 입력칸이 자동으로 붙는다.
