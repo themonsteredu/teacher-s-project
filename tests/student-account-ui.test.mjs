@@ -105,3 +105,60 @@ test('refocusing a still-visible window clears data before revalidating an accou
   p.pending.shift().reply({error:'다시 로그인하세요.'},401);await tick();privateStateCleared(p);
 });
 
+
+test('모아랩 진로 관찰 기록은 강점 칸을 제목으로 쓰지 않고 선생님이 본 내용으로 표시한다',async()=>{
+  const p=page();p.pending.shift().reply({username:'student',mustChangePassword:false});await tick();
+  p.pending.shift().reply({username:'student',records:[{
+    id:'r1',occurred_at:'2026-09-11T00:00:00Z',source:'job',program_ref:'job-career-observation',
+    process:'관제 시뮬레이터를 조작했습니다.',artifact:'절차를 단계로 쪼개 설명합니다.',reflection:'공항 견학을 권합니다.',
+    raw_data:{job:{entry_kind:'career_observation',title:'항공 진로 체험 2회차',
+      observation:{activity:'관제 시뮬레이터를 조작했습니다.',strengths:'절차를 단계로 쪼개 설명합니다.',next_step:'공항 견학을 권합니다.'}}},
+  }],nextBefore:null});await tick();
+  const texts=[];function visit(node){texts.push(node.textContent);node.children.forEach(visit);}visit(p.get('records'));
+  assert.equal(p.get('records').children[0].children[0].textContent,'항공 진로 체험 2회차','강점 칸이 제목이 되면 안 된다');
+  assert.ok(texts.some(t=>t.includes('담당 선생님 관찰')));
+  assert.ok(texts.includes('선생님이 본 나의 강점·흥미: 절차를 단계로 쪼개 설명합니다.'));
+  assert.ok(texts.includes('추천받은 다음 활동: 공항 견학을 권합니다.'));
+  assert.equal(texts.some(t=>t.startsWith('내가 남긴 생각')),false,'선생님이 쓴 내용을 학생이 쓴 것처럼 보여주지 않는다');
+});
+
+test('정정된 진로 관찰 기록도 관찰 항목 이름표를 유지한다',async()=>{
+  const p=page();p.pending.shift().reply({username:'student',mustChangePassword:false});await tick();
+  p.pending.shift().reply({username:'student',records:[{
+    id:'r2',occurred_at:'2026-09-11T00:00:00Z',source:'job',supersedes_id:'r1',program_ref:'job-career-observation',
+    process:'고친 내용',artifact:'고친 강점',reflection:'고친 다음 활동',
+    raw_data:{job:{entry_kind:'revision',observation_kind:'career_observation',title:'항공 진로 체험 2회차 (정정)',
+      observation:{activity:'고친 내용',strengths:'고친 강점',next_step:'고친 다음 활동'}}},
+  }],nextBefore:null});await tick();
+  const texts=[];function visit(node){texts.push(node.textContent);node.children.forEach(visit);}visit(p.get('records'));
+  assert.equal(p.get('records').children[0].children[0].textContent,'항공 진로 체험 2회차 (정정)');
+  assert.ok(texts.includes('선생님이 본 나의 강점·흥미: 고친 강점'));
+  assert.equal(texts.some(t=>t.startsWith('내가 남긴 생각')),false);
+  // 정정 표시가 종류 표시를 밀어내면 안 된다 — 둘 다 보여야 한다.
+  const line=texts.find(t=>t.includes('담당자 정정'));
+  assert.ok(line&&line.includes('담당 선생님 관찰'),'정정된 관찰 기록도 관찰 기록임이 보여야 한다: '+line);
+});
+
+test('학교 수업 기록의 정정 표시는 예전 그대로 둔다',async()=>{
+  const p=page();p.pending.shift().reply({username:'student',mustChangePassword:false});await tick();
+  p.pending.shift().reply({username:'student',records:[{
+    id:'r4',occurred_at:'2026-09-11T00:00:00Z',source:'hub',supersedes_id:'r0',
+    artifact:'관찰 카드',process:'식물을 관찰함',raw_data:{},
+  }],nextBefore:null});await tick();
+  const texts=[];function visit(node){texts.push(node.textContent);node.children.forEach(visit);}visit(p.get('records'));
+  const line=texts.find(t=>t.includes('담당자 정정'));
+  assert.ok(line&&line.endsWith(' · 담당자 정정'));
+  assert.equal(line.includes('모아랩'),false);
+});
+
+test('학생이 직접 쓴 기록은 예전처럼 "내가 남긴 생각"으로 보인다',async()=>{
+  const p=page();p.pending.shift().reply({username:'student',mustChangePassword:false});await tick();
+  p.pending.shift().reply({username:'student',records:[{
+    id:'r3',occurred_at:'2026-09-11T00:00:00Z',source:'job',program_ref:'job-deck:7',
+    process:'내가 한 활동',artifact:'내 결과물',reflection:'내 생각',
+    raw_data:{job:{entry_kind:'student_reflection',deck_title:'역사 AI 수업'}},
+  }],nextBefore:null});await tick();
+  const texts=[];function visit(node){texts.push(node.textContent);node.children.forEach(visit);}visit(p.get('records'));
+  assert.equal(p.get('records').children[0].children[0].textContent,'내 결과물');
+  assert.ok(texts.includes('내가 남긴 생각: 내 생각'));
+});

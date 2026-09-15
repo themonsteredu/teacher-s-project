@@ -52,6 +52,7 @@
 - 학교 학생 계정(`lib/student-accounts/`, 중앙 테이블 `moakit_accounts`)은 모아랩(`aiapp`)도 같은 아이디·비밀번호로 받는다. 진로기록 `student_id`는 계정의 `career_student_id`라서 학교 수업·진로 수업 기록이 한 학생으로 모인다. 자세한 건 `docs/student-accounts.md` 2026-09-12 항목과 aiapp `docs/job-career-log.md`
 - 비밀번호 형식(`scrypt1`)·잠금 규칙(`login_limits`)을 바꾸면 aiapp `lib/school-accounts.js`도 같이 바꿔야 한다
 - 학생 화면(`public/student-accounts.js`)의 기록 목록에는 모아랩 기록(`source='job'`)도 나온다
+- **모아랩 진로 관찰 기록**(`raw_data.job.entry_kind='career_observation'`, 정정본은 `observation_kind`)은 `artifact` 칸이 "드러난 강점·흥미"라서 그대로 두면 관찰 내용이 제목이 된다. `observationOf()`로 가려내 제목은 `job.title`을 쓰고, 강점·다음 활동은 **선생님이 쓴 내용**으로 이름표를 붙인다(`내가 남긴 생각` 아님). 활동 사진은 모아랩에만 있다(aiapp `career_record_photos`). 표시 규칙을 바꾸면 aiapp 쪽도 맞춘다 — 설계는 aiapp `docs/job-career-log.md` 하단
 - 모아랩도 같은 계정을 발급한다(issuer `moakit-lab`). 학교를 다른 제품에 여는 표는 `moakit_accounts.school_access` — 정의 `db/moakit-accounts-0002-school-access.sql`, 열린 제품의 관리자는 담당자 지정 없이 학교를 관리한다(`service.js`의 `authorize`·`schools`·`setAccess`). 관리 화면의 `모아랩에 열기` 체크박스가 그 스위치다
 
 ## 학교별 활동지 머리글
