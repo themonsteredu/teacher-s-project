@@ -55,18 +55,23 @@
 - **모아랩 진로 관찰 기록**(`raw_data.job.entry_kind='career_observation'`, 정정본은 `observation_kind`)은 `artifact` 칸이 "드러난 강점·흥미"라서 그대로 두면 관찰 내용이 제목이 된다. `observationOf()`로 가려내 제목은 `job.title`을 쓰고, 강점·다음 활동은 **선생님이 쓴 내용**으로 이름표를 붙인다(`내가 남긴 생각` 아님). 활동 사진은 모아랩에만 있다(aiapp `career_record_photos`). 표시 규칙을 바꾸면 aiapp 쪽도 맞춘다 — 설계는 aiapp `docs/job-career-log.md` 하단
 - 모아랩도 같은 계정을 발급한다(issuer `moakit-lab`). 학교를 다른 제품에 여는 표는 `moakit_accounts.school_access` — 정의 `db/moakit-accounts-0002-school-access.sql`. 관리 화면의 `모아랩에 열기` 체크박스가 그 스위치이고, 이 값은 **모아랩 쪽 권한**을 연다
 - **모아허브 관리자(`role='admin'`)는 모든 학교를 제한 없이 관리한다** (2026-09-15). `service.js`의 `authorize()`는 관리자면 담당자(`managers`)·열기(`school_access`) 조회 없이 통과시키고, `schools()`도 관리자에게 전체 목록을 준다. 교사는 예전대로 담당자로 지정된 학교만 만진다
+- 관리자 경로도 **학교 존재 확인(`SELECT 1 FROM schools … FOR SHARE`)은 남긴다.** 이게 없으면 없는 학교 UUID 가 403 대신 알 수 없는 오류로 터진다
+- `schools()`의 `via` 는 세 값이다 — `manager`(담당자 지정) · `open`(다른 제품이 열어 줌) · `admin`(관리자 권한으로만 보임). 예전 두 값 시절에는 관리자에게 보이는 모든 학교가 `open` 으로 찍혀, 모아허브가 직접 만든 학교에도 "모아랩에서 열어 주었다"는 거짓 안내가 나왔다
+- 모아허브 관리자가 넓어진 만큼 **모아랩(`aiapp`) 쪽은 그대로다** — 모아랩 관리자는 여전히 담당자 지정이나 `school_access` 가 있어야 한다. 한쪽만 넓힌 상태라는 것을 알고 있어야 한다
 
 ## 관리자 전권 (2026-09-15)
 
 관리자가 시험용으로 만든 수업을 지우지 못해 막힌 적이 있다. 원인은 두 가지였고 둘 다 풀었다.
 
 - `lib/api.js`의 `authorizeSchoolBoard()`는 **관리자면 학교 확인을 건너뛴다.** 수업에 연결된 학교가 이미 삭제됐거나 학생 계정 연결이 잠시 안 될 때(503)도 관리자가 수업을 못 지우는 일이 없다. 교사는 그대로 학교 담당자여야 한다
-- `noPendingCareer()`도 **관리자는 예외다.** 진로기록 저장 대기 중인 제출물이 있어도 관리자는 삭제할 수 있다(되돌릴 수 없다는 확인을 이미 거친다). 교사에게는 여전히 409로 막힌다
+- `noPendingCareer()`도 **관리자는 예외다.** 다만 건너뛰지 않고 **건수를 세어** 이용 기록에 `careerPending=N` 으로 남긴다 — 그냥 통과시키면 몇 건이 사라졌는지 아무도 모른다. 교사에게는 여전히 409로 막힌다. 삭제 확인 문구에도 "아직 저장되지 않은 진로기록"이 사라진다고 적혀 있다
+- **수업을 지우면 그 수업에 딸린 `sb:` settings 행도 함께 지운다** (`purgeBoardSettings`). `settings` 에는 `boards` 로 향하는 외래키가 없어서, 예전에는 `sb:config:`·`sb:post:`(학생 이름·제출 내용·첨부 경로 포함)·`sb:session:`·`sb:upload:`·`sb:event:` 가 주인 없이 영원히 남았다. `board_posts` 가 아직 살아 있어야 `sb:post:` 를 찾을 수 있으므로 **수업 행을 지우기 전에** 돌린다. `sb:rate:` 는 접속 IP 단위라 대상이 아니다
 - 프로그램 삭제(`DELETE /api/programs/:id`)는 원래 관리자 전용이라, 이 변경 뒤로는 학교 확인이 사실상 돌지 않는다 — 의도된 결과다
 
 ## 학교별 활동지 머리글
 
 - 활동지(인쇄용 `<article class="sheet">`가 있는 `/lessons/**.html`)는 `<head>`에 `<script defer src="../_shared/worksheet-header.js"></script>` 한 줄을 넣으면 `?school=<학교코드>`(예: `?school=boseong`)로 열릴 때 맨 위가 그 학교 양식(왼쪽·오른쪽 문구 → 로고 → 굵은 선 → 교육영역·학습주제 표)으로 인쇄된다. 학교를 안 고르면 원래 모습 그대로다
+- 메모(`note`)는 관리자 전용 칸이라 공개 API(`GET /api/worksheet-headers`)에서는 빼고 내보낸다 — 이 경로는 활동지가 로그인 없이 읽는다
 - 화면은 `/worksheet-headers.html` 하나다. 메뉴 이름은 **활동지 인쇄**이고 교사·관리자 모두 들어간다. 교사는 학교를 고르고 차시별 인쇄용 활동지를 열 수 있고, 학교 목록·로고·문구 편집은 관리자에게만 보인다. 인쇄할 수 있는 차시 목록은 `public/lessons/worksheets.json`(인쇄용 `.sheet` + 머리글 스크립트가 둘 다 있는 파일만) 이다 — 새 활동지를 만들면 여기에 한 줄 추가한다. 저장은 `settings`의 `ws:school:<slug>` 키(JSON, `lib/worksheet-headers.js`). 보성초는 코드에 내장돼 있어 DB가 비어도 나오고, 저장하면 DB 값이 우선한다. `ws:` 접두사도 `getSettings()`가 프런트에 내보내지 않는다
 - **Vercel은 `public/` 정적 파일을 `server.js`를 거치지 않고 직접 내보낸다** (2026-09-14 확인: `/lessons/_shared/base.css` 응답에 `X-Frame-Options`가 없음). 그래서 교안 HTML에 스크립트를 서버에서 끼워 넣을 수 없고, 파일마다 `<script>` 한 줄을 직접 넣는다
 - 교육영역·학습주제 기본값은 활동지의 `LESSON.area`·`LESSON.topic`(또는 `.sheet`의 `data-area`·`data-topic`)이고, 인쇄 전에 "활동지 · 저장 관리" 칸에서 고칠 수 있다

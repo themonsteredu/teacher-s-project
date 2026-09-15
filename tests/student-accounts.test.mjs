@@ -75,11 +75,16 @@ test('rate limit refuses verification before querying account passwords',async()
   await assert.rejects(createService(db.pool,'hub').login('m'+'b'.repeat(20),'password','loopback'),e=>e.status===429);
   assert.ok(!db.calls.some(c=>c.sql.startsWith('SELECT *')));
 });
-test('a school opened to this product is manageable by an admin without a manager binding, never by a teacher',async()=>{
-  const db=database(sql=>sql.includes('moakit_accounts.school_access')?{rowCount:1,rows:[{}]}:{rowCount:0,rows:[]});
+test('관리자는 담당자·열기 여부와 무관하게 학교를 관리하고, 교사는 열려 있어도 담당자여야 한다',async()=>{
+  // 담당자도 아니고 열려 있지도 않은 학교 — 관리자는 통과, 교사는 거절.
+  const db=database(sql=>sql.includes('FROM moakit_accounts.schools')?{rowCount:1,rows:[{}]}:{rowCount:0,rows:[]});
   const api=createService(db.pool,'moakit-hub');
   assert.deepEqual(await api.list({id:1,role:'admin'},school),[]);
+  assert.ok(!db.calls.some(c=>c.sql.includes('moakit_accounts.school_access')));
   await assert.rejects(api.list({id:1,role:'teacher'},school),e=>e.status===403);
+  // 교사에게는 school_access 가 열려 있어도 담당자 지정이 필요하다.
+  const open=database(sql=>sql.includes('moakit_accounts.school_access')?{rowCount:1,rows:[{}]}:{rowCount:0,rows:[]});
+  await assert.rejects(createService(open.pool,'moakit-hub').list({id:1,role:'teacher'},school),e=>e.status===403);
   assert.equal(db.calls.some(c=>/^(INSERT|UPDATE|DELETE)/.test(c.sql)),false);
 });
 test('opening a school to another product is admin-only, checks the product and audits',async()=>{

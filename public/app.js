@@ -1167,7 +1167,7 @@ route(/^#\/myclass$/, async () => {
   document.querySelectorAll('[data-del-board]').forEach((btn) => {
     btn.onclick = async () => {
       const title = btn.dataset.title || '이 수업';
-      if (!confirm(`'${title}' 수업을 삭제할까요?\n제출된 결과물과 첨부 원본까지 모두 삭제되며 되돌릴 수 없습니다.`)) return;
+      if (!confirm(`'${title}' 수업을 삭제할까요?\n제출된 결과물과 첨부 원본, 아직 저장되지 않은 진로기록까지 모두 삭제되며 되돌릴 수 없습니다.`)) return;
       try {
         await api('DELETE', `/api/boards/${btn.dataset.delBoard}`);
         toast('수업이 삭제되었습니다.');
@@ -1268,7 +1268,7 @@ route(/^#\/boardview\/(\d+)$/, async (id) => {
   };
   const delBtn = document.getElementById('board-del');
   if (delBtn) delBtn.onclick = async () => {
-    if (!confirm(`'${b.title}' 수업을 삭제할까요?\n제출된 결과물과 첨부 원본까지 모두 삭제되며 되돌릴 수 없습니다.`)) return;
+    if (!confirm(`'${b.title}' 수업을 삭제할까요?\n제출된 결과물과 첨부 원본, 아직 저장되지 않은 진로기록까지 모두 삭제되며 되돌릴 수 없습니다.`)) return;
     try {
       await api('DELETE', `/api/boards/${id}`);
       toast('수업이 삭제되었습니다.');
@@ -1560,7 +1560,7 @@ route(/^#\/manage$/, async () => {
       button.onclick = async () => {
         if (button.disabled) return;
         const program = data.programs.find(p => String(p.id) === button.dataset.del);
-        if (!program || !confirm(`“${program.title}” 수업을 삭제할까요? 연결된 수업 보드와 첨부자료 원본도 함께 삭제되며 되돌릴 수 없습니다.`)) return;
+        if (!program || !confirm(`“${program.title}” 수업을 삭제할까요? 연결된 수업 보드와 첨부자료 원본, 아직 저장되지 않은 진로기록도 함께 삭제되며 되돌릴 수 없습니다.`)) return;
         button.disabled = true;
         try {
           await api('DELETE', `/api/programs/${program.id}`);

@@ -73,10 +73,15 @@ test('교사는 담당자로 지정된 학교만, 관리자는 모든 학교를 
   const denied=database(()=>({rowCount:0,rows:[]})),teacherApi=createService(denied.pool,'moakit-hub');
   await assert.rejects(teacherApi.authorizeSchool({id:7,role:'teacher'},school),e=>e.status===403);
   assert.deepEqual(denied.calls.find(c=>c.sql.includes('FROM moakit_accounts.managers')).args,[school,'moakit-hub','7']);
-  // 관리자: 담당자 지정이 없어도 통과하며, 담당자 표를 조회하지도 않는다.
-  const admin=database(()=>({rowCount:0,rows:[]})),adminApi=createService(admin.pool,'moakit-hub');
+  // 관리자: 담당자 지정이 없어도 통과한다. 담당자 표는 보지 않고 학교 존재만 확인한다.
+  const admin=database(sql=>sql.includes('FROM moakit_accounts.schools')?{rowCount:1,rows:[{}]}:{rowCount:0,rows:[]});
+  const adminApi=createService(admin.pool,'moakit-hub');
   assert.deepEqual(await adminApi.authorizeSchool({id:7,role:'admin'},school),{schoolId:school});
   assert.ok(!admin.calls.some(c=>c.sql.includes('FROM moakit_accounts.managers')));
+  assert.match(admin.calls.find(c=>c.sql.includes('FROM moakit_accounts.schools')).sql,/FOR SHARE/);
+  // 없는 학교는 알 수 없는 오류 대신 404 로 돌려준다.
+  const gone=database(()=>({rowCount:0,rows:[]})),goneApi=createService(gone.pool,'moakit-hub');
+  await assert.rejects(goneApi.authorizeSchool({id:7,role:'admin'},school),e=>e.status===404);
   // 역할이 없거나 학교 아이디가 잘못되면 관리자 예외보다 먼저 거절한다.
   const bad=database(()=>({rowCount:0,rows:[]})),badApi=createService(bad.pool,'moakit-hub');
   await assert.rejects(badApi.authorizeSchool({id:7,role:'admin'},'not-a-uuid'),e=>e.status===403);

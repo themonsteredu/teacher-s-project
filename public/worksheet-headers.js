@@ -36,8 +36,8 @@
         <div class="ws-n">${item.n}차시</div>
         <div class="ws-name">${esc(item.title)}</div>
         <div class="actions">
-          ${item.student ? `<a class="btn-link" href="${esc(lessonUrl(item.student, slug))}" target="_blank" rel="noopener">학생용 인쇄</a>` : ''}
-          ${item.teacher ? `<a class="btn-link soft" href="${esc(lessonUrl(item.teacher, slug))}" target="_blank" rel="noopener">교사용 열기</a>` : ''}
+          ${item.student ? `<a class="btn-link" href="${esc(lessonUrl(item.student, slug))}" target="_blank" rel="noopener" aria-label="${esc(group.label)} ${item.n}차시 ${esc(item.title)} 학생용 인쇄">학생용 인쇄</a>` : ''}
+          ${item.teacher ? `<a class="btn-link soft" href="${esc(lessonUrl(item.teacher, slug))}" target="_blank" rel="noopener" aria-label="${esc(group.label)} ${item.n}차시 ${esc(item.title)} 교사용 열기">교사용 열기</a>` : ''}
         </div>
       </div>`).join('') + '</div>').join('');
   }
@@ -156,14 +156,21 @@
 
   (async () => {
     await loadSheets();
-    try {
-      const me = await request('/api/me');
-      await loadSchools();
-      $('print-pane').hidden = false;
-      if (me.user.role === 'admin') { bindAdmin(); renderList(); $('list-pane').hidden = false; }
-    } catch (err) {
+    let me;
+    try { me = await request('/api/me'); }
+    catch (err) {
+      // 로그인 문제일 때만 게이트를 연다.
       $('gate').hidden = false;
       message(err.status === 401 ? '로그인이 필요합니다.' : err.message);
+      return;
     }
+    $('print-pane').hidden = false;
+    try { await loadSchools(); }
+    catch (err) {
+      // 학교 목록을 못 불러와도 인쇄 목록은 살린다 — 기본 모양으로는 인쇄된다.
+      schools = []; fillSchoolPicker(); renderPrint();
+      message('학교 머리글 목록을 불러오지 못했습니다. 기본 모양으로 인쇄됩니다.');
+    }
+    if (me.user.role === 'admin') { bindAdmin(); renderList(); $('list-pane').hidden = false; }
   })();
 })();
