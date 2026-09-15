@@ -1227,3 +1227,27 @@ body { background: var(--bg); }
 .mat-go { margin-left: auto; color: var(--green-600); font-weight: 700; font-size: 13px; white-space: nowrap; }
 .mat-video { border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
 .mat-cap { padding: 8px 12px; font-size: 13px; font-weight: 600; color: var(--text-2); }
+
+/* 한 제출에 사진이 여러 장 — 카드 안에서 격자로 보여주고 장수를 알려 준다 */
+.post-card .pc-photos { position: relative; display: grid; gap: 5px; }
+.post-card .pc-photos.is-many { grid-template-columns: 1fr 1fr; }
+.post-card .pc-photos.is-many .pc-img { aspect-ratio: 1 / 1; object-fit: cover; }
+.post-card .pc-count {
+  position: absolute; right: 7px; top: 7px; pointer-events: none;
+  background: rgba(15, 30, 38, .88); color: #fff; border-radius: 999px;
+  font-size: 11px; font-weight: 700; padding: 4px 10px;
+}
+
+/* 제출물 보기 전환: 수업 중에는 시간순, 끝난 뒤 평가할 때는 학생별 */
+.sb-viewbar { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin: 4px 0 14px; }
+.sb-viewbar .small { line-height: 1.6; word-break: keep-all; }
+.sb-tabs { display: inline-flex; border: 1px solid var(--line-strong); border-radius: 11px; overflow: hidden; flex-shrink: 0; }
+.sb-tabs button { border: 0; background: #f6f9f8; color: var(--text-2); padding: 10px 20px; font: inherit; font-size: 13px; cursor: pointer; min-height: 44px; }
+.sb-tabs button.active { background: var(--teal-deep, #0a6f61); color: #fff; font-weight: 700; }
+.sb-tabs button:focus-visible { outline: 3px solid var(--teal, #17b6a0); outline-offset: -3px; }
+.sb-student { margin: 0 0 24px; }
+.sb-student .sbs-head {
+  display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap;
+  border-bottom: 2px solid var(--line-strong); padding-bottom: 8px; margin-bottom: 12px;
+}
+.sb-student .sbs-head h3 { margin: 0; font-size: 17px; word-break: keep-all; }
