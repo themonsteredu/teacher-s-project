@@ -60,3 +60,13 @@ public/lessons/
 - 학교 목록·로고·문구는 관리자 메뉴 **활동지 머리글**(`/worksheet-headers.html`)에서 바꾼다.
 - 교육영역·학습주제 기본값은 `const LESSON={ "area": "…", "topic": "…" }` 또는 `<article class="sheet" data-area="…" data-topic="…">`.
 - 기존 `#school` 입력칸(활동지 학교명)이 있으면 그 자리에 학교 선택·교육영역·학습주제 입력칸이 자동으로 붙는다.
+
+인쇄용 활동지를 새로 만들면 `public/lessons/worksheets.json` 에 한 줄 추가한다.
+허브의 **활동지 인쇄** 화면이 이 파일을 읽어 차시 목록을 그린다.
+
+```json
+{ "group": "초2-인공지능", "label": "초등 2학년 · 인공지능",
+  "items": [{ "n": 1, "title": "인공지능과의 첫 만남",
+              "student": "초2-인공지능/1차시-학생용-AI퀴즈.html",
+              "teacher": "초2-인공지능/1차시-선생님용-인공지능과의첫만남.html" }] }
+```

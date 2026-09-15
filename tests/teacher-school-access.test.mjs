@@ -97,9 +97,10 @@ test('unbound legacy board stays available without account service access',async
   const result=await call('GET','/api/posts/21/download',{bound:false});
   assert.equal(result.status,302);assert.equal(result.signed,1);assert.equal(result.schoolChecks.length,0);
 });
-test('admin role alone cannot download school student files',async()=>{
+test('관리자는 학교 담당자 지정 없이도 학생 제출 파일을 내려받는다',async()=>{
   const result=await call('GET','/api/posts/21/download',{role:'admin'});
-  assert.equal(result.status,403);assert.equal(result.signed,0);
+  assert.equal(result.status,302);assert.equal(result.signed,1);
+  assert.equal(result.schoolChecks.length,0);
 });
 test('school authorization outage fails closed before issuing a download',async()=>{
   const result=await call('GET','/api/posts/21/download',{accountError:new Error('private DB detail')});
@@ -119,18 +120,26 @@ test('program detail excludes school board codes after manager removal',async()=
   assert.deepEqual(result.result.boards.map(b=>b.id),[17]);
   assert.doesNotMatch(JSON.stringify(result.result),/school16|학생 비공개 이름/);
 });
-test('program cascade deletion requires the affected school authorization before mutation',async()=>{
-  const result=await call('DELETE','/api/programs/11',{role:'admin'});
-  assert.equal(result.status,403);assert.equal(result.removed,0);assert.deepEqual(result.mutations,[]);
+test('관리자는 학교 계정 연결이 끊겨도 프로그램을 삭제한다',async()=>{
+  const result=await call('DELETE','/api/programs/11',{role:'admin',accountError:new Error('private DB detail')});
+  assert.equal(result.status,200);
+  assert.equal(result.schoolChecks.length,0);
+});
+test('진로기록 저장 대기 중이면 교사의 수업 삭제를 트랜잭션 안에서 막는다',async()=>{
+  const result=await call('DELETE','/api/boards/16',{allowed:true,role:'teacher',pending:true});
+  assert.equal(result.status,409);assert.equal(result.removed,0);assert.deepEqual(result.mutations,[]);
+  const begin=result.order.indexOf('BEGIN'),lock=result.order.findIndex(sql=>sql.includes('FOR UPDATE')),check=result.order.findIndex(sql=>sql.startsWith('WITH career_posts'));
+  assert.ok(begin<lock&&lock<check);assert.ok(result.order.includes('ROLLBACK'));assert.ok(!result.order.includes('COMMIT'));
+});
+test('관리자는 진로기록 저장 대기 중에도 수업·프로그램을 삭제한다',async()=>{
+  for(const path of ['/api/boards/16','/api/programs/11']) {
+    const result=await call('DELETE',path,{role:'admin',pending:true});
+    assert.equal(result.status,200,path);
+    assert.ok(!result.order.some(sql=>sql.startsWith('WITH career_posts')),path);
+    assert.equal(result.schoolChecks.length,0,path);
+  }
 });
 for(const path of ['/api/boards/16','/api/programs/11']) {
-  test(`pending Career snapshots prevent ${path} deletion inside the row-locked transaction`,async()=>{
-    const result=await call('DELETE',path,{allowed:true,role:'admin',pending:true});
-    assert.equal(result.status,409);assert.equal(result.removed,0);assert.deepEqual(result.mutations,[]);
-    const begin=result.order.indexOf('BEGIN'),lock=result.order.findIndex(sql=>sql.includes('FOR UPDATE')),check=result.order.findIndex(sql=>sql.startsWith('WITH career_posts'));
-    assert.ok(begin<lock&&lock<check);assert.ok(result.order.includes('ROLLBACK'));assert.ok(!result.order.includes('COMMIT'));
-    if(path.includes('programs'))assert.ok(result.order.some(sql=>sql==='SELECT id FROM boards WHERE program_id=$1 ORDER BY id FOR UPDATE'));
-  });
   test(`saved or absent Career snapshots allow ${path} deletion with file cleanup after commit`,async()=>{
     const result=await call('DELETE',path,{allowed:true,role:'admin'});
     assert.equal(result.status,200);
