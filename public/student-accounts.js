@@ -30,7 +30,10 @@ function appendRecord(record) {
   // 진로 관찰 기록의 artifact 칸은 "드러난 강점·흥미"라서 제목으로 쓰면 안 된다.
   heading.textContent=(observation?'':record.artifact)||(job&&typeof job.title==='string'?job.title:'')||(job&&typeof job.deck_title==='string'?job.deck_title:'')||'활동 결과물';
   const date=new Date(record.occurred_at);
-  when.textContent=(Number.isNaN(date.getTime())?'활동 날짜 확인 중':date.toLocaleString('ko-KR'))+(record.supersedes_id?' · 담당자 정정':observation?' · 모아랩 진로 수업 · 담당 선생님 관찰':job&&job.entry_kind==='staff_record'?' · 담당자 기록':job?' · 모아랩 진로 수업':'');
+  const origin=observation?' · 모아랩 진로 수업 · 담당 선생님 관찰':job&&job.entry_kind==='staff_record'?' · 담당자 기록':job?' · 모아랩 진로 수업':'';
+  // 정정 표시가 종류를 대신하면 안 된다 — 정정된 관찰 기록도 관찰 기록임을 알 수 있어야 한다.
+  const suffix=record.supersedes_id?(observation?origin:'')+' · 담당자 정정':origin;
+  when.textContent=(Number.isNaN(date.getTime())?'활동 날짜 확인 중':date.toLocaleString('ko-KR'))+suffix;
   when.className='muted';process.textContent=record.process||'';
   article.append(heading,when,process);
   if(observation){

@@ -134,6 +134,21 @@ test('정정된 진로 관찰 기록도 관찰 항목 이름표를 유지한다'
   assert.equal(p.get('records').children[0].children[0].textContent,'항공 진로 체험 2회차 (정정)');
   assert.ok(texts.includes('선생님이 본 나의 강점·흥미: 고친 강점'));
   assert.equal(texts.some(t=>t.startsWith('내가 남긴 생각')),false);
+  // 정정 표시가 종류 표시를 밀어내면 안 된다 — 둘 다 보여야 한다.
+  const line=texts.find(t=>t.includes('담당자 정정'));
+  assert.ok(line&&line.includes('담당 선생님 관찰'),'정정된 관찰 기록도 관찰 기록임이 보여야 한다: '+line);
+});
+
+test('학교 수업 기록의 정정 표시는 예전 그대로 둔다',async()=>{
+  const p=page();p.pending.shift().reply({username:'student',mustChangePassword:false});await tick();
+  p.pending.shift().reply({username:'student',records:[{
+    id:'r4',occurred_at:'2026-09-11T00:00:00Z',source:'hub',supersedes_id:'r0',
+    artifact:'관찰 카드',process:'식물을 관찰함',raw_data:{},
+  }],nextBefore:null});await tick();
+  const texts=[];function visit(node){texts.push(node.textContent);node.children.forEach(visit);}visit(p.get('records'));
+  const line=texts.find(t=>t.includes('담당자 정정'));
+  assert.ok(line&&line.endsWith(' · 담당자 정정'));
+  assert.equal(line.includes('모아랩'),false);
 });
 
 test('학생이 직접 쓴 기록은 예전처럼 "내가 남긴 생각"으로 보인다',async()=>{
