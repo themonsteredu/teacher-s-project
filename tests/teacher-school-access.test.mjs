@@ -18,7 +18,7 @@ async function call(method,path,{bound=true,allowed=false,role='teacher',account
     ready:async()=>{},getSettings:async()=>({site_open:true}),TS:s=>s,log:async()=>{},
     one:async(sql,args)=>{
       effects.order.push(sql);
-      if(sql.startsWith('WITH career_posts'))return pending?{'?column?':1}:null;
+      if(sql.startsWith('WITH career_posts'))return {pending:pending?1:0};
       if(sql==='SELECT value FROM settings WHERE key=$1') {
         if(args[0]==='sb:config:16'&&bound)return {value:JSON.stringify({career:{enabled:false,schoolId:SCHOOL}})};
         return null;
@@ -30,12 +30,14 @@ async function call(method,path,{bound=true,allowed=false,role='teacher',account
     },
     q:async(sql,args)=>{
       effects.order.push(sql);
+      // 쓰기 판정을 먼저 한다 — DELETE 의 하위 SELECT 가 아래 조회 분기에 먼저 걸리면
+      // 그 쓰기가 기록되지 않는다.
+      if(/^(UPDATE|DELETE|INSERT)/.test(sql)){effects.mutations.push(sql);return [];}
       if(sql.startsWith('SELECT id FROM boards WHERE program_id='))return [board];
       if(sql.includes('FROM boards b'))return [board,legacy];
       if(sql.startsWith('SELECT board_id, student_name')){effects.nameQueries.push(args[0]);return [];}
       if(sql.includes('FROM board_posts'))return [post];
       if(sql.includes('FROM program_files')||sql.includes('FROM program_links')||sql.includes('FROM lessons')||sql.includes('FROM board_items'))return [];
-      if(/^(UPDATE|DELETE|INSERT)/.test(sql)){effects.mutations.push(sql);return [];}
       throw new Error(sql);
     },
   };
@@ -131,12 +133,28 @@ test('진로기록 저장 대기 중이면 교사의 수업 삭제를 트랜잭�
   const begin=result.order.indexOf('BEGIN'),lock=result.order.findIndex(sql=>sql.includes('FOR UPDATE')),check=result.order.findIndex(sql=>sql.startsWith('WITH career_posts'));
   assert.ok(begin<lock&&lock<check);assert.ok(result.order.includes('ROLLBACK'));assert.ok(!result.order.includes('COMMIT'));
 });
-test('관리자는 진로기록 저장 대기 중에도 수업·프로그램을 삭제한다',async()=>{
+test('관리자는 진로기록 저장 대기 중에도 삭제하되, 건수는 세어 이용 기록에 남긴다',async()=>{
   for(const path of ['/api/boards/16','/api/programs/11']) {
     const result=await call('DELETE',path,{role:'admin',pending:true});
     assert.equal(result.status,200,path);
-    assert.ok(!result.order.some(sql=>sql.startsWith('WITH career_posts')),path);
+    // 건너뛰지 않고 세어야 몇 건이 사라졌는지 기록에 남는다.
+    assert.ok(result.order.some(sql=>sql.startsWith('WITH career_posts')),path);
+    assert.match(result.order.find(sql=>sql.startsWith('WITH career_posts')),/count\(\*\)::int AS pending/,path);
     assert.equal(result.schoolChecks.length,0,path);
+  }
+});
+test('수업을 지우면 그 수업에 딸린 sb: settings 행도 함께 사라진다',async()=>{
+  for(const path of ['/api/boards/16','/api/programs/11']) {
+    const result=await call('DELETE',path,{role:'admin'});
+    assert.equal(result.status,200,path);
+    const purge=result.mutations.filter(sql=>sql.startsWith('DELETE FROM settings'));
+    assert.equal(purge.length,2,path);
+    assert.match(purge[0],/sb:post:/,path);
+    assert.match(purge[1],/key = ANY\(\$1::text\[\]\) OR key LIKE ANY\(\$2::text\[\]\)/,path);
+    // 수업 행보다 먼저 지워야 board_posts 가 아직 살아 있다.
+    const settings=result.order.findIndex(sql=>sql.startsWith('DELETE FROM settings'));
+    const board=result.order.findIndex(sql=>/^DELETE FROM (boards|programs)/.test(sql));
+    assert.ok(settings>=0&&settings<board,path);
   }
 });
 for(const path of ['/api/boards/16','/api/programs/11']) {
