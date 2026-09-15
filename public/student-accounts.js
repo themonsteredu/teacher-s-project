@@ -16,16 +16,37 @@ function clearStudent() {
   $('return-board').hidden=true;$('login-form').hidden=false;
   return studentEpoch;
 }
+// 모아랩 담당자(모아킷 관리자·진로업체)가 남긴 진로 관찰 기록인지. 정정본은 entry_kind 가 'revision' 이라 observation 도 함께 본다.
+function observationOf(job) {
+  if(!job)return null;
+  const isObservation=job.entry_kind==='career_observation'||job.observation_kind==='career_observation'||(job.observation&&typeof job.observation==='object');
+  return isObservation?(job.observation&&typeof job.observation==='object'?job.observation:{}):null;
+}
 function appendRecord(record) {
   const article=document.createElement('article'),heading=document.createElement('h3'),when=document.createElement('p'),process=document.createElement('p');
   // 같은 학생 번호로 모아랩(job.moakit.ai) 진로 수업에서 남긴 기록도 함께 나온다.
   const job=record.source==='job'&&record.raw_data&&typeof record.raw_data.job==='object'?record.raw_data.job:null;
-  heading.textContent=record.artifact||(job&&typeof job.title==='string'?job.title:'')||(job&&typeof job.deck_title==='string'?job.deck_title:'')||'활동 결과물';
+  const observation=observationOf(job);
+  // 진로 관찰 기록의 artifact 칸은 "드러난 강점·흥미"라서 제목으로 쓰면 안 된다.
+  heading.textContent=(observation?'':record.artifact)||(job&&typeof job.title==='string'?job.title:'')||(job&&typeof job.deck_title==='string'?job.deck_title:'')||'활동 결과물';
   const date=new Date(record.occurred_at);
-  when.textContent=(Number.isNaN(date.getTime())?'활동 날짜 확인 중':date.toLocaleString('ko-KR'))+(record.supersedes_id?' · 담당자 정정':job&&job.entry_kind==='staff_record'?' · 담당자 기록':job?' · 모아랩 진로 수업':'');
+  const origin=observation?' · 모아랩 진로 수업 · 담당 선생님 관찰':job&&job.entry_kind==='staff_record'?' · 담당자 기록':job?' · 모아랩 진로 수업':'';
+  // 정정 표시가 종류를 대신하면 안 된다 — 정정된 관찰 기록도 관찰 기록임을 알 수 있어야 한다.
+  const suffix=record.supersedes_id?(observation?origin:'')+' · 담당자 정정':origin;
+  when.textContent=(Number.isNaN(date.getTime())?'활동 날짜 확인 중':date.toLocaleString('ko-KR'))+suffix;
   when.className='muted';process.textContent=record.process||'';
   article.append(heading,when,process);
-  if(record.reflection){const reflection=document.createElement('p');reflection.textContent='내가 남긴 생각: '+record.reflection;article.append(reflection);}
+  if(observation){
+    // 관찰 항목은 학생이 쓴 글이 아니라 선생님이 본 내용이다. 이름표를 그렇게 붙인다.
+    for(const [label,value] of [['선생님이 본 나의 강점·흥미',observation.strengths??record.artifact],['추천받은 다음 활동',observation.next_step??record.reflection]]){
+      if(!value)continue;
+      const line=document.createElement('p');line.textContent=label+': '+value;article.append(line);
+    }
+    const note=document.createElement('p');note.className='muted';
+    note.textContent='활동 사진이 있으면 모아랩(job.moakit.ai)의 내 진로기록에서 볼 수 있습니다.';
+    article.append(note);
+  }
+  else if(record.reflection){const reflection=document.createElement('p');reflection.textContent='내가 남긴 생각: '+record.reflection;article.append(reflection);}
   const submitted=record.raw_data?.submission;
   if(typeof submitted?.content==='string'&&submitted.content){
     const details=document.createElement('details'),summary=document.createElement('summary'),original=document.createElement('p');
