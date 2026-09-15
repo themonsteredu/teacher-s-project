@@ -9,7 +9,6 @@
 
 - Vercel 프로젝트 `teacher-s-project` (팀 `themonsteredu`)
 - **프로덕션 브랜치는 `main`이 아니라 `claude/wonderful-babbage-ihufst`다.** PR base를 여기로 잡아야 배포된다
-- **작업이 끝나면 PR 을 열어 그 브랜치에 머지하는 데까지가 한 작업이다.** 선생님(사용자)은 개발자가 아니라 "올릴까요?"를 물어도 판단할 근거가 없다. 검사가 통과하면 머지하고, 배포가 READY 인 것까지 확인한 뒤 결과만 알린다 (2026-09-15 지시: "항상 업데이트하면 자동으로 새 걸로 올라가게")
 - 형제 레포: `themonsteredu/pinpoint`(모아킷 홈 `moakit.ai`, 브랜드 원본), `themonsteredu/aiapp`(모아랩 `job.moakit.ai`)
 - **수업 콘텐츠는 레포가 따로다.** 허브 프로그램에 붙는 활동지 PDF 는 이 레포가 아니라 그쪽에 있다 — 예: `themonsteredu/culture_bosung`(보성초 2학년 AI 교재 · `culture-bosung.vercel.app`). 여기 `public/lessons/` 만 보고 "활동지가 없다"고 답하지 않는다. 실제로 한 번 그렇게 잘못 답했다
 - **함수 리전은 `vercel.json`의 `regions: ["icn1"]`(서울)이 정한다.** 2026-09-10 확인: 직접 배포(CLI/MCP 번들)로 올린 프로덕션(`dpl_CipQ…`)이 `iad1`(미국 동부)에서 실행돼 로그인·비밀번호 변경이 요청마다 수 초씩 걸렸다. 배포 뒤에는 `get_deployment`의 `regions`가 `icn1`인지 확인한다 — 함수는 DB와 같은 리전에 둔다(이 계정의 Supabase 프로젝트는 모두 서울 `ap-northeast-2`)
