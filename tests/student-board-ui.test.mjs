@@ -11,7 +11,10 @@ function ui({failOnce=false,storageBroken=false,uploadFails=false,careerEnabled=
   const esc=s=>String(s??'').replace(/[<>&"']/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;',"'":'&#39;'}[c]));
   function node(key){if(!nodes.has(key))nodes.set(key,{disabled:false,value:'',dataset:{},handlers:{},addEventListener(k,f){this.handlers[k]=f;},click(){return this.onclick?.()||this.handlers.click?.();},scrollIntoView(){},focus(){}});return nodes.get(key);}
   const tabButton={dataset:{scTab:'board'}},recordsButton={dataset:{scPage:'records'}},retryButton={dataset:{careerRetry:'71'}};
-  const root={querySelector:node,querySelectorAll:sel=>({'[data-sc-tab]':[tabButton],'[data-sc-page]':[recordsButton],'[data-career-retry]':[retryButton]}[sel]||[])};
+  const removeNodes=new Map();
+  const removeButton=i=>{if(!removeNodes.has(i))removeNodes.set(i,{dataset:{removeFile:String(i)}});return removeNodes.get(i);};
+  const removeButtons=()=>[...html.matchAll(/data-remove-file="(\d+)"/g)].map(m=>removeButton(m[1]));
+  const root={querySelector:node,querySelectorAll:sel=>sel==='[data-remove-file]'?removeButtons():({'[data-sc-tab]':[tabButton],'[data-sc-page]':[recordsButton],'[data-career-retry]':[retryButton]}[sel]||[])};
   const app={set innerHTML(v){html=v;for(const m of v.matchAll(/<(?:input|button|textarea)[^>]*id="([^"]+)"[^>]*>/g)){const n=node('#'+m[1]);n.disabled=/\bdisabled\b/.test(m[0]);const value=/\bvalue="([^"]*)"/.exec(m[0]);if(value)n.value=value[1];}}};
   const lesson={id:'lesson-1',title:'식물 관찰',minutes:40,bridge:'눈에 보이는 특징을 기록해요',record:{enabled:recordEnabled,completion:'특징을 기록하고 제출하세요'},submissions:{enabled:true,types:['photo','document','text'],sharing:'teacher'},materials:{links:[{id:9,kind:'aiapp',url:'https://app.test',label:'관찰 웹앱'}],files:[]}};
   const ctx={console,crypto:{randomUUID},URL,URLSearchParams,AbortController,setTimeout,clearTimeout,Date,File,document:{querySelector:()=>root,getElementById:id=>node('#'+id),createElement:()=>({click(){}}),visibilityState:'visible',addEventListener:listen,removeEventListener:unlisten},window:{addEventListener:listen,removeEventListener:unlisten},location:{hash:'#/board/abcd12'},$app:app,esc,icon:()=>'<svg></svg>',toast:()=>{},openImageLightbox(){},openStudentFile(){},careerMaterialUrl:l=>l.url,studentMaterialsHtml:()=>'<div>공유 자료</div>',confirm:()=>true,sessionStorage:{getItem:k=>{if(storageBroken)throw Error('blocked');return values.get(k)||null;},setItem:(k,v)=>{if(storageBroken)throw Error('blocked');values.set(k,v);},removeItem:k=>{if(storageBroken)throw Error('blocked');values.delete(k);}},fetch:async(path,opts)=>{
@@ -25,7 +28,7 @@ function ui({failOnce=false,storageBroken=false,uploadFails=false,careerEnabled=
     }
     if(path.endsWith('/career-records/71/retry'))return {ok:true,json:async()=>({state:'pending'})};
     if(path.endsWith('/leave'))return {ok:true,json:async()=>({ok:true})};
-    if(path.endsWith('/file-sign'))return {ok:true,json:async()=>({uploadId:'dcf764b3-aeff-4511-a03d-2c451c7d0508',uploadUrl:'https://storage.test/upload',mime:'image/png'})};
+    if(path.endsWith('/file-sign'))return {ok:true,json:async()=>({uploadId:randomUUID(),uploadUrl:'https://storage.test/upload',mime:'image/png'})};
     if(path==='https://storage.test/upload')return {ok:!uploadFails};
     if(path.endsWith('/posts')){
       if(accountLinked&&body.draftScope!==draftScope)return {ok:false,status:409,json:async()=>({error:'학생 세션이 변경되었습니다.'})};
@@ -40,7 +43,7 @@ function ui({failOnce=false,storageBroken=false,uploadFails=false,careerEnabled=
   return {ctx,node,requests,values,get html(){return html;},get maxActive(){return maxActive;},get draftScope(){return draftScope;},changeStudent(){draftScope=randomUUID();posts.length=0;},switchOnRecords(){switchOnRecords=true;},sessionFailure(status){sessionStatus=status;},holdRecords(){holdRecords=true;},async releaseRecords(){releaseRecords?.();await new Promise(r=>setTimeout(r,0));},pageHide(){return dispatch('pagehide');},pageShow(){return dispatch('pageshow',{persisted:true});},async hide(){ctx.document.visibilityState='hidden';await dispatch('visibilitychange');},async show(){ctx.document.visibilityState='visible';await dispatch('visibilitychange');},async open(){await ctx.renderStudentClass('abcd12',{board:{title:'우리 반 수업',code:'abcd12'}},'server-career-candidate');},async records(){recordsButton.onclick();await new Promise(r=>setTimeout(r,0));},retry(){return retryButton.onclick();},async board(){
     await ctx.renderStudentClass('abcd12',{board:{title:'우리 반 수업'}},'server-career-candidate');tabButton.onclick();
     await new Promise(r=>setTimeout(r,0));
-  },fill(){node('#sc-name').oninput({target:{value:'학생 A'}});node('#sc-title').oninput({target:{value:'민들레 관찰'}});node('#sc-content').oninput({target:{value:'노란 꽃과 톱니 모양 잎'}});},send(){return node('#sc-form').handlers.submit({preventDefault(){}});}};
+  },removeFile(i){return removeButton(String(i)).onclick?.();},fill(){node('#sc-name').oninput({target:{value:'학생 A'}});node('#sc-title').oninput({target:{value:'민들레 관찰'}});node('#sc-content').oninput({target:{value:'노란 꽃과 톱니 모양 잎'}});},send(){return node('#sc-form').handlers.submit({preventDefault(){}});}};
 }
 test('student screen renders lesson navigation and the three destinations without fake example submissions',async()=>{const u=ui();await u.open();for(const text of ['오늘 수업','내 제출물','내 진로기록','활동하기','자료·활동지','제출 게시판','관찰 웹앱'])assert.ok(u.html.includes(text));assert.ok(!u.html.includes('학생 A'));assert.ok(u.html.includes('게시판 제출만 받습니다'));});
 test('submission board includes camera capture, file preview controls, teacher visibility and honest record state',async()=>{const u=ui();await u.board();for(const text of ['capture="environment"','내 결과물 올리기','sc-file-input','선생님에게 제출','게시판 제출'])assert.ok(u.html.includes(text));});
@@ -111,4 +114,66 @@ test('BFCache revalidation ignores a late record response from the previous stud
 test('records fetched under a different account than their preflight are discarded',async()=>{
   const u=ui({accountLinked:true,careerState:'saved'});await u.board();u.fill();await u.send();u.switchOnRecords();await u.records();
   assert.ok(u.html.includes('학생 입장을 다시 확인'));assert.ok(!u.html.includes('노란 꽃과 톱니 모양 잎'));assert.ok(!u.html.includes('88015fba-18ab-479a-893f-f8fd66bbeea5'));
+});
+
+// 활동지가 여러 장일 때
+const photo=name=>new File(['PNG'],name,{type:'image/png'});
+const pick=(u,...names)=>u.node('#sc-file-input').handlers.change({target:{files:names.map(photo),value:'x'}});
+test('사진을 여러 장 고르면 목록에 모두 남고, 한 제출로 차례차례 올라간다',async()=>{
+  const u=ui();await u.board();u.fill();
+  pick(u,'앞면.png','뒷면.png','활동사진.png');
+  for(const name of ['앞면.png','뒷면.png','활동사진.png'])assert.ok(u.html.includes(name),`${name} 이 목록에 보여야 한다`);
+  assert.ok(u.html.includes('사진 3장을 한 제출로'));
+  await u.send();
+  const signs=u.requests.filter(r=>r.path.endsWith('/file-sign'));
+  assert.equal(signs.length,3);
+  assert.deepEqual(signs.map(r=>r.body.name),['앞면.png','뒷면.png','활동사진.png']);
+  const sent=u.requests.find(r=>r.path.endsWith('/posts'));
+  assert.equal(sent.body.uploadIds.length,3);
+  assert.equal(new Set(sent.body.uploadIds).size,3);
+  assert.ok(u.html.includes('제출 완료!'));
+});
+test('두 번 눌러 고르면 이어 붙고, 정해진 장수를 넘으면 알려 준다',async()=>{
+  const u=ui();await u.board();u.fill();
+  pick(u,'하나.png','둘.png');
+  pick(u,'셋.png','넷.png','다섯.png','여섯.png');
+  assert.ok(u.html.includes('개까지 올릴 수 있어요'));
+  await u.send();
+  assert.equal(u.requests.filter(r=>r.path.endsWith('/file-sign')).length,5,'넘친 장은 올리지 않는다');
+});
+test('제출이 한 번 끊겨도 이미 올린 사진을 다시 올리지 않는다',async()=>{
+  const u=ui({failOnce:true});await u.board();u.fill();
+  pick(u,'앞면.png','뒷면.png');
+  await u.send();
+  assert.ok(u.html.includes('같은 제출 다시 확인'));
+  assert.equal(u.requests.filter(r=>r.path.endsWith('/file-sign')).length,2);
+  await u.send();
+  assert.equal(u.requests.filter(r=>r.path.endsWith('/file-sign')).length,2,'재시도할 때 다시 올리면 안 된다');
+  const sent=u.requests.filter(r=>r.path.endsWith('/posts'));
+  assert.deepEqual(sent[0].body.uploadIds,sent[1].body.uploadIds);
+});
+test('빼기를 누르면 그 장만 빠지고 나머지는 그대로 올라간다',async()=>{
+  const u=ui();await u.board();u.fill();
+  pick(u,'앞면.png','가운데.png','뒷면.png');
+  u.removeFile(1);
+  assert.ok(!u.html.includes('가운데.png'));
+  assert.ok(u.html.includes('앞면.png')&&u.html.includes('뒷면.png'));
+  await u.send();
+  const signs=u.requests.filter(r=>r.path.endsWith('/file-sign'));
+  assert.deepEqual(signs.map(r=>r.body.name),['앞면.png','뒷면.png']);
+});
+test('카드가 사진 여러 장을 모두 그리고, 장마다 제 번호로 파일을 연다',()=>{
+  const u=ui();
+  const html=u.ctx.sbCard({id:9,mine:true,student_name:'학생',title:'활동지',created_at:'2026-09-06',sessionTitle:'1차시',visibility:'teacher',
+    attachments:[{index:0,name:'앞면.png',mime:'image/png',previewUrl:'https://s/0'},{index:1,name:'뒷면.png',mime:'image/png',previewUrl:'https://s/1'}]});
+  assert.ok(html.includes('https://s/0')&&html.includes('https://s/1'));
+  assert.ok(html.includes('2장'));
+  assert.ok(html.includes('data-subfile="9" data-index="0"')&&html.includes('data-subfile="9" data-index="1"'));
+});
+test('이 기능 이전의 제출(첨부 목록 없음)도 한 장짜리로 그려진다',()=>{
+  const u=ui();
+  const html=u.ctx.sbCard({id:3,mine:false,student_name:'학생',title:'옛 활동지',created_at:'2026-09-01',sessionTitle:'1차시',visibility:'class',file_name:'old.jpg',previewUrl:'https://s/old'});
+  assert.ok(html.includes('https://s/old'));
+  assert.ok(html.includes('data-subfile="3" data-index="0"'));
+  assert.ok(!html.includes('장</span>'),'한 장일 때는 장수를 적지 않는다');
 });

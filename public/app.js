@@ -995,25 +995,68 @@ function openToolPicker(tools, onPick) {
 }
 
 /* ---------------- 학생 활동 보드 (#/board/:code — 로그인 불필요) ---------------- */
+// 한 제출에 사진이 여러 장 붙는다. 서버가 준 목록이 원본이고, 이 기능 이전의
+// 제출은 목록이 없으므로 board_posts 한 칸으로 한 장짜리 목록을 만든다.
+function postFiles(p) {
+  if (Array.isArray(p.attachments) && p.attachments.length) return p.attachments;
+  return p.file_name ? [{ index: 0, name: p.file_name, mime: p.mime, previewUrl: p.previewUrl }] : [];
+}
 function postCardHtml(p, { forTeacher = false, manageable = false } = {}) {
-  const fileChip = p.file_name && !p.previewUrl
-    ? `<div class="pc-file">📄 ${esc(p.file_name)}</div>` : '';
+  const files = postFiles(p);
+  const photos = files.filter((f) => f.previewUrl);
+  const docs = files.filter((f) => !f.previewUrl);
+  const gallery = photos.length
+    ? `<div class="pc-photos${photos.length > 1 ? ' is-many' : ''}">${photos.map((f) => `<img class="pc-img" src="${esc(f.previewUrl)}" alt="" loading="lazy">`).join('')}${photos.length > 1 ? `<span class="pc-count">사진 ${photos.length}장</span>` : ''}</div>` : '';
+  const fileChip = docs.length ? `<div class="pc-file">📄 ${esc(docs[0].name)}${docs.length > 1 ? ` 외 ${docs.length - 1}개` : ''}</div>` : '';
   return `
     <div class="post-card ${p.hidden ? 'is-hidden' : ''}">
       <div class="pc-head"><span class="pc-name">${esc(p.student_name)}</span><span class="pc-time">${esc(String(p.created_at).slice(5, 16))}</span></div>
-      ${p.previewUrl ? `<img class="pc-img" src="${esc(p.previewUrl)}" alt="" loading="lazy">` : ''}
+      ${gallery}
       ${p.submission ? `<div class="pc-body"><small>${esc(p.sessionTitle)}</small><h3>${esc(p.title)}</h3><span class="badge green">제출 완료</span> <span class="small muted">활동 기록 미연결</span></div>` : ''}
       ${p.content ? `<div class="pc-body">${esc(p.content)}</div>` : ''}
       ${fileChip}
       ${forTeacher ? `
         <div class="pc-actions">
           ${p.hidden ? `<span class="badge gray">${p.submission?'선생님만 열람':'숨김'}</span>` : p.submission?'<span class="badge green">우리 반 공개</span>':''}
-          ${p.file_name ? `<a class="btn btn-primary btn-sm" href="/api/posts/${p.id}/download" target="_blank" rel="noopener">${icon('download')} 받기</a>` : ''}
+          ${files.map((f, i) => `<a class="btn btn-primary btn-sm" href="/api/posts/${p.id}/download/${f.index}" target="_blank" rel="noopener" title="${esc(f.name)}">${icon('download')} ${files.length > 1 ? `${i + 1}번째` : '받기'}</a>`).join('')}
           ${manageable ? `
             <button class="btn btn-ghost btn-sm" data-phide="${p.id}" data-val="${p.hidden ? 0 : 1}">${p.submission ? (p.hidden?'우리 반에 공개':'공개 취소') : (p.hidden?'보이기':'숨김')}</button>
             <button class="btn btn-danger btn-sm" data-pdel="${p.id}">${icon('trash')}</button>` : ''}
         </div>` : ''}
     </div>`;
+}
+
+// 수업 중에는 시간순 바둑판이 편하지만, 나중에 평가할 때는 한 학생이 낸 것을 모아
+// 봐야 한다. 같은 학생인지는 학생 계정(studentKey)으로 보고, 계정 없이 낸 옛 제출은
+// 이름으로 묶는다 — 동명이인은 계정으로 참여해야 갈라진다.
+function groupPostsByStudent(posts, roster) {
+  const groups = new Map();
+  for (const p of posts) {
+    const key = p.studentKey || `name:${p.student_name}`;
+    if (!groups.has(key)) groups.set(key, { key, name: p.student_name, posts: [] });
+    groups.get(key).posts.push(p);
+  }
+  for (const g of groups.values()) g.posts.sort((a, b) => Number(a.id) - Number(b.id));
+  const list = [...groups.values()].sort((a, b) => a.name.localeCompare(b.name, 'ko'));
+  // 명단에 있는데 한 장도 안 낸 학생은 뒤에 따로 보여 준다 — 빠진 사람이 바로 보인다.
+  const missing = (roster?.missing || []).map((name) => ({ key: `missing:${name}`, name, posts: [] }));
+  return { list, missing };
+}
+function boardPostsHtml(data, mode) {
+  const options = { forTeacher: true, manageable: data.manageable };
+  if (mode !== 'student') {
+    return `<div class="sb-grid">${data.posts.map((p) => postCardHtml(p, options)).join('') || '<p class="empty-note" style="grid-column:1/-1">아직 게시물이 없습니다.</p>'}</div>`;
+  }
+  const { list, missing } = groupPostsByStudent(data.posts, data.roster);
+  if (!list.length && !missing.length) return '<p class="empty-note">아직 게시물이 없습니다.</p>';
+  const section = (g) => {
+    const photos = g.posts.reduce((n, p) => n + postFiles(p).length, 0);
+    return `<section class="sb-student">
+      <header class="sbs-head"><h3>${esc(g.name)}</h3><span class="small muted">${g.posts.length ? `제출 ${g.posts.length}개 · 파일 ${photos}개` : '아직 제출 없음'}</span></header>
+      ${g.posts.length ? `<div class="sb-grid">${g.posts.map((p) => postCardHtml(p, options)).join('')}</div>` : ''}
+    </section>`;
+  };
+  return list.map(section).join('') + missing.map(section).join('');
 }
 
 function careerMaterialUrl(link, code, studentId, sessionId = '') {
@@ -1255,9 +1298,35 @@ route(/^#\/boardview\/(\d+)$/, async (id) => {
     ${data.manageable ? rosterCardHtml(data.roster) : ''}
     ${data.manageable ? '<div class="card" id="submission-settings-card">차시별 제출 설정을 불러오는 중…</div>' : ''}
     ${data.manageable ? '<div class="card" id="share-card"><div class="small muted">수업자료 불러오는 중…</div></div>' : ''}
-    <div class="sb-grid">
-      ${data.posts.map((p) => postCardHtml(p, { forTeacher: true, manageable: data.manageable })).join('') || '<p class="empty-note" style="grid-column:1/-1">아직 게시물이 없습니다.</p>'}
-    </div>`);
+    <div class="sb-viewbar">
+      <div class="sb-tabs" role="group" aria-label="제출물 보기 방식">
+        <button data-postview="time" aria-pressed="false">시간순</button>
+        <button data-postview="student" aria-pressed="false">학생별</button>
+      </div>
+      <span class="small muted" id="sb-viewnote"></span>
+    </div>
+    <div id="sb-posts"></div>`);
+
+  // 수업 중에는 시간순, 수업이 끝난 뒤 한 학생 것을 모아 볼 때는 학생별.
+  // 고른 방식은 이 브라우저에 남겨 다음에 열 때도 같은 화면으로 연다.
+  let postView = 'time';
+  try { if (localStorage.getItem('moakit:boardview') === 'student') postView = 'student'; } catch {}
+  function drawPosts() {
+    document.getElementById('sb-posts').innerHTML = boardPostsHtml(data, postView);
+    document.getElementById('sb-viewnote').textContent = postView === 'student'
+      ? '한 학생이 낸 것을 모아서 봐요. 같은 학생인지는 학생 계정으로 가려냅니다.'
+      : '가장 최근에 낸 것이 먼저 나와요.';
+    document.querySelectorAll('[data-postview]').forEach((b) => {
+      b.classList.toggle('active', b.dataset.postview === postView);
+      b.setAttribute('aria-pressed', String(b.dataset.postview === postView));
+      b.onclick = () => {
+        postView = b.dataset.postview;
+        try { localStorage.setItem('moakit:boardview', postView); } catch {}
+        drawPosts();
+        bindPostActions();
+      };
+    });
+  }
 
   const toggleBtn = document.getElementById('board-toggle');
   if (toggleBtn) toggleBtn.onclick = async () => {
@@ -1279,19 +1348,23 @@ route(/^#\/boardview\/(\d+)$/, async (id) => {
   if (dlAllBtn) dlAllBtn.onclick = () => downloadAll(id, dlAllBtn);
   const rosterEditBtn = document.getElementById('roster-edit');
   if (rosterEditBtn) rosterEditBtn.onclick = () => openRosterModal(id, b.roster || '');
-  document.querySelectorAll('[data-phide]').forEach((btn) => {
-    btn.onclick = async () => {
-      try { await api('PATCH', `/api/posts/${btn.dataset.phide}`, { hidden: btn.dataset.val === '1' }); navigate(); } catch(e) { toast(e.message,true); }
-    };
-  });
-  document.querySelectorAll('[data-pdel]').forEach((btn) => {
-    btn.onclick = async () => {
-      if (!confirm('이 게시물을 삭제할까요? 첨부 원본도 함께 삭제됩니다.')) return;
-      await api('DELETE', `/api/posts/${btn.dataset.pdel}`);
-      toast('삭제되었습니다.');
-      navigate();
-    };
-  });
+  function bindPostActions() {
+    document.querySelectorAll('[data-phide]').forEach((btn) => {
+      btn.onclick = async () => {
+        try { await api('PATCH', `/api/posts/${btn.dataset.phide}`, { hidden: btn.dataset.val === '1' }); navigate(); } catch(e) { toast(e.message,true); }
+      };
+    });
+    document.querySelectorAll('[data-pdel]').forEach((btn) => {
+      btn.onclick = async () => {
+        if (!confirm('이 게시물을 삭제할까요? 첨부 사진·파일 원본도 함께 삭제됩니다.')) return;
+        await api('DELETE', `/api/posts/${btn.dataset.pdel}`);
+        toast('삭제되었습니다.');
+        navigate();
+      };
+    });
+  }
+  drawPosts();
+  bindPostActions();
 
   // 학생에게 보여줄 수업자료 고르기 (보드 관리자만)
   const shareCard = document.getElementById('share-card');

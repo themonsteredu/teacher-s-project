@@ -37,3 +37,12 @@
  .sc-teacher-variant{align-items:stretch;flex-direction:column}.sc-teacher-variant label{min-width:0}.sc-teacher-variant select{font-size:16px;width:100%;min-width:0}
  .share-group summary{flex-wrap:wrap;gap:6px 10px}.share-group summary>span{flex-basis:calc(100% - 28px)}.share-group summary small{margin-left:21px}
 }
+
+/* 한 제출에 사진이 여러 장 — 카드 안에서 격자로 보여주고 장수를 알려 준다 */
+.sc-photos{position:relative;margin:0 8px;display:grid;gap:4px}
+.sc-photos.is-many{grid-template-columns:1fr 1fr}
+.sc-photos .sc-photo{width:100%;margin:0}
+.sc-photos.is-many .sc-photo img{aspect-ratio:1/1}
+.sc-photo-count{position:absolute;right:6px;top:6px;display:flex;align-items:center;gap:4px;background:rgba(3,74,78,.88);color:#fff;border-radius:20px;font-size:11px;padding:4px 9px;pointer-events:none}
+.sc-photo-count .ic{width:13px;height:13px}
+.sc-selected+.sc-selected{margin-top:6px}

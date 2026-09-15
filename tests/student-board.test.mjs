@@ -254,3 +254,95 @@ test('tenant view Career retry keeps the original record and checks the live sch
  f.accounts.get(token).schools=[f.schoolId];const saved=await f.api.saveCareer(req,f.response(),'abcd12',submitted.id,{draftScope:req.draftScope});
  assert.equal(saved.state,'saved');assert.equal(f.posts.length,1);assert.deepEqual(f.deliveries[0],f.deliveries[1]);
 });
+
+// 활동지는 여러 장으로 찍힌다 — 한 제출에 사진 여러 장
+async function upload(f,req,name,size=20,mime='image/png'){
+ const sign=await f.api.sign(req,f.response(),'abcd12',{sessionId:'lesson-1',name,size,draftScope:req.draftScope});
+ const receipt=JSON.parse(f.settings.get(`sb:upload:7:${sign.uploadId}`));
+ f.objects.set(receipt.path,{size,mime});
+ return sign.uploadId;
+}
+test('한 제출에 사진을 여러 장 붙이면 모두 남고, 목록에 장수대로 나온다',async()=>{
+ const f=fixture(),a=await f.join();
+ const ids=[await upload(f,a,'활동지1.png'),await upload(f,a,'활동지2.png'),await upload(f,a,'활동지3.png')];
+ const r=await f.api.submit(a,f.response(),'abcd12',f.body({uploadIds:ids}));
+ const meta=JSON.parse(f.settings.get(`sb:post:${r.id}`));
+ assert.deepEqual(meta.attachments.map(x=>x.name),['활동지1.png','활동지2.png','활동지3.png']);
+ // 첫 장은 예전처럼 board_posts 에도 남아 옛 화면·다운로드가 그대로 동작한다
+ assert.equal(f.posts[0].file_name,'활동지1.png');
+ const list=await f.api.list(a,f.response(),'abcd12');
+ assert.equal(list.posts[0].attachments.length,3);
+ assert.deepEqual(list.posts[0].attachments.map(x=>x.index),[0,1,2]);
+ assert.ok(list.posts[0].attachments.every(x=>x.previewUrl));
+ assert.ok(!('path' in list.posts[0].attachments[0]),'저장 경로는 브라우저로 나가면 안 된다');
+ assert.equal(list.posts[0].previewUrl,list.posts[0].attachments[0].previewUrl);
+});
+test('두 번째 장도 본인만 열 수 있고, 없는 번호는 404다',async()=>{
+ const f=fixture(),a=await f.join(),b=await f.join();
+ const ids=[await upload(f,a,'앞면.png'),await upload(f,a,'뒷면.png')];
+ const r=await f.api.submit(a,f.response(),'abcd12',f.body({uploadIds:ids}));
+ assert.equal((await f.api.file(a,f.response(),'abcd12',r.id,'1')).name,'뒷면.png');
+ assert.equal((await f.api.file(a,f.response(),'abcd12',r.id)).name,'앞면.png');
+ await assert.rejects(()=>f.api.file(a,f.response(),'abcd12',r.id,'2'),e=>e.status===404);
+ await assert.rejects(()=>f.api.file(b,f.response(),'abcd12',r.id,'1'),e=>e.status===403);
+});
+test('한 장이라도 남의 것이거나 이미 쓴 것이면 제출 전체가 거부된다',async()=>{
+ const f=fixture(),a=await f.join(),b=await f.join();
+ const mine=await upload(f,a,'내활동지.png'),stolen=await upload(f,b,'남의활동지.png');
+ await assert.rejects(()=>f.api.submit(a,f.response(),'abcd12',f.body({uploadIds:[mine,stolen]})),e=>e.status===400);
+ assert.equal(f.posts.length,0,'거부된 제출은 첫 장도 저장되면 안 된다');
+ assert.equal(JSON.parse(f.settings.get(`sb:upload:7:${mine}`)).used,undefined,'롤백되어 다시 쓸 수 있어야 한다');
+ await f.api.submit(a,f.response(),'abcd12',f.body({uploadIds:[mine]}));
+ assert.equal(f.posts.length,1);
+});
+test('한 번에 올릴 수 있는 장수를 넘기거나 같은 장을 두 번 넣으면 거부된다',async()=>{
+ const f=fixture(),a=await f.join();
+ const six=[];for(let i=0;i<6;i++)six.push(await upload(f,a,`장${i}.png`));
+ await assert.rejects(()=>f.api.submit(a,f.response(),'abcd12',f.body({uploadIds:six})),e=>e.status===400);
+ await assert.rejects(()=>f.api.submit(a,f.response(),'abcd12',f.body({uploadIds:[six[0],six[0]]})),e=>e.status===400);
+ assert.equal(f.posts.length,0);
+});
+test('진로기록에는 전체 장이 실리고 attachment 칸은 첫 장을 가리킨다',async()=>{
+ const f=fixture();f.enableCareer();
+ const req=await f.join(f.account());
+ const ids=[await upload(f,req,'앞면.png'),await upload(f,req,'뒷면.png')];
+ await f.api.submit(req,f.response(),'abcd12',f.bodyFor(req,{uploadIds:ids}));
+ const sent=f.deliveries[0].raw_data.submission;
+ assert.deepEqual(sent.attachments.map(x=>x.name),['앞면.png','뒷면.png']);
+ assert.ok(sent.attachments.every(x=>x.storage_path.startsWith('career-originals/')));
+ assert.deepEqual(sent.attachment,sent.attachments[0]);
+});
+test('이 기능 이전의 제출(메타에 장 목록이 없음)도 한 장짜리로 읽힌다',async()=>{
+ const {attachmentsOf,storagePathsOf}=require('../lib/student-board');
+ const old={file_name:'예전활동지.jpg',mime:null,size:11,storage_path:'board7/old.jpg'};
+ assert.deepEqual(attachmentsOf(null,old),[{name:'예전활동지.jpg',mime:'image/jpeg',size:11,path:'board7/old.jpg'}]);
+ assert.deepEqual(storagePathsOf(null,old),['board7/old.jpg']);
+ // 메타에 장 목록이 있으면 그쪽이 원본이다
+ const meta=JSON.stringify({attachments:[{name:'a.png',mime:'image/png',size:1,path:'board7/a.png'},{name:'b.png',mime:'image/png',size:2,path:'board7/b.png'}]});
+ assert.deepEqual(storagePathsOf(meta,old),['board7/a.png','board7/b.png']);
+});
+test('사진이 많아도 미리보기 주소는 한 번에 받아 온다',async()=>{
+ const f=fixture(),a=await f.join();
+ const batches=[];
+ f.storage.createSignedDownloads=async(paths)=>{batches.push(paths);return new Map(paths.map(p=>[p,'https://storage.test/private/'+p]));};
+ for(const n of [1,2,3]){
+  const ids=[];for(let i=0;i<n;i++)ids.push(await upload(f,a,`제출${n}-${i}.png`));
+  await f.api.submit(a,f.response(),'abcd12',f.body({uploadIds:ids}));
+ }
+ f.signed.length=0;
+ const list=await f.api.list(a,f.response(),'abcd12');
+ assert.equal(list.posts.length,3);
+ assert.equal(batches.length,1,'화면 한 장에 서명 요청은 한 번');
+ assert.equal(batches[0].length,6,'사진 6장을 한 번에');
+ assert.equal(f.signed.length,0,'한 장씩 발급하는 길로 새면 안 된다');
+ assert.ok(list.posts.every(p=>p.attachments.every(x=>x.previewUrl)));
+});
+test('묶음 발급을 못 하는 저장소에서는 한 장씩 받아서라도 보여 준다',async()=>{
+ const f=fixture(),a=await f.join();
+ const ids=[await upload(f,a,'앞.png'),await upload(f,a,'뒤.png')];
+ await f.api.submit(a,f.response(),'abcd12',f.body({uploadIds:ids}));
+ f.signed.length=0;
+ const list=await f.api.list(a,f.response(),'abcd12');
+ assert.equal(f.signed.length,2);
+ assert.equal(list.posts[0].attachments.filter(x=>x.previewUrl).length,2);
+});

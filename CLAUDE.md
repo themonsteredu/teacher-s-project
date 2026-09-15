@@ -10,6 +10,7 @@
 - Vercel 프로젝트 `teacher-s-project` (팀 `themonsteredu`)
 - **프로덕션 브랜치는 `main`이 아니라 `claude/wonderful-babbage-ihufst`다.** PR base를 여기로 잡아야 배포된다
 - 형제 레포: `themonsteredu/pinpoint`(모아킷 홈 `moakit.ai`, 브랜드 원본), `themonsteredu/aiapp`(모아랩 `job.moakit.ai`)
+- **수업 콘텐츠는 레포가 따로다.** 허브 프로그램에 붙는 활동지 PDF 는 이 레포가 아니라 그쪽에 있다 — 예: `themonsteredu/culture_bosung`(보성초 2학년 AI 교재 · `culture-bosung.vercel.app`). 여기 `public/lessons/` 만 보고 "활동지가 없다"고 답하지 않는다. 실제로 한 번 그렇게 잘못 답했다
 - **함수 리전은 `vercel.json`의 `regions: ["icn1"]`(서울)이 정한다.** 2026-09-10 확인: 직접 배포(CLI/MCP 번들)로 올린 프로덕션(`dpl_CipQ…`)이 `iad1`(미국 동부)에서 실행돼 로그인·비밀번호 변경이 요청마다 수 초씩 걸렸다. 배포 뒤에는 `get_deployment`의 `regions`가 `icn1`인지 확인한다 — 함수는 DB와 같은 리전에 둔다(이 계정의 Supabase 프로젝트는 모두 서울 `ap-northeast-2`)
 - 원래 DB인 Supabase `lesson-hub` 프로젝트는 2026-09-10 기준 INACTIVE(일시정지)였는데 프로덕션 로그인은 됐다 → `DATABASE_URL`이 다른 DB를 가리킨다. 어느 DB인지는 Vercel 환경변수에서만 알 수 있다(MCP로는 안 보임). 관리자 계정은 그 DB에 새로 시드된 `superadmin`이었다
 
@@ -67,6 +68,26 @@
 - `noPendingCareer()`도 **관리자는 예외다.** 다만 건너뛰지 않고 **건수를 세어** 이용 기록에 `careerPending=N` 으로 남긴다 — 그냥 통과시키면 몇 건이 사라졌는지 아무도 모른다. 교사에게는 여전히 409로 막힌다. 삭제 확인 문구에도 "아직 저장되지 않은 진로기록"이 사라진다고 적혀 있다
 - **수업을 지우면 그 수업에 딸린 `sb:` settings 행도 함께 지운다** (`purgeBoardSettings`). `settings` 에는 `boards` 로 향하는 외래키가 없어서, 예전에는 `sb:config:`·`sb:post:`(학생 이름·제출 내용·첨부 경로 포함)·`sb:session:`·`sb:upload:`·`sb:event:` 가 주인 없이 영원히 남았다. `board_posts` 가 아직 살아 있어야 `sb:post:` 를 찾을 수 있으므로 **수업 행을 지우기 전에** 돌린다. `sb:rate:` 는 접속 IP 단위라 대상이 아니다
 - 프로그램 삭제(`DELETE /api/programs/:id`)는 원래 관리자 전용이라, 이 변경 뒤로는 학교 확인이 사실상 돌지 않는다 — 의도된 결과다
+
+## 학생 제출물 — 한 제출에 사진 여러 장 (2026-09-15)
+
+활동지를 앞뒤로 찍으면 두 장인데 한 장만 올라갔다. 이제 한 제출에 **최대 5장**이다.
+
+- **첫 장은 예전대로 `board_posts` 에 남고, 전체 목록은 `sb:post:<id>` 메타의 `attachments`에 있다.** `board_posts` 에 칸을 늘리지 않은 이유는 전환 모드(`ACADEMY_ID`)에서 이 테이블이 `hub` 호환 뷰라 마이그레이션이 돌지 않기 때문이다. 옛 제출은 메타에 목록이 없으므로 `attachmentsOf()` 가 `board_posts` 한 칸으로 한 장짜리 목록을 만든다 — 읽는 쪽은 전부 이 함수를 쓴다
+- **지울 때는 `storagePathsOf()` 로 모아야 한다.** 두 번째 장부터는 `board_posts` 에 경로가 없어서, `SELECT storage_path FROM board_posts` 만 보면 사진이 저장소에 남는다 (프로그램 삭제·수업 삭제는 `boardAttachmentPaths()`, 제출물 하나 삭제는 직접). `career-originals/` 는 저장된 진로기록이 가리키는 원본이라 `storage.removeObject` 가 애초에 거부한다
+- 제출물 하나를 지우면 `sb:post:` 행도 함께 지운다 — 예전에는 남았다
+- 첨부 열람 주소 끝에 몇 번째 장인지 붙는다: `/api/posts/:id/download/:i`, `/api/join-board/:code/submission-file/:id/:i`, `.../career-records/:id/file/:i`. 번호를 빼면 첫 장이라 예전 링크도 산다
+- 진로기록 스냅샷은 `attachment`(첫 장)를 그대로 두고 `attachments`(전체)를 더한다. **모아랩 표시가 `attachment` 를 읽으므로 그 칸을 없애면 안 된다**
+- 한 장이라도 검증에 걸리면 제출 전체가 롤백된다(같은 트랜잭션). 학생은 올린 사진을 다시 쓸 수 있다
+- 학생 화면은 고른 장을 이어 붙이고(사진 찍기를 여러 번 눌러도 쌓인다), 통신이 끊기면 **이미 올린 장은 건너뛰고 남은 장부터** 다시 올린다(`snapshot.uploadIds` 가 그 표시). `SB_MAX_FILES` 는 `lib/student-board.js` 의 `MAX_FILES` 와 같아야 한다
+
+## 제출물 학생별 보기 (2026-09-15)
+
+수업 중에는 시간순 바둑판이 맞지만, 끝난 뒤 평가할 때는 한 학생 것을 모아 봐야 한다. `#/boardview/:id` 에 **시간순 · 학생별** 전환을 두었다.
+
+- 같은 학생인지는 **학생 계정(`studentKey` = 메타의 `accountId`)** 으로 본다. 계정 없이 낸 옛 제출만 이름으로 묶으므로, 동명이인을 가르려면 학생 계정으로 참여해야 한다
+- 명단(`roster`)에 있는데 한 장도 안 낸 학생은 뒤에 `아직 제출 없음` 으로 따로 나온다
+- 고른 보기 방식은 `localStorage['moakit:boardview']` 에 남는다. 서버는 이 구분을 모른다 — 묶기는 전부 브라우저에서 한다
 
 ## 학교별 활동지 머리글
 
