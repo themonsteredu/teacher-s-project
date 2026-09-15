@@ -68,10 +68,19 @@ test('inactive membership and initial passwords block class access',async()=>{
   await assert.rejects(createService(initial.pool,'hub').authorizeStudent(token,school),e=>e.status===403);
   assert.ok(!initial.calls.some(c=>c.sql.includes('FROM moakit_accounts.memberships')));
 });
-test('school binding requires an explicit issuer scoped manager even for admin',async()=>{
-  const db=database(()=>({rowCount:0,rows:[]})),api=createService(db.pool,'moakit-hub');
-  await assert.rejects(api.authorizeSchool({id:7,role:'admin'},school),e=>e.status===403);
-  assert.deepEqual(db.calls.find(c=>c.sql.includes('FROM moakit_accounts.managers')).args,[school,'moakit-hub','7']);
+test('교사는 담당자로 지정된 학교만, 관리자는 모든 학교를 관리한다',async()=>{
+  // 교사: 담당자 행이 없으면 거절하고, 조회는 발급 주체(issuer)로 좁힌다.
+  const denied=database(()=>({rowCount:0,rows:[]})),teacherApi=createService(denied.pool,'moakit-hub');
+  await assert.rejects(teacherApi.authorizeSchool({id:7,role:'teacher'},school),e=>e.status===403);
+  assert.deepEqual(denied.calls.find(c=>c.sql.includes('FROM moakit_accounts.managers')).args,[school,'moakit-hub','7']);
+  // 관리자: 담당자 지정이 없어도 통과하며, 담당자 표를 조회하지도 않는다.
+  const admin=database(()=>({rowCount:0,rows:[]})),adminApi=createService(admin.pool,'moakit-hub');
+  assert.deepEqual(await adminApi.authorizeSchool({id:7,role:'admin'},school),{schoolId:school});
+  assert.ok(!admin.calls.some(c=>c.sql.includes('FROM moakit_accounts.managers')));
+  // 역할이 없거나 학교 아이디가 잘못되면 관리자 예외보다 먼저 거절한다.
+  const bad=database(()=>({rowCount:0,rows:[]})),badApi=createService(bad.pool,'moakit-hub');
+  await assert.rejects(badApi.authorizeSchool({id:7,role:'admin'},'not-a-uuid'),e=>e.status===403);
+  await assert.rejects(badApi.authorizeSchool({id:7,role:'student'},school),e=>e.status===403);
 });
 test('own record query uses server UUID, bounded pagination and own-record cursor',async()=>{
   const ids=[crypto.randomUUID(),crypto.randomUUID(),crypto.randomUUID()],before=crypto.randomUUID();

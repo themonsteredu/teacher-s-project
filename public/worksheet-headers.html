@@ -1,20 +1,34 @@
 <!doctype html>
-<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="referrer" content="no-referrer"><title>활동지 머리글 · 모아허브</title><link rel="stylesheet" href="/style.css"><style>
+<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="referrer" content="no-referrer"><title>활동지 인쇄 · 모아허브</title><link rel="stylesheet" href="/style.css"><style>
 @font-face{font-family:SCore;src:url('/fonts/SCDreamRegular.woff2')}body{font-family:SCore,sans-serif;word-break:keep-all;background:#f5f8f7;color:#163c36}main{max-width:1040px;margin:40px auto;padding:24px}header,.actions{display:flex;gap:12px;align-items:center;flex-wrap:wrap}header{justify-content:space-between}section{background:white;padding:24px;margin-top:20px;border:1px solid #d8e6e2;border-radius:12px}label{display:block;margin:14px 0}input,textarea,select{display:block;box-sizing:border-box;width:100%;padding:10px;margin-top:6px;font:inherit;border:1px solid #a5bdb5;border-radius:6px}input[type=file]{padding:6px}button{padding:10px 16px;border:0;border-radius:6px;background:#0a6f61;color:white;font:inherit;cursor:pointer}button.soft{background:#e4ecea;color:#0a6f61}button.danger{background:#8f3a0d}button:disabled{opacity:.5;cursor:wait}#message{min-height:24px;color:#8f3a0d;margin:16px 0}.muted{color:#536d65}a{color:#0a6f61}code{background:#eef3f1;padding:2px 6px;border-radius:4px;font-size:13px;overflow-wrap:anywhere}[hidden]{display:none!important}
+h1{margin:0 0 4px;font-size:24px}h2{margin:0 0 4px;font-size:18px}h3{margin:0 0 4px;font-size:16px}
 .grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0 16px}.grid .full{grid-column:1/-1}
-.list{display:grid;gap:12px}.school{display:grid;grid-template-columns:120px 1fr auto;gap:16px;align-items:center;border:1px solid #d8e6e2;border-radius:10px;padding:14px}.school img{max-width:120px;max-height:56px;object-fit:contain}.school .noimg{width:120px;height:56px;display:flex;align-items:center;justify-content:center;font-size:12px;color:#536d65;background:#f5f8f7;border-radius:6px}.school h3{margin:0 0 4px;font-size:16px}.school p{margin:0;font-size:13px;color:#536d65}.school .actions{justify-content:flex-end}
+.list{display:grid;gap:12px}.school{display:grid;grid-template-columns:120px 1fr auto;gap:16px;align-items:center;border:1px solid #d8e6e2;border-radius:10px;padding:14px}.school img{max-width:120px;max-height:56px;object-fit:contain}.school .noimg{width:120px;height:56px;display:flex;align-items:center;justify-content:center;font-size:12px;color:#536d65;background:#f5f8f7;border-radius:6px}.school p{margin:0;font-size:13px;color:#536d65}.school .actions{justify-content:flex-end}
 .preview{background:#eee;padding:24px;border-radius:10px;overflow:auto}.paper{background:white;width:180mm;max-width:100%;margin:0 auto;padding:12mm 12mm 6mm;box-shadow:0 8px 24px #0002}.paper .after{border:1px solid #ccc;height:38mm;margin-top:6mm;display:flex;align-items:center;justify-content:center;color:#888;font-size:13px}
 #logo-preview{max-height:70px;max-width:100%;object-fit:contain;display:block;margin-top:8px}
-@media(max-width:700px){main{padding:12px;margin:12px auto}section{padding:16px}.grid{grid-template-columns:1fr}.school{grid-template-columns:1fr}.school .actions{justify-content:flex-start}}
+.ws-group{margin-top:18px}.ws-row{display:flex;gap:12px;align-items:center;flex-wrap:wrap;border-bottom:1px solid #eaf1ef;padding:12px 0}.ws-row:last-child{border-bottom:0}.ws-n{width:56px;flex-shrink:0;font-weight:700;color:#0a6f61}.ws-name{flex:1;min-width:160px}.ws-row .actions{margin-left:auto}
+.btn-link{display:inline-flex;align-items:center;padding:9px 14px;border-radius:6px;background:#0a6f61;color:#fff;text-decoration:none;font-size:14px}.btn-link.soft{background:#e4ecea;color:#0a6f61}
+@media(max-width:700px){main{padding:12px;margin:12px auto}section{padding:16px}.grid{grid-template-columns:1fr}.school{grid-template-columns:1fr}.school .actions{justify-content:flex-start}.ws-row .actions{margin-left:0;width:100%}}
 </style></head><body><main>
-<header><div><h1 style="margin:0 0 4px">활동지 머리글</h1><p class="muted" style="margin:0">학교마다 활동지 맨 위(문구·로고·교육영역 표)를 다르게 인쇄합니다.</p></div><nav class="actions"><a href="/app">← 허브로</a></nav></header>
+<header><div><h1>활동지 인쇄</h1><p class="muted" style="margin:0">학교를 고르면 활동지 맨 위가 그 학교 양식(문구·로고·교육영역 표)으로 인쇄됩니다.</p></div><nav class="actions"><a href="/app">← 허브로</a></nav></header>
 <div id="message"></div>
-<section id="gate" hidden><p>관리자 계정으로 <a href="/app#/login">허브에 로그인</a>한 뒤 이 화면을 다시 여세요.</p></section>
+
+<section id="gate" hidden><p>모아허브에 <a href="/app#/login">로그인</a>한 뒤 이 화면을 다시 열어 주세요.</p></section>
+
+<section id="print-pane" hidden>
+  <h2>인쇄할 활동지 고르기</h2>
+  <p class="muted">학교를 먼저 고르고, 차시 오른쪽 <b>학생용 인쇄</b>를 누르세요. 열린 화면에서 <b>활동지 인쇄</b>를 누르면 그 학교 양식으로 나옵니다.</p>
+  <label style="max-width:360px">학교<select id="print-school"></select></label>
+  <div id="print-list"></div>
+  <p class="muted" style="font-size:13px;margin-top:14px">인쇄용 활동지가 준비된 수업만 나옵니다. 새 교안에 활동지를 넣는 방법은 <code>public/lessons/README.md</code>에 있습니다.</p>
+</section>
+
 <section id="list-pane" hidden>
-  <div class="actions" style="justify-content:space-between"><h2 style="margin:0">학교 목록</h2><button id="new" class="soft">+ 학교 추가</button></div>
-  <p class="muted">활동지 주소 뒤에 <code>?school=학교코드</code>를 붙이면 그 학교 머리글로 인쇄됩니다. 활동지 화면의 “활동지 · 저장 관리”에서 학교를 직접 골라도 됩니다.</p>
+  <div class="actions" style="justify-content:space-between"><h2 style="margin:0">학교 머리글 관리</h2><button id="new" class="soft">+ 학교 추가</button></div>
+  <p class="muted">활동지 주소 뒤에 <code>?school=학교코드</code>를 붙여도 그 학교 머리글로 열립니다.</p>
   <div id="list" class="list"></div>
 </section>
+
 <section id="edit-pane" hidden>
   <h2 id="edit-title" style="margin-top:0">학교 추가</h2>
   <form id="form" class="grid">
@@ -27,7 +41,7 @@
     <label>메모 (관리자만 봄)<input name="note" maxlength="200" placeholder="예: 3학년 AI연구학교 양식, 담당 ○○○ 선생님"></label>
     <div class="full actions" style="margin-top:8px"><button type="submit" id="save">저장</button><button type="button" id="cancel" class="soft">목록으로</button><span style="flex:1"></span><button type="button" id="remove" class="danger" hidden>삭제</button></div>
   </form>
-  <h3>인쇄 미리보기</h3>
+  <h3 style="margin-top:22px">인쇄 미리보기</h3>
   <div class="preview"><div class="paper"><div id="preview-header"></div><div class="after">여기부터 활동지 본문(각 차시 내용)</div></div></div>
   <div class="grid" style="margin-top:8px"><label>미리보기 교육영역<input id="pv-area" value="인공지능의 원리와 활용[데이터]"></label><label>미리보기 학습주제<input id="pv-topic" value="데이터 유형 알기"></label></div>
 </section>

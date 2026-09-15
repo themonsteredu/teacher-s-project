@@ -1,10 +1,13 @@
 'use strict';
-// 관리자용 학교별 활동지 머리글 편집 화면 (/worksheet-headers.html)
+// 활동지 인쇄 화면 (/worksheet-headers.html)
+// - 교사·관리자: 학교를 고르고 차시별 인쇄용 활동지를 연다.
+// - 관리자: 학교 머리글(문구·로고)을 추가·수정·삭제한다.
 (function () {
   const $ = id => document.getElementById(id);
   const message = t => { $('message').textContent = t; };
   const WH = window.MoakitWorksheetHeader;
-  let schools = [], editing = null, logo = '';
+  const PICKED = 'moakit:ws:school';
+  let schools = [], sheets = [], editing = null, logo = '';
 
   async function request(path, method = 'GET', body) {
     const r = await fetch(path, { method, credentials: 'same-origin', headers: body ? { 'Content-Type': 'application/json' } : {}, body: body ? JSON.stringify(body) : undefined });
@@ -13,7 +16,49 @@
     return data;
   }
   function esc(s) { return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
+  function remembered() { try { return localStorage.getItem(PICKED) || ''; } catch { return ''; } }
+  function remember(slug) { try { if (slug) localStorage.setItem(PICKED, slug); else localStorage.removeItem(PICKED); } catch { /* 저장 불가 브라우저 */ } }
 
+  // ---------- 인쇄 ----------
+  function lessonUrl(file, slug) { return '/lessons/' + file.split('/').map(encodeURIComponent).join('/') + (slug ? '?school=' + encodeURIComponent(slug) : ''); }
+
+  function renderPrint() {
+    const slug = $('print-school').value;
+    remember(slug);
+    const box = $('print-list');
+    box.replaceChildren();
+    if (!sheets.length) {
+      box.innerHTML = '<p class="muted">인쇄용 활동지가 있는 수업이 아직 없습니다.</p>';
+      return;
+    }
+    box.innerHTML = sheets.map(group => `<div class="ws-group"><h3>${esc(group.label)}</h3>` + group.items.map(item => `
+      <div class="ws-row">
+        <div class="ws-n">${item.n}차시</div>
+        <div class="ws-name">${esc(item.title)}</div>
+        <div class="actions">
+          ${item.student ? `<a class="btn-link" href="${esc(lessonUrl(item.student, slug))}" target="_blank" rel="noopener">학생용 인쇄</a>` : ''}
+          ${item.teacher ? `<a class="btn-link soft" href="${esc(lessonUrl(item.teacher, slug))}" target="_blank" rel="noopener">교사용 열기</a>` : ''}
+        </div>
+      </div>`).join('') + '</div>').join('');
+  }
+
+  function fillSchoolPicker() {
+    const select = $('print-school');
+    const want = remembered();
+    select.innerHTML = '<option value="">학교 머리글 없음 (기본 모양)</option>' +
+      schools.map(s => `<option value="${esc(s.slug)}"${s.slug === want ? ' selected' : ''}>${esc(s.name)}</option>`).join('');
+    select.onchange = renderPrint;
+  }
+
+  async function loadSheets() {
+    try {
+      const r = await fetch('/lessons/worksheets.json', { credentials: 'same-origin' });
+      sheets = r.ok ? await r.json() : [];
+    } catch { sheets = []; }
+    if (!Array.isArray(sheets)) sheets = [];
+  }
+
+  // ---------- 학교 머리글 관리 (관리자) ----------
   function renderList() {
     const box = $('list');
     box.replaceChildren();
@@ -38,9 +83,10 @@
   }
   function preview() {
     const d = formData();
-    $('preview-header').innerHTML = WH.html({ ...d, name: d.name || '학교 이름' }, { area: $('pv-area').value, topic: $('pv-topic').value });
-    $('preview-header').className = 'on';
-    $('preview-header').setAttribute('data-ws-header', '');
+    const box = $('preview-header');
+    box.innerHTML = WH.html({ ...d, name: d.name || '학교 이름' }, { area: $('pv-area').value, topic: $('pv-topic').value });
+    box.className = 'on';
+    box.setAttribute('data-ws-header', '');
     $('logo-preview').hidden = !logo;
     if (logo) $('logo-preview').src = logo;
   }
@@ -66,50 +112,55 @@
   }
   function closeEdit() { editing = null; $('edit-pane').hidden = true; $('list-pane').hidden = false; }
 
-  async function load() {
+  async function loadSchools() {
     schools = (await request('/api/worksheet-headers')).schools || [];
-    renderList();
+    fillSchoolPicker();
+    renderPrint();
   }
 
-  $('form').oninput = preview;
-  $('pv-area').oninput = preview; $('pv-topic').oninput = preview;
-  $('form').logofile.onchange = () => {
-    const file = $('form').logofile.files[0];
-    if (!file) return;
-    if (file.size > 450 * 1024) { message('로고 파일이 너무 큽니다. 450KB 이하로 줄여 주세요.'); $('form').logofile.value = ''; return; }
-    const reader = new FileReader();
-    reader.onload = () => { logo = String(reader.result || ''); message(''); preview(); };
-    reader.readAsDataURL(file);
-  };
-  $('logo-clear').onclick = () => { logo = ''; $('form').logofile.value = ''; preview(); };
-  $('cancel').onclick = closeEdit;
-  $('new').onclick = () => openEdit(null);
-  $('form').onsubmit = async e => {
-    e.preventDefault();
-    const slug = editing ? editing.slug : $('form').slug.value.trim();
-    $('save').disabled = true; message('저장 중…');
-    try {
-      await request('/api/worksheet-headers/' + encodeURIComponent(slug), 'PUT', formData());
-      await load(); closeEdit(); message('저장했습니다. 활동지에서 학교를 고르면 바로 반영됩니다.');
-    } catch (err) { message(err.message); }
-    finally { $('save').disabled = false; }
-  };
-  $('remove').onclick = async () => {
-    if (!editing) return;
-    const builtin = editing.builtin;
-    if (!confirm(builtin ? '저장한 내용을 지우고 기본값으로 되돌릴까요?' : `${editing.name} 머리글을 삭제할까요? 이 학교 코드로 연 활동지는 기본 모습으로 인쇄됩니다.`)) return;
-    $('remove').disabled = true;
-    try { await request('/api/worksheet-headers/' + encodeURIComponent(editing.slug), 'DELETE'); await load(); closeEdit(); message(builtin ? '기본값으로 되돌렸습니다.' : '삭제했습니다.'); }
-    catch (err) { message(err.message); }
-    finally { $('remove').disabled = false; }
-  };
+  function bindAdmin() {
+    $('form').oninput = preview;
+    $('pv-area').oninput = preview; $('pv-topic').oninput = preview;
+    $('form').logofile.onchange = () => {
+      const file = $('form').logofile.files[0];
+      if (!file) return;
+      if (file.size > 450 * 1024) { message('로고 파일이 너무 큽니다. 450KB 이하로 줄여 주세요.'); $('form').logofile.value = ''; return; }
+      const reader = new FileReader();
+      reader.onload = () => { logo = String(reader.result || ''); message(''); preview(); };
+      reader.readAsDataURL(file);
+    };
+    $('logo-clear').onclick = () => { logo = ''; $('form').logofile.value = ''; preview(); };
+    $('cancel').onclick = closeEdit;
+    $('new').onclick = () => openEdit(null);
+    $('form').onsubmit = async e => {
+      e.preventDefault();
+      const slug = editing ? editing.slug : $('form').slug.value.trim();
+      $('save').disabled = true; message('저장 중…');
+      try {
+        await request('/api/worksheet-headers/' + encodeURIComponent(slug), 'PUT', formData());
+        await loadSchools(); renderList(); closeEdit();
+        message('저장했습니다. 활동지에서 그 학교를 고르면 바로 반영됩니다.');
+      } catch (err) { message(err.message); }
+      finally { $('save').disabled = false; }
+    };
+    $('remove').onclick = async () => {
+      if (!editing) return;
+      const builtin = editing.builtin;
+      if (!confirm(builtin ? '저장한 내용을 지우고 기본값으로 되돌릴까요?' : `${editing.name} 머리글을 삭제할까요? 이 학교 코드로 연 활동지는 기본 모습으로 인쇄됩니다.`)) return;
+      $('remove').disabled = true;
+      try { await request('/api/worksheet-headers/' + encodeURIComponent(editing.slug), 'DELETE'); await loadSchools(); renderList(); closeEdit(); message(builtin ? '기본값으로 되돌렸습니다.' : '삭제했습니다.'); }
+      catch (err) { message(err.message); }
+      finally { $('remove').disabled = false; }
+    };
+  }
 
   (async () => {
+    await loadSheets();
     try {
       const me = await request('/api/me');
-      if (me.user.role !== 'admin') { $('gate').hidden = false; message('관리자만 활동지 머리글을 바꿀 수 있습니다.'); return; }
-      await load();
-      $('list-pane').hidden = false;
+      await loadSchools();
+      $('print-pane').hidden = false;
+      if (me.user.role === 'admin') { bindAdmin(); renderList(); $('list-pane').hidden = false; }
     } catch (err) {
       $('gate').hidden = false;
       message(err.status === 401 ? '로그인이 필요합니다.' : err.message);

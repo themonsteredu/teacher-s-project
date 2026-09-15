@@ -83,8 +83,10 @@ test('admin navigation lives in the left sidebar, not the top bar', () => {
 
 test('teacher school accounts are reachable while admin-only destinations stay hidden', () => {
   const nav = ui({ role: 'teacher' }).html.match(/<nav[\s\S]*?<\/nav>/)[0];
-  assert.deepEqual([...nav.matchAll(/href="([^"]+)"/g)].map(m => m[1]), ['#/', '#/myclass', '/student-accounts.html?view=teacher', '#/settings']);
+  assert.deepEqual([...nav.matchAll(/href="([^"]+)"/g)].map(m => m[1]),
+    ['#/', '#/myclass', '/student-accounts.html?view=teacher', '/worksheet-headers.html', '#/settings']);
   assert.doesNotMatch(nav, /교사 계정|사이트 설정|프로그램 관리/);
+  assert.match(nav, /활동지 인쇄/);
 });
 
 test('detail and curriculum editor routes highlight the correct parent menu', () => {

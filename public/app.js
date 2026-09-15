@@ -198,13 +198,13 @@ window.addEventListener('hashchange', navigate);
 function menuItems() {
   const items = [['#/', 'grid', '프로그램'], ['#/myclass', 'monitor', '내 수업']];
   items.push(['/student-accounts.html?view=teacher', 'users', '학교·학생 계정']);
+  items.push(['/worksheet-headers.html', 'fileText', '활동지 인쇄']);
   if (isAdmin()) {
     items.push(
       ['#/manage', 'layers', '프로그램 관리'],
       ['#/tools', 'box', '내 도구함'],
       ['#/users', 'users', '교사 계정'],
       ['#/site', 'power', '사이트 설정'],
-      ['/worksheet-headers.html', 'fileText', '활동지 머리글'],
       ['#/logs', 'fileText', '이용 기록'],
     );
   }
