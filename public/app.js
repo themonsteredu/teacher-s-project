@@ -1188,6 +1188,7 @@ route(/^#\/myclass$/, async () => {
       <div class="cc-actions">
         <a class="btn btn-primary btn-sm" href="#/boardview/${b.id}">${icon('monitor')} 수업 열기</a>
         <a class="btn btn-ghost btn-sm" href="#/program/${b.programId}">프로그램</a>
+        <button class="btn btn-ghost btn-sm" data-edit-board="${b.id}" data-title="${esc(b.title)}" title="수업 이름 바꾸기">${icon('edit')} 이름 수정</button>
         <button class="btn btn-ghost btn-sm cc-del" data-del-board="${b.id}" data-title="${esc(b.title)}" title="수업 삭제">${icon('trash')}</button>
       </div>
     </div>`;
@@ -1259,6 +1260,9 @@ route(/^#\/myclass$/, async () => {
         } catch (e) { if (!e.handled) toast(e.message, true); }
       };
     });
+    document.querySelectorAll('[data-edit-board]').forEach((btn) => {
+      btn.onclick = () => openRenameClassModal(btn.dataset.editBoard, btn.dataset.title || '');
+    });
   }
   function redraw() {
     const rows = visible();
@@ -1272,6 +1276,47 @@ route(/^#\/myclass$/, async () => {
   document.getElementById('mc-search')?.addEventListener('input', (e) => { search = e.target.value.trim().toLowerCase(); redraw(); });
   if (showOwner) redraw(); else bindCards();
 });
+
+// 수업 이름 바꾸기 — 만든 교사 또는 관리자(PATCH /api/boards/:id 가 같은 규칙으로 막는다).
+// 참여 코드·제출물은 그대로이므로 수업 중에 이름만 고쳐도 학생 화면은 영향받지 않는다.
+function openRenameClassModal(id, current) {
+  const back = openModal(`
+    <h3>수업 이름 바꾸기</h3>
+    <div class="m-sub">반·주제가 드러나게 적으면 목록에서 찾기 쉽습니다. 참여 코드와 제출된 결과물은 그대로입니다.</div>
+    <div class="form-grid">
+      <div style="grid-column:1/-1"><label>수업 이름</label>
+        <input id="rc-title" maxlength="100" placeholder="예: 2학년 2반 · 분수의 덧셈" autocomplete="off"></div>
+    </div>
+    <div class="m-actions">
+      <button class="btn btn-ghost" id="rc-cancel">취소</button>
+      <button class="btn btn-primary" id="rc-save">저장</button>
+    </div>
+    <div class="msg" id="rc-msg"></div>`);
+  const input = back.querySelector('#rc-title');
+  const msg = back.querySelector('#rc-msg');
+  const saveBtn = back.querySelector('#rc-save');
+  input.value = current;
+  input.focus();
+  input.select();
+  back.querySelector('#rc-cancel').onclick = () => back.remove();
+  const save = async () => {
+    const title = input.value.trim();
+    if (!title) { msg.textContent = '수업 이름을 입력하세요.'; input.focus(); return; }
+    if (title === current) { back.remove(); return; }
+    saveBtn.disabled = true;
+    try {
+      await api('PATCH', `/api/boards/${id}`, { title });
+      back.remove();
+      toast('수업 이름을 바꿨습니다.');
+      navigate();
+    } catch (e) {
+      saveBtn.disabled = false;
+      if (!e.handled) msg.textContent = e.message;
+    }
+  };
+  saveBtn.onclick = save;
+  input.addEventListener('keydown', (e) => { if (e.key === 'Enter') save(); });
+}
 
 // 대시보드에서 바로 새 수업(보드) 열기 — 프로그램 선택 포함
 async function openNewClassModal() {
