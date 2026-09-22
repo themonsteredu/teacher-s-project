@@ -1251,3 +1251,22 @@ body { background: var(--bg); }
   border-bottom: 2px solid var(--line-strong); padding-bottom: 8px; margin-bottom: 12px;
 }
 .sb-student .sbs-head h3 { margin: 0; font-size: 17px; word-break: keep-all; }
+
+/* 관리자에게는 모든 선생님의 수업이 한 목록에 나온다 — 누구 반인지와 고르는 수단 */
+.badge.teal { background: var(--teal-soft, #e3f4f0); color: var(--teal-deep, #0a6f61); }
+.class-card .cc-owner { margin: -2px 0 2px; }
+.mc-toolbar {
+  display: flex; align-items: flex-end; gap: 14px; flex-wrap: wrap;
+  margin: 0 0 18px; padding: 14px 16px; background: var(--surface-2, #f5f8f7);
+  border: 1px solid var(--line); border-radius: 14px;
+}
+.mc-toolbar .mc-filter { display: grid; gap: 6px; font-size: 12.5px; font-weight: 700; color: var(--text-2); min-width: 0; }
+.mc-toolbar .mc-filter.wide { flex: 1 1 260px; }
+.mc-toolbar select, .mc-toolbar input { min-height: 44px; font-size: 15px; font-weight: 400; border: 1px solid var(--line-strong); border-radius: 9px; padding: 8px 11px; background: #fff; }
+.mc-toolbar input { min-width: 260px; }
+.mc-toolbar #mc-count { margin-left: auto; padding-bottom: 12px; white-space: nowrap; }
+@media (max-width: 640px) {
+  .mc-toolbar { flex-direction: column; align-items: stretch; gap: 10px; }
+  .mc-toolbar input, .mc-toolbar select { width: 100%; min-width: 0; }
+  .mc-toolbar #mc-count { margin-left: 0; padding-bottom: 0; }
+}

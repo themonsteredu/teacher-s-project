@@ -346,3 +346,35 @@ test('묶음 발급을 못 하는 저장소에서는 한 장씩 받아서라도 
  assert.equal(f.signed.length,2);
  assert.equal(list.posts[0].attachments.filter(x=>x.previewUrl).length,2);
 });
+
+// 관리자는 학교가 연결된 남의 수업도 열어서 진행할 수 있어야 한다 (지우기만 되던 비대칭)
+test('학생 계정 연결이 끊겨도 관리자는 학교 연결 수업을 열고 설정할 수 있다',async()=>{
+ const f=fixture();f.enableCareer();
+ const admin={id:99,role:'admin'},owner={id:3,role:'teacher'};
+ f.accountAvailable=false; // 중앙 계정 DB 가 멈춘 상태
+ // 교사는 예전대로 막힌다
+ await assert.rejects(()=>f.api.settings(7,owner),e=>e.status===503);
+ // 관리자는 통과한다
+ const s=await f.api.settings(7,admin);
+ assert.equal(s.config.career.enabled,true);
+});
+test('학교가 삭제돼도 관리자는 남의 수업 제출물을 볼 수 있다',async()=>{
+ const f=fixture();f.enableCareer();
+ const admin={id:99,role:'admin'},owner={id:3,role:'teacher'};
+ const a=await f.join(f.account());
+ const r=await f.api.submit(a,f.response(),'abcd12',f.bodyFor(a));
+ const post={id:r.id,board_id:7,student_name:'학생',hidden:true};
+ f.manager=false; // 담당자 지정이 사라진 상태 = authorizeSchool 403
+ await assert.rejects(()=>f.api.teacherPosts([{...post}],owner),e=>e.status===403);
+ const seen=await f.api.teacherPosts([{...post}],admin);
+ assert.equal(seen.length,1);
+ assert.equal(seen[0].submission,true);
+});
+test('관리자 예외가 교사에게까지 열리지는 않는다',async()=>{
+ const f=fixture();f.enableCareer();
+ // 이 수업을 만들지 않은 교사는 역할 검사에서 먼저 막힌다
+ await assert.rejects(()=>f.api.settings(7,{id:8,role:'teacher'}),e=>e.status===403);
+ // 만든 교사라도 학교 권한이 없으면 막힌다
+ f.manager=false;
+ await assert.rejects(()=>f.api.settings(7,{id:3,role:'teacher'}),e=>e.status===403);
+});

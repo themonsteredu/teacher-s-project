@@ -1165,12 +1165,23 @@ function rosterBadge(r) {
 route(/^#\/myclass$/, async () => {
   const data = await api('GET', '/api/my-boards');
   const boards = data.boards;
+  // 관리자는 전 교사의 수업을 본다. 남의 반이 하나라도 섞여 있을 때만 담당 표시와
+  // 선생님별 고르기를 켠다 — 교사 화면은 자기 수업뿐이라 예전 그대로다.
+  const others = boards.filter((b) => !b.mine);
+  const showOwner = others.length > 0;
+  const teachers = [...new Set(others.map((b) => b.teacherName || '(담당 없음)'))].sort((a, b) => a.localeCompare(b, 'ko'));
+  let pickedTeacher = 'all';
+  let search = '';
+  const ownerBadge = (b) => (b.mine
+    ? '<span class="badge teal">내 수업</span>'
+    : `<span class="badge gray">담당 ${esc(b.teacherName || '알 수 없음')}</span>`);
   const card = (b) => `
     <div class="class-card ${b.isOpen ? '' : 'closed'}">
       <div class="cc-top">
         <div class="cc-title">${esc(b.title)}</div>
         ${b.isOpen ? '<span class="badge green">진행 중</span>' : '<span class="badge gray">마감됨</span>'}
       </div>
+      ${showOwner ? `<div class="cc-owner">${ownerBadge(b)}</div>` : ''}
       <div class="cc-prog small muted">${esc(b.programTitle)}${b.programPublished ? '' : ' · <span style="color:#c0392b">프로그램 비공개</span>'}</div>
       ${b.isOpen ? `<div class="cc-code">참여 코드 <b>${esc(b.code)}</b></div>` : ''}
       <div class="cc-stat small muted">🧑‍🎓 제출 ${b.postCount}개 · 📚 공유 자료 ${b.itemCount}개 ${rosterBadge(b.roster)}</div>
@@ -1181,43 +1192,85 @@ route(/^#\/myclass$/, async () => {
       </div>
     </div>`;
   // 날짜별 그룹 (최신 날짜 먼저, 날짜 미정은 맨 아래)
-  const groups = new Map();
-  for (const b of boards) {
-    const key = b.classDate || '';
-    if (!groups.has(key)) groups.set(key, []);
-    groups.get(key).push(b);
-  }
-  const keys = [...groups.keys()].sort((a, b) => {
-    if (!a) return 1; if (!b) return -1; return a < b ? 1 : -1;
-  });
-  const body = keys.map((k) => `
+  const listHtml = (rows) => {
+    if (!rows.length) {
+      return boards.length
+        ? '<div class="empty-note">고른 조건에 맞는 수업이 없습니다.</div>'
+        : '<div class="empty-note">아직 만든 수업이 없습니다. 위 <b>[새 수업 열기]</b> 로 첫 수업을 만들어 보세요.</div>';
+    }
+    const groups = new Map();
+    for (const b of rows) {
+      const key = b.classDate || '';
+      if (!groups.has(key)) groups.set(key, []);
+      groups.get(key).push(b);
+    }
+    const keys = [...groups.keys()].sort((a, b) => {
+      if (!a) return 1; if (!b) return -1; return a < b ? 1 : -1;
+    });
+    return keys.map((k) => `
     <div class="date-group">
       <div class="date-head">${icon('clock')} ${esc(dateLabel(k))} <span class="small muted">· ${groups.get(k).length}개 수업</span></div>
       <div class="class-grid">${groups.get(k).map(card).join('')}</div>
     </div>`).join('');
-  shell('내 수업', `
+  };
+  const visible = () => boards.filter((b) => {
+    if (pickedTeacher === 'mine' && !b.mine) return false;
+    if (pickedTeacher !== 'all' && pickedTeacher !== 'mine' && (b.teacherName || '(담당 없음)') !== pickedTeacher) return false;
+    if (!search) return true;
+    const hay = `${b.title} ${b.programTitle} ${b.code} ${b.teacherName || ''}`.toLowerCase();
+    return hay.includes(search);
+  });
+  const title = showOwner ? '전체 수업' : '내 수업';
+  shell(title, `
     <div class="page-head">
       <div>
-        <div class="ph-t">내 수업</div>
-        <div class="desc">날짜·주제별로 수업을 여러 개 열고, 반마다 자료를 고르고 학생 활동을 모읍니다.</div>
+        <div class="ph-t">${title}</div>
+        <div class="desc">${showOwner
+          ? '관리자에게는 모든 선생님의 수업이 보입니다. 어느 수업이든 열어서 그대로 진행할 수 있습니다.'
+          : '날짜·주제별로 수업을 여러 개 열고, 반마다 자료를 고르고 학생 활동을 모읍니다.'}</div>
       </div>
       <div><button class="btn btn-primary btn-sm" id="mc-new">${icon('plus')} 새 수업 열기</button></div>
     </div>
-    ${boards.length ? body
-      : `<div class="empty-note">아직 만든 수업이 없습니다. 위 <b>[새 수업 열기]</b> 로 첫 수업을 만들어 보세요.</div>`}
+    ${showOwner ? `
+    <div class="mc-toolbar">
+      <label class="mc-filter">담당 선생님
+        <select id="mc-teacher">
+          <option value="all">전체 (${boards.length}개)</option>
+          <option value="mine">내 수업 (${boards.length - others.length}개)</option>
+          ${teachers.map((t) => `<option value="${esc(t)}">${esc(t)} (${others.filter((b) => (b.teacherName || '(담당 없음)') === t).length}개)</option>`).join('')}
+        </select>
+      </label>
+      <label class="mc-filter wide">수업 찾기
+        <input id="mc-search" type="search" placeholder="수업 이름 · 프로그램 · 참여 코드 · 선생님" autocomplete="off">
+      </label>
+      <span class="small muted" id="mc-count"></span>
+    </div>` : ''}
+    <div id="mc-list">${listHtml(visible())}</div>
   `);
+  function bindCards() {
+    document.querySelectorAll('[data-del-board]').forEach((btn) => {
+      btn.onclick = async () => {
+        const name = btn.dataset.title || '이 수업';
+        if (!confirm(`'${name}' 수업을 삭제할까요?\n제출된 결과물과 첨부 원본, 아직 저장되지 않은 진로기록까지 모두 삭제되며 되돌릴 수 없습니다.`)) return;
+        try {
+          await api('DELETE', `/api/boards/${btn.dataset.delBoard}`);
+          toast('수업이 삭제되었습니다.');
+          navigate();
+        } catch (e) { if (!e.handled) toast(e.message, true); }
+      };
+    });
+  }
+  function redraw() {
+    const rows = visible();
+    document.getElementById('mc-list').innerHTML = listHtml(rows);
+    const count = document.getElementById('mc-count');
+    if (count) count.textContent = rows.length === boards.length ? `${boards.length}개 수업` : `${rows.length} / ${boards.length}개 수업`;
+    bindCards();
+  }
   document.getElementById('mc-new').onclick = () => openNewClassModal();
-  document.querySelectorAll('[data-del-board]').forEach((btn) => {
-    btn.onclick = async () => {
-      const title = btn.dataset.title || '이 수업';
-      if (!confirm(`'${title}' 수업을 삭제할까요?\n제출된 결과물과 첨부 원본, 아직 저장되지 않은 진로기록까지 모두 삭제되며 되돌릴 수 없습니다.`)) return;
-      try {
-        await api('DELETE', `/api/boards/${btn.dataset.delBoard}`);
-        toast('수업이 삭제되었습니다.');
-        navigate();
-      } catch (e) { if (!e.handled) toast(e.message, true); }
-    };
-  });
+  document.getElementById('mc-teacher')?.addEventListener('change', (e) => { pickedTeacher = e.target.value; redraw(); });
+  document.getElementById('mc-search')?.addEventListener('input', (e) => { search = e.target.value.trim().toLowerCase(); redraw(); });
+  if (showOwner) redraw(); else bindCards();
 });
 
 // 대시보드에서 바로 새 수업(보드) 열기 — 프로그램 선택 포함
