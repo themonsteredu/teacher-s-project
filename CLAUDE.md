@@ -101,6 +101,8 @@
 
 - `lib/db.js`의 `ready()`는 콜드스타트마다 불리지만, `settings`의 `sys:bootstrap` 지문(SCHEMA·MIGRATIONS·CURRICULUM 본문 해시)이 현재 코드와 같고 admin 계정이 있으면 **조회 1번으로 끝난다**. 스키마·교육과정을 바꾸면 지문이 달라져 다음 콜드스타트에 전체 초기화(DDL·시드)가 한 번 돈다. 강제로 다시 돌리려면 `DELETE FROM settings WHERE key = 'sys:bootstrap'`
 - `sys:` 접두사 설정은 `getSettings()`가 프런트에 내보내지 않는다 (`course_plan:`·`sb:`와 같은 취급)
+- **전환 모드(`ACADEMY_ID`)에서도 교육과정 시드는 돈다** (2026-09-22). 예전에는 `ready()`가 통째로 건너뛰어서 `lib/curriculum.js`에 프로그램을 추가해도 프로덕션에 영원히 안 나왔다(프로덕션·프리뷰 모두 `ACADEMY_ID`가 켜져 있다). 지금은 스키마·관리자 시드는 그대로 건너뛰고 `seedCurriculumOnly()`가 교육과정만 붙인다 — 지문은 `sys:curriculum`(CURRICULUM 본문 해시)이고 같으면 조회 1번으로 끝난다. 다시 돌리려면 `DELETE FROM settings WHERE key = 'sys:curriculum'`
+- 전환 모드의 `hub` 뷰는 **화면이 쓰는 컬럼 조합으로만 INSERT를 받는다.** 그래서 시드도 프로그램을 `title·category·grade·description` 으로 넣고 공개 여부는 뒤에 `UPDATE programs SET published` 로 따로 켠다. `settings` 는 `ON CONFLICT` 가 안 되므로 `academy` 플래그로 평범한 INSERT를 쓴다(뷰의 INSTEAD OF 트리거가 upsert)
 
 ## 확인
 
