@@ -202,7 +202,7 @@ function menuItems() {
   if (isAdmin()) {
     items.push(
       ['#/manage', 'layers', '프로그램 관리'],
-      ['#/tools', 'box', '내 도구함'],
+      ['#/tools', 'box', '도구함'],
       ['#/users', 'users', '교사 계정'],
       ['#/site', 'power', '사이트 설정'],
       ['#/logs', 'fileText', '이용 기록'],
@@ -970,10 +970,10 @@ function openToolPicker(tools, onPick) {
         <button class="deck-line pick-row" data-pick="${t.id}" style="width:100%;text-align:left;background:#fff;border:1px solid var(--line, #e3e9e2);cursor:pointer">
           <div class="dl-left"><span class="dl-ico">🧩</span>
             <div class="dl-body"><div class="dl-title">${esc(t.title)}</div>
-              <div class="dl-meta small muted">${(t.size / 1024 / 1024).toFixed(2)}MB</div></div></div>
+              <div class="dl-meta small muted">${(t.size / 1024 / 1024).toFixed(2)}MB${t.mine === false ? ` · ${esc(t.owner_name || '올린 사람 없음')}` : ''}</div></div></div>
           <span class="btn btn-primary btn-sm" style="pointer-events:none">${icon('plus')} 붙이기</span>
         </button>`).join('')
-    : `<p class="empty-note">도구함이 비어 있습니다. <b>내 도구함</b>에서 웹앱을 먼저 올리세요.</p>`;
+    : `<p class="empty-note">도구함이 비어 있습니다. <b>도구함</b>에서 웹앱을 먼저 올리세요.</p>`;
   overlay.innerHTML = `
     <div class="modal-card" style="max-width:560px;width:92%;background:var(--paper,#fff);border-radius:16px;padding:18px;max-height:80vh;overflow:auto" role="dialog">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
@@ -1282,7 +1282,9 @@ async function openNewClassModal() {
     toast('사용할 수 있는 공개 프로그램이 없습니다. 관리자에게 프로그램 공개를 요청하세요.', true);
     return;
   }
-  const opts = programs.map((p) => `<option value="${p.id}">${esc(p.title)}</option>`).join('');
+  // 비공개 프로그램으로 수업을 열면 참여 코드를 띄워도 학생이 못 들어온다.
+  // 고르는 순간 알려 주는 것이 사후에 '프로그램 비공개' 배지를 보는 것보다 낫다.
+  const opts = programs.map((p) => `<option value="${p.id}">${esc(p.title)}${p.published === false ? ' — 비공개 · 학생 입장 불가' : ''}</option>`).join('');
   const back = openModal(`
     <h3>새 수업 열기</h3>
     <div class="m-sub">프로그램을 고르고, 날짜·주제로 이름을 붙이면 날짜별로 정리됩니다.</div>
@@ -1301,6 +1303,13 @@ async function openNewClassModal() {
       <button class="btn btn-primary" id="nc-save">수업 만들기</button>
     </div>
     <div class="msg" id="nc-msg"></div>`);
+  const ncWarn = () => {
+    const picked = programs.find((p) => String(p.id) === back.querySelector('#nc-prog').value);
+    back.querySelector('#nc-msg').textContent = picked && picked.published === false
+      ? '이 프로그램은 비공개라 참여 코드를 띄워도 학생이 들어오지 못합니다. 프로그램을 먼저 공개하세요.' : '';
+  };
+  back.querySelector('#nc-prog').addEventListener('change', ncWarn);
+  ncWarn();
   back.querySelector('#nc-cancel').onclick = () => back.remove();
   back.querySelector('#nc-save').onclick = async () => {
     const programId = back.querySelector('#nc-prog').value;
@@ -1339,6 +1348,14 @@ route(/^#\/boardview\/(\d+)$/, async (id) => {
         <a class="btn btn-ghost btn-sm" href="#/program/${data.program.id}">← 프로그램</a>
       </div>
     </div>
+    ${data.program.published === false ? `
+    <div class="card bv-blocked">
+      <div>
+        <strong>학생이 이 수업에 들어올 수 없습니다</strong>
+        <p class="small">프로그램 <b>${esc(data.program.title)}</b> 이 비공개라, 참여 코드를 칠판에 띄워도 학생 화면에는 “마감되었거나 없는 보드입니다”만 나옵니다.</p>
+      </div>
+      ${isAdmin() ? '<button class="btn btn-primary btn-sm" id="bv-publish">프로그램 공개하기</button>' : '<span class="small muted">관리자에게 프로그램 공개를 요청하세요.</span>'}
+    </div>` : ''}
     ${b.classDate ? `<div class="small muted" style="margin:-6px 0 12px">${icon('clock')} 수업 날짜 ${esc(dateLabel(b.classDate))}</div>` : ''}
     ${b.isOpen ? `
     <div class="card sb-code-card">
@@ -1381,6 +1398,13 @@ route(/^#\/boardview\/(\d+)$/, async (id) => {
     });
   }
 
+  const publishBtn = document.getElementById('bv-publish');
+  if (publishBtn) publishBtn.onclick = async () => {
+    publishBtn.disabled = true;
+    // 관리자 전용 경로다 (PATCH /api/programs/:id 는 라우트 자체가 admin).
+    try { await api('PATCH', `/api/programs/${data.program.id}`, { published: true }); toast('프로그램을 공개했습니다. 이제 학생이 참여 코드로 들어올 수 있습니다.'); navigate(); }
+    catch (e) { publishBtn.disabled = false; if (!e.handled) toast(e.message, true); }
+  };
   const toggleBtn = document.getElementById('board-toggle');
   if (toggleBtn) toggleBtn.onclick = async () => {
     if (b.isOpen && !confirm('보드를 마감할까요? 학생 제출과 열람이 즉시 중단됩니다. (결과물은 보관됩니다)')) return;
@@ -2078,7 +2102,7 @@ route(/^#\/resources\/(\d+)$/, async (id) => {
   });
 });
 
-/* ---------------- 내 도구함 (#/tools, admin) ---------------- */
+/* ---------------- 도구함 (#/tools, admin — 관리자끼리 공용) ---------------- */
 // 수업과 별개로 보관하는 재사용 웹앱. 여기서 올려두고, 수업 편집에서 골라 붙인다.
 route(/^#\/tools$/, async () => {
   if (!isAdmin()) { location.hash = '#/'; return; }
@@ -2090,19 +2114,19 @@ route(/^#\/tools$/, async () => {
         <span class="dl-ico">🧩</span>
         <div class="dl-body">
           <div class="dl-title" data-ttitle="${t.id}">${esc(t.title)}</div>
-          <div class="dl-meta small muted">${(t.size / 1024 / 1024).toFixed(2)}MB · ${esc(String(t.created_at).slice(0, 10))}</div>
+          <div class="dl-meta small muted">${(t.size / 1024 / 1024).toFixed(2)}MB · ${esc(String(t.created_at).slice(0, 10))}${t.mine ? '' : ` · 올린 사람 ${esc(t.owner_name || '(계정 삭제됨)')}`}</div>
         </div>
       </div>
       <div class="dl-actions">
         <button class="btn btn-primary btn-sm" data-trun="${t.id}" data-tname="${esc(t.title)}">${icon('play')} 실행</button>
         <button class="btn btn-ghost btn-sm" data-tren="${t.id}">이름 수정</button>
-        <button class="btn btn-danger btn-sm" data-tdel="${t.id}">${icon('trash')}</button>
+        ${t.mine || !t.owner_name ? `<button class="btn btn-danger btn-sm" data-tdel="${t.id}" data-tname="${esc(t.title)}">${icon('trash')}</button>` : ''}
       </div>
     </div>`;
 
-  shell('내 도구함', `
+  shell('도구함', `
     <div class="page-head">
-      <div><div class="ph-t">내 도구함</div><div class="desc">수업과 <b>별개로</b> 보관하는 재사용 웹앱입니다. 여기 올려두고, <b>수업(프로그램) 편집 → 링크</b>에서 <b>“도구함에서 추가”</b>로 골라 붙이세요.</div></div>
+      <div><div class="ph-t">도구함</div><div class="desc">관리자가 함께 쓰는, 수업과 <b>별개로</b> 보관하는 재사용 웹앱입니다. 여기 올려두고, <b>수업(프로그램) 편집 → 링크</b>에서 <b>“도구함에서 추가”</b>로 골라 붙이세요.</div></div>
     </div>
     <div class="card" style="margin-bottom:18px">
       <h2>웹앱 올리기 <span class="sub">HTML 웹앱(.html) · 100MB 이하 — 실행하면 교안 발표처럼 전체화면으로 열립니다</span></h2>

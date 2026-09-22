@@ -71,7 +71,7 @@ test('admin navigation lives in the left sidebar, not the top bar', () => {
   const u = ui();
   const sidebar = u.html.match(/<aside[\s\S]*?<\/aside>/)[0];
   const topbar = u.html.match(/<header[\s\S]*?<\/header>/)[0];
-  for (const label of ['프로그램', '내 수업', '프로그램 관리', '내 도구함', '교사 계정', '사이트 설정', '이용 기록', '내 설정']) {
+  for (const label of ['프로그램', '내 수업', '프로그램 관리', '도구함', '교사 계정', '사이트 설정', '이용 기록', '내 설정']) {
     assert.ok(sidebar.includes(`<span>${label}</span>`));
   }
   assert.doesNotMatch(topbar, /<nav/);
