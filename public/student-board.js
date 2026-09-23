@@ -18,7 +18,7 @@ function sbRecordEnabled(course,lesson) { return course.careerEnabled===true&&le
 function sbCareerSettingsHtml(config, available, schools, error='') {
   const setting=config.career||{enabled:false,schoolId:null};
   const canEnable=available&&schools.length>0&&!error;
-  return `<fieldset class="sc-panel"><legend>학생 계정·진로기록 연결</legend><label class="sc-share-consent"><input type="checkbox" id="sbt-career" ${setting.enabled?'checked':''} ${!canEnable&&!setting.enabled?'disabled':''}> 학생 계정으로 참여하고 진로기록 남기기</label><label>이 수업의 학교<select id="sbt-school" ${!canEnable?'disabled':''}><option value="">담당 학교를 선택하세요</option>${schools.map(s=>`<option value="${esc(s.id)}" ${s.id===setting.schoolId?'selected':''}>${esc(s.name)}</option>`).join('')}</select></label><p class="small muted">연결하면 이 학교의 학생 계정으로 입장합니다. 차시에서 기록을 켠 제출물만 저장하며, 게시판 공개 여부와 정답 여부는 저장 조건이 아닙니다.</p>${!canEnable?`<p class="small muted">${esc(error||(!available?'학생 계정 연결 설정이 준비되면 사용할 수 있습니다.':'담당 학교와 학생 계정을 먼저 등록하세요.'))}</p>`:''}<a href="/student-accounts.html">학교·학생 계정 관리</a></fieldset>`;
+  return `<fieldset class="sc-panel"><legend>학생 계정·진로기록 연결</legend><label class="sc-share-consent"><input type="checkbox" id="sbt-career" ${setting.enabled?'checked':''} ${!canEnable&&!setting.enabled?'disabled':''}> 학생 계정으로 참여하고 진로기록 남기기</label><label>이 수업의 학교<select id="sbt-school" ${!canEnable?'disabled':''}><option value="">담당 학교를 선택하세요</option>${schools.map(s=>`<option value="${esc(s.id)}" ${s.id===setting.schoolId?'selected':''}>${esc(s.name)}</option>`).join('')}</select></label><p class="small muted">연결하면 이 학교의 학생 계정으로 입장합니다. 차시에서 기록을 켠 제출물만 저장하며, 게시판 공개 여부와 정답 여부는 저장 조건이 아닙니다.</p>${!canEnable?`<p class="small muted">${esc(error||(!available?'학생 계정 연결 설정이 준비되면 사용할 수 있습니다.':'담당 학교와 학생 계정을 먼저 등록하세요.'))}</p>`:''}${setting.schoolId?`<button type="button" class="btn btn-soft" id="sbt-disconnect">학생 계정 연결 해제</button><p class="small muted">해제하면 참여 코드만으로 입장합니다. 대신 코드를 아는 사람은 누구나 제출할 수 있습니다. 이미 저장된 진로기록과 제출물은 그대로 남습니다.</p>`:''}<a href="/student-accounts.html">학교·학생 계정 관리</a></fieldset>`;
 }
 async function sbRequest(method,path,body) {
   const controller = new AbortController(), timeout = setTimeout(()=>controller.abort(),30000);
@@ -277,20 +277,28 @@ async function loadSubmissionSettings(el,boardId) {
     drafts=c.sessions.map(s=>({id:s.id,submissions:{...s.submissions,types:[...s.submissions.types]}}));
     activeSession=c.activeSession;
     if(!c.sessions.some(s=>s.id===selected))selected=c.activeSession||c.sessions[0]?.id||'';
+    const gated=!!c.career?.schoolId;
     el.innerHTML=`<h2>학생 제출 설정</h2><p class="small muted">차시를 골라 제출 방법을 설정하세요.</p>
+      ${gated?'<p class="sbt-gate">이 수업은 학교가 연결돼 있어 <b>학생 계정 로그인</b>이 필요합니다 — 참여 코드만으로는 학생이 들어오지 못합니다. 코드만으로 입장시키려면 아래 <b>학생 계정·진로기록</b>에서 <b>학생 계정 연결 해제</b>를 누르세요.</p>':''}
       <div class="sbt-today"><span>오늘 수업</span><strong id="sbt-today"></strong></div>
       <label class="sbt-field sbt-picker">설정할 차시<select id="sbt-lesson">${c.sessions.map((s,i)=>`<option value="${esc(s.id)}" ${s.id===selected?'selected':''}>${esc(sbLessonTitle(s,i))}</option>`).join('')}</select></label>
       <section class="sbt-lesson-panel" id="sbt-lesson-panel" aria-label="선택한 차시의 제출 설정"></section>
       <details class="sbt-advanced"><summary>운영 구성·자료 공유</summary><div class="sc-teacher-variant"><label>운영 구성<select id="sbt-variant"><option value="${esc(c.variantId)}">${esc(c.name)} · ${c.sessions.length}차시 (현재)</option>${data.variants.filter(v=>v.id!==c.variantId).map(v=>`<option value="${esc(v.id)}">${esc(v.name)} · ${v.count}차시</option>`).join('')}</select></label><button class="btn btn-soft" id="sbt-apply">구성 적용</button></div><label class="sc-share-consent"><input type="checkbox" id="sbt-share"> 전체 차시의 학생 웹앱·활동지를 함께 공유</label><p class="small muted">차시별 자료는 아래 수업자료에서 선택할 수 있습니다.</p></details>
-      <details class="sbt-advanced"><summary>학생 계정·진로기록</summary>${sbCareerSettingsHtml(c,data.careerAvailable===true,schools,schoolError)}<button class="btn btn-soft" id="sbt-records">이 수업의 진로기록 확인</button></details>
+      <details class="sbt-advanced" ${gated?'open':''}><summary>학생 계정·진로기록 · ${gated?'학생 로그인 필요':'참여 코드만으로 입장'}</summary>${sbCareerSettingsHtml(c,data.careerAvailable===true,schools,schoolError)}<button class="btn btn-soft" id="sbt-records">이 수업의 진로기록 확인</button></details>
       <div class="sbt-actions"><button class="btn btn-primary" id="sbt-save">제출 설정 저장</button><p id="sbt-message" role="status" aria-live="polite"></p></div>`;
     today();drawLesson();
     el.querySelector('#sbt-lesson').onchange=e=>{capture();selected=e.target.value;drawLesson();};
     el.querySelectorAll('#sbt-share,#sbt-career,#sbt-school').forEach(input=>input.onchange=dirty);
     el.querySelector('#sbt-records').onclick=async()=>{const button=el.querySelector('#sbt-records');button.disabled=true;try{const result=await sbRequest('GET',`/api/boards/${boardId}/career-records`);const modal=openModal(`<h3>이 수업의 진로기록</h3><p>최근 200건의 제출 원본과 실제 저장 결과입니다. 교사 확인 여부와 저장 성공은 별개입니다.</p>${result.records.map(r=>`<section class="ce-preview"><h4>${esc(r.studentName)} · ${esc(r.record.artifact)}</h4><p>${esc(r.record.raw_data.submission.session_title)}</p><p>${esc(r.record.process)}</p><span>${sbCareerLabel(r.state)}</span>${r.recordId?`<p class="small muted">저장 번호 ${esc(r.recordId)}</p>`:''}<details><summary>제출한 글 보기</summary><p class="sc-original-text">${esc(r.record.raw_data.submission.content||'글 설명 없음')}</p></details></section>`).join('')||'<p>진로기록으로 제출한 활동이 없습니다.</p>'}<div class="m-actions"><button class="btn btn-primary" id="sbt-records-close">닫기</button></div>`);modal.querySelector('#sbt-records-close').onclick=()=>modal.remove();}catch(e){toast(e.message,true);}finally{button.disabled=false;}};
     el.querySelector('#sbt-save').onclick=()=>save(false);el.querySelector('#sbt-apply').onclick=()=>save(true);
+    // 학교 연결 해제는 되돌릴 수 없고(같은 학교로 다시 연결은 가능) 수업이 코드만으로 열리므로 한 번 더 묻는다.
+    const disconnectBtn=el.querySelector('#sbt-disconnect');
+    if(disconnectBtn)disconnectBtn.onclick=()=>{
+      if(!confirm('학생 계정 로그인을 해제할까요?\n참여 코드만 알면 누구나 이 수업에 제출할 수 있게 됩니다.\n이미 저장된 진로기록과 제출물은 그대로 남습니다.'))return;
+      save(false,{disconnect:true});
+    };
   };
-  async function save(changeVariant){
+  async function save(changeVariant,{disconnect=false}={}){
     if(busy)return;
     capture();
     const c=data.config,variantId=changeVariant?el.querySelector('#sbt-variant').value:c.variantId;
@@ -300,10 +308,10 @@ async function loadSubmissionSettings(el,boardId) {
     const invalid=sessions.find(s=>!s.submissions.types.length);
     if(!changeVariant&&invalid){selected=invalid.id;el.querySelector('#sbt-lesson').value=selected;drawLesson();message('이 차시의 제출 형식을 하나 이상 선택하세요.');el.querySelector('[data-sbt-type]').focus();return;}
     const shareStudentMaterials=el.querySelector('#sbt-share').checked;
-    const careerEnabled=el.querySelector('#sbt-career').checked;
+    const careerEnabled=disconnect?false:el.querySelector('#sbt-career').checked;
     const selectedSchool=el.querySelector('#sbt-school').value||c.career?.schoolId||null;
     if(careerEnabled&&(!selectedSchool||!data.careerAvailable||schoolError)){message(schoolError||'학생 계정 연결 상태와 담당 학교를 확인하세요.');return;}
-    const career={enabled:careerEnabled,schoolId:careerEnabled?selectedSchool:null};
+    const career=disconnect?{enabled:false,schoolId:null,disconnect:true}:{enabled:careerEnabled,schoolId:careerEnabled?selectedSchool:null};
     busy=true;const controls=[...el.querySelectorAll('button,input,select')].map(node=>({node,disabled:node.disabled}));controls.forEach(({node})=>node.disabled=true);message('설정을 저장하고 있습니다…');
     try{
       const r=await sbRequest('PUT',`/api/boards/${boardId}/submission-settings`,{revision:c.revision,variantId,sessions,activeSession,shareStudentMaterials,career});

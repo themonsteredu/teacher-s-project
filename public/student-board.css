@@ -19,6 +19,8 @@
 #submission-settings-card p,#share-card p{line-height:1.65}
 .sbt-today{display:flex;align-items:baseline;gap:12px;background:#eaf5f2;border-radius:12px;padding:14px 16px;margin:18px 0;color:#235e57}
 .sbt-today>span{font-size:12px;white-space:nowrap}.sbt-today strong{font-size:14px;line-height:1.6}
+/* 학생 계정 로그인이 걸려 있는 수업임을 교사에게 먼저 알린다(참여 코드만으로는 입장 불가) */
+.sbt-gate{background:var(--amber-50);border-left:4px solid var(--amber-600);color:var(--text);border-radius:8px;padding:12px 14px;margin:14px 0 0;font-size:13px;line-height:1.7;word-break:keep-all}
 .sbt-field,.share-filter{display:grid;gap:8px;font-size:13px;font-weight:700;min-width:0}
 .sbt-field select,.share-filter select{width:100%;min-width:0;max-width:100%;font-size:16px;font-weight:400;min-height:44px}
 .sbt-picker{margin-bottom:16px}.sbt-lesson-panel{border:1px solid var(--line-strong);border-radius:12px;padding:20px}
