@@ -5,10 +5,10 @@ import {readFileSync} from 'node:fs';
 import {domFixture,esc} from './dom-fixture.mjs';
 const source=readFileSync(new URL('../public/student-board.js',import.meta.url),'utf8');
 const copy=x=>JSON.parse(JSON.stringify(x));
-function ui(){
+function ui({career={enabled:false,schoolId:null}}={}){
  const document=domFixture('<main id="submission-settings-card"></main>'),root=document.querySelector('main'),requests=[];
  let reject=false,hold=false,release;
- const config={revision:'r1',variantId:'full',name:'전체 과정',activeSession:'s1',career:{enabled:false,schoolId:null},sessions:Array.from({length:12},(_,i)=>({id:`s${i+1}`,title:`${i+1}차시 · ${i===11?'우리 역할극에 어울리는 음악':'자연 관찰'}`,submissions:{enabled:true,types:['photo','document','text'],sharing:'teacher'}}))};
+ const config={revision:'r1',variantId:'full',name:'전체 과정',activeSession:'s1',career:copy(career),sessions:Array.from({length:12},(_,i)=>({id:`s${i+1}`,title:`${i+1}차시 · ${i===11?'우리 역할극에 어울리는 음악':'자연 관찰'}`,submissions:{enabled:true,types:['photo','document','text'],sharing:'teacher'}}))};
  const ctx={document,esc,console,confirm:()=>true};vm.createContext(ctx);vm.runInContext(source,ctx);
  ctx.sbRequest=async(method,path,body)=>{
    if(method==='GET')return {config:copy(config),careerAvailable:false,variants:[]};
@@ -40,4 +40,18 @@ test('invalid hidden lesson is revealed without losing settings for another less
  const u=ui();await u.open();for(const type of ['photo','document','text'])u.change(`[data-sbt-type="${type}"]`,false);
  u.change('#sbt-lesson','s12');u.change('#sbt-sharing','class');await u.click('#sbt-save');assert.equal(u.requests.length,0);assert.equal(u.node('#sbt-lesson').value,'s1');assert.match(u.node('#sbt-message').textContent,/하나 이상/);
  u.change('[data-sbt-type="text"]',true);await u.click('#sbt-save');assert.equal(u.requests[0].sessions[11].submissions.sharing,'class');
+});
+test('a school-bound class says so up front and can be disconnected on purpose',async()=>{
+ const school='33333333-3333-4333-8333-333333333333';
+ const u=ui({career:{enabled:true,schoolId:school}});await u.open();
+ assert.match(u.node('.sbt-gate').textContent,/학생 계정 로그인/);
+ assert.match(u.root.innerHTML,/학생 로그인 필요/);
+ await u.click('#sbt-disconnect');
+ assert.deepEqual(u.requests[0].career,{enabled:false,schoolId:null,disconnect:true});
+});
+test('a class without a school shows no login notice and no disconnect button',async()=>{
+ const u=ui();await u.open();
+ assert.equal(u.root.querySelector('.sbt-gate'),null);
+ assert.equal(u.root.querySelector('#sbt-disconnect'),null);
+ assert.match(u.root.innerHTML,/참여 코드만으로 입장/);
 });

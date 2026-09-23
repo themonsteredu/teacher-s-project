@@ -125,6 +125,33 @@ test('teacher must manage the chosen school and a bound board cannot change scho
  await assert.rejects(()=>f.join(),e=>e.status===401);
  f.manager=false;await assert.rejects(()=>f.api.teacherRecords(7,teacher),e=>e.status===403);
 });
+test('a leftover student session on a shared tablet never blocks a code-only class',async()=>{
+ const f=fixture();
+ // 학교가 연결되지 않은 수업: 만료·해지된 계정 쿠키가 남아 있어도 참여 코드로 들어간다
+ const req=await f.join(f.account({revoked:true}));
+ assert.ok(req.draftScope);
+ const saved=await f.api.submit(req,f.response(),'abcd12',f.bodyFor(req));
+ assert.ok(saved.id);
+ // 학교가 연결된 수업은 그대로 막는다
+ f.enableCareer();
+ await assert.rejects(()=>f.join(f.account({revoked:true})),e=>e.status===401);
+});
+test('an explicit disconnect releases the school so the code alone lets students in',async()=>{
+ const f=fixture(),teacher={id:3,role:'teacher'};
+ const bound=await f.api.saveSettings(7,teacher,{...copy(f.cfg),career:{enabled:true,schoolId:f.schoolId}});
+ await assert.rejects(()=>f.join(),e=>e.status===401);
+ // 해제는 진로기록을 끈 상태에서만, 그리고 학교 담당자만
+ await assert.rejects(()=>f.api.saveSettings(7,teacher,{...bound.config,career:{enabled:true,schoolId:f.schoolId,disconnect:true}}),e=>e.status===400);
+ f.manager=false;
+ await assert.rejects(()=>f.api.saveSettings(7,teacher,{...bound.config,career:{enabled:false,schoolId:null,disconnect:true}}),e=>e.status===403);
+ f.manager=true;
+ const open=await f.api.saveSettings(7,teacher,{...bound.config,career:{enabled:false,schoolId:null,disconnect:true}});
+ assert.equal(open.config.career.schoolId,null);assert.equal(open.config.career.enabled,false);
+ const req=await f.join();assert.ok(req.draftScope);
+ // 해제한 뒤에도 같은 학교로는 다시 연결할 수 있다
+ const again=await f.api.saveSettings(7,teacher,{...open.config,career:{enabled:true,schoolId:f.schoolId}});
+ assert.equal(again.config.career.schoolId,f.schoolId);
+});
 test('shared tablet login switch rotates ownership and stale A draft cannot submit as B',async()=>{
  const f=fixture(),aToken=f.account(),bToken=f.account(),req=await f.join(aToken),oldScope=req.draftScope;
  const original=await f.api.submit(req,f.response(),'abcd12',f.bodyFor(req));
