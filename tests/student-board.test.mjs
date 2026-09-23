@@ -39,11 +39,16 @@ function fixture({academy=false}={}){
     if(sql.startsWith('UPDATE board_posts')){posts.find(p=>String(p.id)===String(a[1])).hidden=a[0];return[];}
     if(sql.startsWith('SELECT key,value FROM settings'))return a[0].filter(k=>settings.has(k)).map(key=>({key,value:settings.get(key)}));
     if(sql.startsWith('WITH career_posts')){
-      return [...settings.entries()].filter(([key])=>/^sb:post:[1-9][0-9]*$/.test(key)).map(([key,value])=>({key,value})).filter(({key,value})=>{const m=JSON.parse(value);return sql.includes("->>'accountId'=$1") ? m.accountId===a[0]&&m.career?.payload.session_ref===a[1]&&(!a[2]||Number(key.slice(8))<Number(a[2])) : m.career?.payload.session_ref===a[0];}).sort((x,y)=>Number(y.key.slice(8))-Number(x.key.slice(8))).slice(0,61);
+      // CTE 에서 JSON 이 아닌 행을 먼저 걸러야 한다 — 빈 문자열 한 행에 진로기록 조회가 죽지 않게.
+      assert.match(sql,/left\(btrim\(value\),1\)='\{'/);
+      return [...settings.entries()].filter(([key,value])=>/^sb:post:[1-9][0-9]*$/.test(key)&&String(value).trimStart().startsWith('{')).map(([key,value])=>({key,value})).filter(({key,value})=>{const m=JSON.parse(value);return sql.includes("->>'accountId'=$1") ? m.accountId===a[0]&&m.career?.payload.session_ref===a[1]&&(!a[2]||Number(key.slice(8))<Number(a[2])) : m.career?.payload.session_ref===a[0];}).sort((x,y)=>Number(y.key.slice(8))-Number(x.key.slice(8))).slice(0,61);
     }
-    if(sql.startsWith('SELECT p.*, m.value AS submission_meta')){
+    if(sql.includes('m.value AS submission_meta')){
       const [id,owner,lesson,mine,before,publicIds,accountId='']=a;
-      return posts.filter(p=>p.board_id===id).map(p=>({...copy(p),submission_meta:settings.get(`sb:post:${p.id}`)||null})).filter(p=>{const m=JSON.parse(p.submission_meta||'null'),owns=m?.accountId ? m.accountId===accountId : !accountId&&m?.owner===owner;return ((!p.hidden&&(!m||publicIds.includes(m.sessionId)))||owns)&&(!lesson||m?.sessionId===lesson)&&(!mine||owns)&&(!before||p.id<Number(before));}).sort((a,b)=>b.id-a.id).slice(0,61);
+      // JSON 이 아닌 값은 캐스팅하지 않는다 — 빈 문자열 한 행에 목록 전체가 죽지 않게(22P02).
+      assert.match(sql,/left\(btrim\(m\.value\),1\)='\{'/);
+      const meta=v=>{try{return typeof v==='string'&&v.trimStart().startsWith('{')?JSON.parse(v):null;}catch{return null;}};
+      return posts.filter(p=>p.board_id===id).map(p=>({...copy(p),submission_meta:settings.get(`sb:post:${p.id}`)||null})).filter(p=>{const m=meta(p.submission_meta),owns=m?.accountId ? m.accountId===accountId : !accountId&&m?.owner===owner;return ((!p.hidden&&(!m||publicIds.includes(m.sessionId)))||owns)&&(!lesson||m?.sessionId===lesson)&&(!mine||owns)&&(!before||p.id<Number(before));}).sort((a,b)=>b.id-a.id).slice(0,61);
     }
     throw new Error('Unmocked SQL: '+sql);
   };
@@ -404,4 +409,20 @@ test('관리자 예외가 교사에게까지 열리지는 않는다',async()=>{
  // 만든 교사라도 학교 권한이 없으면 막힌다
  f.manager=false;
  await assert.rejects(()=>f.api.settings(7,{id:3,role:'teacher'}),e=>e.status===403);
+});
+test('one broken settings row never takes down the submission list',async()=>{
+ const f=fixture(),req=await f.join();
+ const saved=await f.api.submit(req,f.response(),'abcd12',f.bodyFor(req));
+ // 프로덕션에서 실제로 있었던 상태: sb:post: 행의 값이 빈 문자열
+ f.settings.set(`sb:post:${saved.id}`,'');
+ const all=await f.api.list(req,f.response(),'abcd12');
+ assert.equal(all.posts.length,0,'메타를 잃은 제출은 주인을 확인할 수 없어 목록에서 빠진다');
+ const mine=await f.api.list({...req,url:'/api/join-board/abcd12/submissions?scope=mine'},f.response(),'abcd12');
+ assert.equal(mine.posts.length,0);
+ const lesson=await f.api.list({...req,url:'/api/join-board/abcd12/submissions?lesson=lesson-1'},f.response(),'abcd12');
+ assert.equal(lesson.posts.length,0);
+ // 같은 수업의 멀쩡한 제출은 그대로 보인다
+ const second=await f.api.submit(req,f.response(),'abcd12',f.body({draftScope:req.draftScope}));
+ const after=await f.api.list({...req,url:'/api/join-board/abcd12/submissions?scope=mine'},f.response(),'abcd12');
+ assert.deepEqual(after.posts.map(p=>String(p.id)),[String(second.id)]);
 });
