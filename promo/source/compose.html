@@ -1,0 +1,272 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8"><title>모아허브 홍보영상</title>
+<style>
+@font-face{font-family:"S-Core Dream";src:url(../../public/fonts/SCDreamRegular.woff2) format("woff2");font-weight:400 500}
+@font-face{font-family:"S-Core Dream";src:url(../../public/fonts/SCDreamBold.woff2) format("woff2");font-weight:600 700}
+@font-face{font-family:"S-Core Dream";src:url(../../public/fonts/SCDreamExtraBold.woff2) format("woff2");font-weight:800 900}
+:root{--bg:#07120f;--ink:#effaf7;--mute:#8fb2aa;--mint:#41e3ce;--teal:#17b6a0;--deep:#0a6f61;--accent:#b04a12}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{width:1920px;height:1080px;overflow:hidden;background:var(--bg);color:var(--ink);font-family:"S-Core Dream",sans-serif;letter-spacing:-0.02em;word-break:keep-all}
+.stage{position:absolute;inset:0;overflow:hidden;background:radial-gradient(1200px 700px at 82% 18%,#0e3a33 0%,transparent 60%),radial-gradient(900px 600px at 8% 92%,#0b2c27 0%,transparent 60%),var(--bg)}
+.grid{position:absolute;inset:-100px;background-image:linear-gradient(rgba(65,227,206,.045) 1px,transparent 1px),linear-gradient(90deg,rgba(65,227,206,.045) 1px,transparent 1px);background-size:80px 80px}
+.scene{position:absolute;inset:0;opacity:0}
+.a{will-change:transform,opacity}
+/* hero */
+.hero .bgimg{position:absolute;inset:-30px;width:calc(100% + 60px);height:calc(100% + 60px);object-fit:cover;filter:blur(7px) saturate(.9);opacity:.5}
+.hero .shade{position:absolute;inset:0;background:linear-gradient(90deg,rgba(7,18,15,.96) 0%,rgba(7,18,15,.8) 50%,rgba(7,18,15,.45) 100%),linear-gradient(0deg,rgba(7,18,15,.9),transparent 45%)}
+.hero .txt{position:absolute;left:140px;top:290px;width:1150px}
+.hero .sym{position:absolute;right:190px;top:300px;width:400px;height:400px;filter:drop-shadow(0 0 60px rgba(65,227,206,.35))}
+.eyebrow{font-size:30px;font-weight:700;color:var(--mint);letter-spacing:.02em;margin-bottom:30px;display:flex;align-items:center;gap:16px}
+.eyebrow::before{content:"";width:44px;height:3px;background:var(--mint);display:block}
+.big{font-size:100px;font-weight:800;line-height:1.16;letter-spacing:-0.045em}
+.big em{font-style:normal;color:var(--mint)}
+.sub{font-size:38px;font-weight:500;color:#cfe5df;margin-top:36px;line-height:1.45}
+/* window scenes */
+.cap{position:absolute;left:110px;top:0;bottom:0;width:560px;display:flex;flex-direction:column;justify-content:center}
+.cap .num{font-size:26px;font-weight:700;color:var(--mint);letter-spacing:.06em;margin-bottom:22px}
+.cap h2{font-size:64px;font-weight:800;line-height:1.2;letter-spacing:-0.045em}
+.cap h2 em{font-style:normal;color:var(--mint)}
+.cap p{font-size:30px;font-weight:500;color:#b7d3cc;line-height:1.55;margin-top:30px}
+.chips{display:flex;flex-wrap:wrap;gap:12px;margin-top:34px}
+.chip{font-size:23px;font-weight:600;padding:10px 20px;border-radius:999px;border:1.5px solid rgba(65,227,206,.45);color:var(--mint);background:rgba(65,227,206,.07)}
+.win{position:absolute;left:720px;top:176px;width:1110px;border-radius:22px;overflow:hidden;background:#0a1d19;border:1.5px solid rgba(65,227,206,.25);box-shadow:0 40px 120px rgba(0,0,0,.55),0 0 0 1px rgba(0,0,0,.4)}
+.win .bar{height:52px;display:flex;align-items:center;gap:10px;padding:0 22px;background:#0d2622;border-bottom:1px solid rgba(65,227,206,.14)}
+.win .bar i{width:14px;height:14px;border-radius:50%;background:#2d4a45;display:block}
+.win .bar span{margin-left:22px;flex:1;height:32px;border-radius:9px;background:#06130f;color:#8fb2aa;font-size:19px;display:flex;align-items:center;padding:0 18px;font-weight:500}
+.win .view{position:relative;width:1110px;height:624px;overflow:hidden;background:#fff}
+.win .view img{position:absolute;left:0;top:0;transform-origin:0 0}
+.wide .win{left:320px;top:170px;width:1280px}
+.wide .win .view{width:1280px;height:720px}
+.wide .cap{left:320px;top:52px;bottom:auto;width:1280px;flex-direction:row;align-items:baseline;gap:28px;justify-content:flex-start}
+.wide .cap h2{font-size:56px}
+.wide .cap .num{margin:0}
+.tag{position:absolute;padding:14px 24px;border-radius:14px;background:rgba(7,18,15,.92);border:1.5px solid var(--mint);font-size:27px;font-weight:700;color:var(--mint);box-shadow:0 18px 50px rgba(0,0,0,.5);white-space:nowrap}
+/* printed sheet */
+.paper{position:absolute;left:1270px;top:300px;width:540px;height:600px;background:#fff;border-radius:10px;padding:34px 30px;box-shadow:0 40px 110px rgba(0,0,0,.6);overflow:hidden}
+.paper img{width:100%;display:block}
+.paper .lines{margin-top:26px;display:grid;gap:18px}
+.paper .lines i{display:block;height:2px;background:#e3e8e6}
+/* cards */
+.cases .head{position:absolute;left:0;right:0;top:120px;text-align:center}
+.cases .head h2{font-size:76px;font-weight:800;letter-spacing:-0.045em}
+.cases .head h2 em{font-style:normal;color:var(--mint)}
+.cases .head p{font-size:32px;color:#b7d3cc;margin-top:20px;font-weight:500}
+.cgrid{position:absolute;left:190px;right:190px;top:360px;display:grid;grid-template-columns:repeat(3,1fr);gap:26px}
+.card{height:250px;border-radius:22px;padding:28px 32px;background:linear-gradient(160deg,#10302b,#0a1f1b);border:1.5px solid rgba(65,227,206,.2);display:flex;flex-direction:column;justify-content:space-between}
+.card b{display:block;margin-bottom:10px;font-size:22px;color:var(--mint);font-weight:700;letter-spacing:.04em}
+.card strong{font-size:34px;font-weight:800;line-height:1.3;letter-spacing:-0.035em}
+.card .ic{font-size:40px;line-height:1;margin-bottom:14px}
+/* outro */
+.outro{display:flex;align-items:center;justify-content:center;flex-direction:column;text-align:center;padding-bottom:90px}
+.logo{display:flex;align-items:center;gap:30px}
+.logo img{width:130px;height:130px}
+.logo .name{font-size:96px;font-weight:900;letter-spacing:-0.02em;text-align:left;line-height:1}
+.logo .name small{display:block;font-size:28px;letter-spacing:.08em;color:var(--mint);font-weight:600;margin-top:14px}
+.outro .line{font-size:50px;font-weight:700;margin-top:70px;letter-spacing:-0.035em}
+.outro .line em{font-style:normal;color:var(--mint)}
+.url{margin-top:56px;font-size:40px;font-weight:700;padding:22px 50px;border-radius:999px;background:var(--accent);color:#fff;letter-spacing:0}
+.outro .foot{margin-top:40px;font-size:26px;color:var(--mute);font-weight:500}
+.subs{position:absolute;left:0;right:0;bottom:44px;display:flex;justify-content:center;pointer-events:none}
+.subs span{font-size:40px;font-weight:600;line-height:1.4;color:#fff;background:rgba(3,10,9,.8);padding:14px 34px;border-radius:16px;text-align:center;max-width:1600px;box-shadow:0 10px 40px rgba(0,0,0,.35);letter-spacing:-0.025em}
+.progress{position:absolute;left:0;bottom:0;height:6px;background:var(--mint);opacity:.85}
+</style></head>
+<body>
+<div class="stage" id="stage">
+  <div class="grid a" id="grid"></div>
+
+  <section class="scene hero" id="s-hero">
+    <img class="bgimg a" id="hero-img" src="assets/landing.jpg">
+    <div class="shade"></div>
+    <img class="sym a" id="hero-sym" src="../../public/brand/moakit-symbol.svg">
+    <div class="txt">
+      <div class="eyebrow a" data-in="0.3">모아킷 · 선생님 수업자료 허브</div>
+      <div class="big a" data-in="0.7">수업 준비부터 결과물까지,<br><em>모아허브</em> 한곳에서</div>
+      <div class="sub a" data-in="1.6">수업 슬라이드 · 학생 활동 · 활동지 · 제출물을 한 번에</div>
+    </div>
+  </section>
+
+  <section class="scene" id="s-home">
+    <div class="cap">
+      <div class="num a" data-in="0.2">01 · 수업 프로그램</div>
+      <h2 class="a" data-in="0.4">학년·교과별로<br><em>수업이 모여</em> 있어요</h2>
+      <p class="a" data-in="0.8">교육과정 분류에서 학년을 고르고, 필요한 수업을 바로 열어요.</p>
+      <div class="chips a" data-in="1.2"><span class="chip">초·중·고 분류</span><span class="chip">차시별 구성</span><span class="chip">검색</span></div>
+    </div>
+    <div class="win a" data-win><div class="bar"><i></i><i></i><i></i><span>hub.moakit.ai/app</span></div><div class="view"><img id="v-home"></div></div>
+  </section>
+
+  <section class="scene" id="s-program">
+    <div class="cap">
+      <div class="num a" data-in="0.2">02 · 차시별 수업자료</div>
+      <h2 class="a" data-in="0.4">선생님용 슬라이드와<br><em>학생용 활동</em>을 함께</h2>
+      <p class="a" data-in="0.8">‘수업 실행’을 누르면 그대로 교실 화면에 띄울 수 있어요.</p>
+      <div class="chips a" data-in="1.2"><span class="chip">수업 링크</span><span class="chip">웹앱</span><span class="chip">영상</span><span class="chip">첨부자료</span></div>
+    </div>
+    <div class="win a" data-win><div class="bar"><i></i><i></i><i></i><span>hub.moakit.ai/app#/program</span></div><div class="view"><img id="v-program"></div></div>
+  </section>
+
+  <section class="scene" id="s-newclass">
+    <div class="cap">
+      <div class="num a" data-in="0.2">03 · 수업 열기</div>
+      <h2 class="a" data-in="0.4">반 이름과 명단만 적으면<br><em>참여 코드</em> 완성</h2>
+      <p class="a" data-in="0.8">날짜·반별로 수업이 정리되고, 코드는 칠판에 띄우기만 하면 돼요.</p>
+    </div>
+    <div class="win a" data-win><div class="bar"><i></i><i></i><i></i><span>hub.moakit.ai/app#/myclass</span></div><div class="view"><img id="v-newclass"></div></div>
+  </section>
+
+  <section class="scene wide" id="s-student">
+    <div class="cap"><div class="num a" data-in="0.1">04 · 학생 참여</div><h2 class="a" data-in="0.3">코드로 입장하고, <em>활동지 사진</em>으로 제출해요</h2></div>
+    <div class="win a" data-win><div class="bar"><i></i><i></i><i></i><span>hub.moakit.ai/app</span></div><div class="view"><img id="v-student"></div></div>
+  </section>
+
+  <section class="scene" id="s-teacher">
+    <div class="cap">
+      <div class="num a" data-in="0.2">05 · 제출물 모아 보기</div>
+      <h2 class="a" data-in="0.4">누가 냈는지<br><em>한눈에</em> 확인</h2>
+      <p class="a" data-in="0.8">명단과 자동으로 대조하고, 끝난 뒤에는 학생별로 모아 평가해요.</p>
+      <div class="chips a" data-in="1.2"><span class="chip">제출 현황</span><span class="chip">시간순 · 학생별</span><span class="chip">전체 다운로드</span></div>
+    </div>
+    <div class="win a" data-win><div class="bar"><i></i><i></i><i></i><span>hub.moakit.ai/app#/boardview</span></div><div class="view"><img id="v-teacher"></div></div>
+  </section>
+
+  <section class="scene" id="s-print">
+    <div class="cap">
+      <div class="num a" data-in="0.2">06 · 활동지 인쇄</div>
+      <h2 class="a" data-in="0.4">우리 학교 머리글로<br><em>바로 인쇄</em></h2>
+      <p class="a" data-in="0.8">학교를 고르면 로고·문구·교육영역 표가 활동지 맨 위에 붙어요.</p>
+    </div>
+    <div class="win a" data-win><div class="bar"><i></i><i></i><i></i><span>hub.moakit.ai/worksheet-headers.html</span></div><div class="view"><img id="v-print"></div></div>
+    <div class="paper a" id="paper"><img src="assets/print-sheet.jpg" style="margin-top:-4px"><div class="lines"><i></i><i></i><i></i><i></i><i></i><i></i></div></div>
+  </section>
+
+  <section class="scene cases" id="s-safe">
+    <div class="head"><h2 class="a" data-in="0.1">자료의 주인은 <em>선생님</em></h2><p class="a" data-in="0.4">공개도, 회수도, 마감도 직접 정해요.</p></div>
+    <div class="cgrid">
+      <div class="card a" data-in="0.7"><span class="ic">🔒</span><div><b>공개 관리</b><strong>프로그램별<br>공개 · 비공개</strong></div></div>
+      <div class="card a" data-in="0.85"><span class="ic">👀</span><div><b>보기 전용</b><strong>이름 워터마크로<br>자료 보호</strong></div></div>
+      <div class="card a" data-in="1.0"><span class="ic">🙋</span><div><b>개별 계정</b><strong>선생님마다 계정,<br>언제든 정지 가능</strong></div></div>
+      <div class="card a" data-in="1.15"><span class="ic">⏹️</span><div><b>수업 마감</b><strong>누르는 즉시<br>학생 제출 종료</strong></div></div>
+      <div class="card a" data-in="1.3"><span class="ic">🗂️</span><div><b>결과물 보관</b><strong>마감 뒤에도<br>제출물은 그대로</strong></div></div>
+      <div class="card a" data-in="1.45"><span class="ic">🧹</span><div><b>완전 삭제</b><strong>지우면 원본<br>파일까지 삭제</strong></div></div>
+    </div>
+  </section>
+
+  <section class="scene outro" id="s-outro">
+    <div class="logo a" data-in="0.1"><img src="../../public/brand/moakit-symbol.svg"><div class="name">모아허브<small>MoaHub · by MoaKit</small></div></div>
+    <div class="line a" data-in="0.6">수업 준비는 가볍게, <em>배움은 한곳에</em></div>
+    <div class="url a" data-in="1.1">hub.moakit.ai</div>
+    <div class="foot a" data-in="1.5">설치 없이 브라우저에서 바로 · 선생님을 위한 수업자료 허브</div>
+  </section>
+  <div class="subs"><span id="sub"></span></div>
+  <div class="progress" id="prog"></div>
+</div>
+<script>
+const FPS = 30;
+const clamp = (v, a = 0, b = 1) => Math.max(a, Math.min(b, v));
+const ease = t => t < .5 ? 4*t*t*t : 1 - Math.pow(-2*t + 2, 3)/2;
+const eout = t => 1 - Math.pow(1 - t, 3);
+const lerp = (a, b, t) => a + (b - a) * t;
+// 클립: 프레임 수, 프레임 가로 픽셀 (1600×900 화면을 1.5배로 녹화)
+const CLIPS = {
+  home:{n:210,w:2400}, program:{n:349,w:2400}, newclass:{n:334,w:2400},
+  student:{n:412,w:2400}, teacher:{n:265,w:2400}, print:{n:143,w:2400},
+};
+// view: 1600×900 화면 좌표에서 [x, y, 너비] (높이 = 너비×9/16), 두 값 사이를 부드럽게 이동
+const SCENES = [
+  { id:'s-hero', dur:5.0 },
+  { id:'s-home', dur:6.0, img:'v-home', segs:[
+      { clip:'home', from:0.6, rate:1, len:6.0, view:[[0,0,1600],[190,60,1300]] } ] },
+  { id:'s-program', dur:8.0, img:'v-program', segs:[
+      { clip:'program', from:0.4, rate:1.1, len:3.0, view:[[0,0,1600],[240,60,1300]] },
+      { clip:'program', from:4.4, rate:1.25, len:5.0, view:[[0,0,1600],[0,0,1600]] } ] },
+  { id:'s-newclass', dur:7.0, img:'v-newclass', segs:[
+      { clip:'newclass', from:1.0, rate:1.3, len:5.6, view:[[300,100,1000],[260,90,1080]] },
+      { clip:'newclass', from:9.4, rate:1, len:1.4, view:[[200,40,1200],[240,60,1100]] } ] },
+  { id:'s-student', dur:8.8, img:'v-student', segs:[
+      { clip:'student', from:0.4, rate:1.5, len:3.3, view:[[200,0,1200],[0,0,1600]] },
+      { clip:'student', from:5.35, rate:1.5, len:5.5, view:[[0,0,1600],[150,180,1450]] } ] },
+  { id:'s-teacher', dur:7.2, img:'v-teacher', segs:[
+      { clip:'teacher', from:0.6, rate:1, len:3.0, view:[[260,70,1300],[290,130,1200]] },
+      { clip:'teacher', from:4.0, rate:1.15, len:4.2, view:[[240,40,1330],[240,60,1300]] } ] },
+  { id:'s-print', dur:6.0, img:'v-print', segs:[
+      { clip:'print', from:0.4, rate:1, len:6.0, view:[[180,0,1240],[220,20,1100]] } ] },
+  { id:'s-safe', dur:5.6 },
+  { id:'s-outro', dur:6.2 },
+];
+const XF = 0.6;
+let acc = 0; for (const s of SCENES) { s.start = acc; acc += s.dur - XF; }
+const TOTAL = acc + XF;
+window.TOTAL = TOTAL;
+function src(clip, i) { const c = CLIPS[clip]; i = Math.max(1, Math.min(c.n, i)); return `frames/${clip}/${String(i).padStart(5,'0')}.jpg`; }
+async function setImg(el, url) {
+  if (el.dataset.src === url) return;
+  el.dataset.src = url; el.src = url;
+  try { await el.decode(); } catch {}
+}
+const SUBS = [
+  [0.4,4.3,'수업 슬라이드, 학생 활동, 활동지… 아직도 여기저기 흩어져 있나요?'],
+  [4.6,9.6,'모아허브는 학년·교과별 수업 프로그램을 한곳에 모아 둔 수업자료 허브예요.'],
+  [10.0,13.4,'차시를 고르면 선생님용 슬라이드와 학생용 활동이 함께 나오고,'],
+  [13.6,17.0,'버튼 하나로 바로 수업 화면을 띄울 수 있어요.'],
+  [17.4,20.2,'수업을 열 때는 반 이름과 학생 명단만 적으면'],
+  [20.4,23.4,'칠판에 띄울 참여 코드가 바로 만들어져요.'],
+  [23.8,27.2,'학생은 선생님이 알려 준 참여 코드를 넣고 들어와요.'],
+  [27.4,31.6,'활동을 마치면 활동지를 사진으로 찍어 바로 제출하죠.'],
+  [32.0,35.0,'선생님 화면에서는 누가 냈고 누가 안 냈는지 한눈에 보이고,'],
+  [35.2,38.2,'학생별로 모아 보면 평가도 훨씬 쉬워져요.'],
+  [38.6,43.4,'활동지는 우리 학교 머리글을 붙여 바로 인쇄할 수 있어요.'],
+  [44.0,48.6,'자료 공개와 회수, 수업 마감까지 선생님이 직접 정하니 안심이에요.'],
+  [49.0,54.2,'수업 준비는 가볍게, 배움은 한곳에. 모아킷의 모아허브에서 만나 보세요.'],
+];
+window.SUBS = SUBS;
+window.render = async function (t) {
+  { const cur = SUBS.find(x => t >= x[0] && t <= x[1]); const el = document.getElementById('sub');
+    if (cur) { el.textContent = cur[2]; const o = Math.min(clamp((t-cur[0])/0.25), clamp((cur[1]-t)/0.25)); el.parentElement.style.opacity = o; el.style.visibility='visible'; }
+    else { el.style.visibility='hidden'; } }
+  document.getElementById('prog').style.width = (t / TOTAL * 100) + '%';
+  document.getElementById('grid').style.transform = `translate(${-(t*6)%80}px, ${-(t*3)%80}px)`;
+  const waits = [];
+  for (const s of SCENES) {
+    const el = document.getElementById(s.id);
+    const lt = t - s.start;
+    if (lt < -0.01 || lt > s.dur + 0.01) { el.style.opacity = 0; el.style.display = 'none'; continue; }
+    el.style.display = '';
+    const fin = s === SCENES[0] ? 1 : clamp(lt / XF), fout = s === SCENES.at(-1) ? clamp((s.dur - lt) / 0.8) : clamp((s.dur - lt) / XF);
+    el.style.opacity = Math.min(fin, fout);
+    el.querySelectorAll('[data-in]').forEach(a => {
+      const p = eout(clamp((lt - parseFloat(a.dataset.in)) / 0.7));
+      a.style.opacity = p; a.style.transform = `translateY(${(1 - p) * 34}px)`;
+    });
+    const win = el.querySelector('[data-win]');
+    if (win) { const p = eout(clamp((lt - 0.15) / 0.9)); win.style.opacity = p; win.style.transform = `translateY(${(1-p)*50}px) scale(${lerp(.96,1,p)})`; }
+    if (s.id === 's-hero') {
+      document.getElementById('hero-img').style.transform = `scale(${1.02 + lt * 0.012}) translateX(${-lt*5}px)`;
+      const sy = document.getElementById('hero-sym'); const p = eout(clamp((lt - 0.4) / 1.2));
+      sy.style.opacity = p; sy.style.transform = `translateY(${(1-p)*40 + Math.sin(lt*1.4)*8}px) scale(${lerp(.85,1,p)})`;
+    }
+    if (s.id === 's-print') {
+      const pp = document.getElementById('paper'); const p = eout(clamp((lt - 2.9) / 0.9));
+      pp.style.opacity = p; pp.style.transform = `translate(${(1-p)*120}px, ${(1-p)*60}px) rotate(${lerp(8, 2.5, p)}deg)`;
+    }
+    if (s.segs) {
+      let off = 0, seg = s.segs[0];
+      for (const g of s.segs) { if (lt >= off) seg = g; off += g.len; }
+      let segStart = 0; for (const g of s.segs) { if (g === seg) break; segStart += g.len; }
+      const st = clamp(lt - segStart, 0, seg.len);
+      const frame = Math.round((seg.from + st * seg.rate) * FPS) + 1;
+      const img = document.getElementById(s.img);
+      const box = img.parentElement; const bw = box.clientWidth;
+      const k = ease(clamp(st / seg.len));
+      const [a, b] = seg.view;
+      const vx = lerp(a[0], b[0], k), vy = lerp(a[1], b[1], k), vw = lerp(a[2], b[2], k);
+      const sc = bw / vw;
+      const pxScale = 1600 / CLIPS[seg.clip].w;
+      img.style.width = CLIPS[seg.clip].w + 'px';
+      img.style.transform = `translate(${-vx*sc}px, ${-vy*sc}px) scale(${sc*pxScale})`;
+      waits.push(setImg(img, src(seg.clip, frame)));
+    }
+  }
+  await Promise.all(waits);
+};
+</script>
+</body></html>
