@@ -22,29 +22,47 @@ function observationOf(job) {
   const isObservation=job.entry_kind==='career_observation'||job.observation_kind==='career_observation'||(job.observation&&typeof job.observation==='object');
   return isObservation?(job.observation&&typeof job.observation==='object'?job.observation:{}):null;
 }
+// 쓴 사람 줄 — 모아랩 내 진로기록 화면(aiapp public/career-log-ui.js recordWriter)과 같은 규칙.
+// 담당자가 쓴 기록(관찰·담당자 기록)은 '작성: 처음 쓴 사람'에 정정됐으면 '· 정정: 고친 사람'(job.revised_by_name)을 붙이고,
+// 학생 글을 담당자가 고친 정정본은 '정정: 고친 사람'만 보인다. 예전 정정본(revised_by_name 없음)은 author_name 이 고친 사람이었다.
+function writerOf(record,job,observation) {
+  if(!job)return '';
+  const nameOf=value=>typeof value==='string'?value.trim():'';
+  const author=nameOf(job.author_name),reviser=nameOf(job.revised_by_name);
+  const staff=!!observation||job.entry_kind==='staff_record'||record.program_ref==='job-staff-record';
+  if(!record.supersedes_id&&job.entry_kind!=='revision')return staff&&author?'작성: '+author:'';
+  if(!reviser)return author?'정정: '+author:'';
+  return staff&&author?'작성: '+author+' · 정정: '+reviser:'정정: '+reviser;
+}
+function mutedLine(text) {
+  const line=document.createElement('p');line.className='muted';line.textContent=text;return line;
+}
 function appendRecord(record) {
   const article=document.createElement('article'),heading=document.createElement('h3'),when=document.createElement('p'),process=document.createElement('p');
   // 같은 학생 번호로 모아랩(job.moakit.ai) 진로 수업에서 남긴 기록도 함께 나온다.
   const job=record.source==='job'&&record.raw_data&&typeof record.raw_data.job==='object'?record.raw_data.job:null;
   const observation=observationOf(job);
-  // 진로 관찰 기록의 artifact 칸은 "드러난 강점·흥미"라서 제목으로 쓰면 안 된다.
-  heading.textContent=(observation?'':record.artifact)||(job&&typeof job.title==='string'?job.title:'')||(job&&typeof job.deck_title==='string'?job.deck_title:'')||'활동 결과물';
+  // 진로 관찰 기록의 artifact 칸은 "드러난 강점·흥미"라서 제목으로 쓰면 안 된다. 이어 둔 웹앱 이름(deck_title)도 제목이 아니라 아래 '웹앱:' 줄로 보인다.
+  heading.textContent=observation?((typeof job.title==='string'&&job.title)||'진로 관찰 기록')
+    :record.artifact||(job&&typeof job.title==='string'?job.title:'')||(job&&typeof job.deck_title==='string'?job.deck_title:'')||'활동 결과물';
   const date=new Date(record.occurred_at);
-  const origin=observation?' · 모아랩 진로 수업 · 담당 선생님 관찰':job&&job.entry_kind==='staff_record'?' · 담당자 기록':job?' · 모아랩 진로 수업':'';
+  const origin=observation?' · 모아랩 진로 수업 · 진로 강사 관찰':job&&job.entry_kind==='staff_record'?' · 담당자 기록':job?' · 모아랩 진로 수업':'';
   // 정정 표시가 종류를 대신하면 안 된다 — 정정된 관찰 기록도 관찰 기록임을 알 수 있어야 한다.
   const suffix=record.supersedes_id?(observation?origin:'')+' · 담당자 정정':origin;
   when.textContent=(Number.isNaN(date.getTime())?'활동 날짜 확인 중':date.toLocaleString('ko-KR'))+suffix;
   when.className='muted';process.textContent=record.process||'';
-  article.append(heading,when,process);
+  article.append(heading,when);
+  const writer=writerOf(record,job,observation);
+  if(writer)article.append(mutedLine(writer));
+  if(observation&&typeof job.deck_title==='string'&&job.deck_title)article.append(mutedLine('웹앱: '+job.deck_title));
+  article.append(process);
   if(observation){
-    // 관찰 항목은 학생이 쓴 글이 아니라 선생님이 본 내용이다. 이름표를 그렇게 붙인다.
-    for(const [label,value] of [['선생님이 본 나의 강점·흥미',observation.strengths??record.artifact],['추천받은 다음 활동',observation.next_step??record.reflection]]){
+    // 관찰 항목은 학생이 쓴 글이 아니라 수업에 찾아온 진로 강사가 본 내용이다. 이름표를 그렇게 붙인다.
+    for(const [label,value] of [['강사가 본 나의 강점·흥미',observation.strengths??record.artifact],['추천받은 다음 활동',observation.next_step??record.reflection]]){
       if(!value)continue;
       const line=document.createElement('p');line.textContent=label+': '+value;article.append(line);
     }
-    const note=document.createElement('p');note.className='muted';
-    note.textContent='활동 사진이 있으면 모아랩(job.moakit.ai)의 내 진로기록에서 볼 수 있습니다.';
-    article.append(note);
+    article.append(mutedLine('활동 사진이 있으면 모아랩(job.moakit.ai)의 내 진로기록에서 볼 수 있습니다.'));
   }
   else if(record.reflection){const reflection=document.createElement('p');reflection.textContent='내가 남긴 생각: '+record.reflection;article.append(reflection);}
   const submitted=record.raw_data?.submission;
