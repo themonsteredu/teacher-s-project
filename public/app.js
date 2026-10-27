@@ -1071,7 +1071,38 @@ function photoPrintHtml(posts, lesson = null) {
   }
   return { count, html: items.join('') };
 }
+// 차시 거르기 — 제출에 붙은 차시 이름(sessionTitle)으로 나눈다. 차시가 하나뿐이면 고를 것이 없다.
+function postLessons(posts) {
+  const seen = [];
+  for (const p of posts) { const t = p.sessionTitle || ''; if (p.submission && !seen.includes(t)) seen.push(t); }
+  return seen;
+}
+function postsOfLesson(posts, lesson) {
+  return lesson === null ? posts : posts.filter((p) => (p.sessionTitle || '') === lesson);
+}
+// 사진 크게 — 이름순으로 사진만 큰 바둑판에. 카드의 단추·배지를 빼고 그림과 이름만 둔다.
+function galleryItems(posts) {
+  const sorted = posts.slice().sort((a, b) => String(a.student_name).localeCompare(String(b.student_name), 'ko') || Number(a.id) - Number(b.id));
+  const items = [];
+  for (const p of sorted) {
+    const photos = postFiles(p).filter((f) => f.previewUrl);
+    photos.forEach((f, i) => items.push({
+      src: f.previewUrl,
+      name: p.student_name,
+      label: [p.student_name, photos.length > 1 ? `${i + 1}/${photos.length}` : '', p.sessionTitle].filter(Boolean).join(' · '),
+      href: `/api/posts/${p.id}/download/${f.index}`,
+    }));
+  }
+  return items;
+}
+function photoGalleryHtml(posts) {
+  const items = galleryItems(posts);
+  const docs = posts.reduce((n, p) => n + postFiles(p).filter((f) => !f.previewUrl).length, 0);
+  if (!items.length) return `<p class="empty-note">아직 사진이 없습니다.${docs ? ` 문서 파일 ${docs}개는 시간순·학생별 보기에서 받으세요.` : ''}</p>`;
+  return `<div class="sb-gallery">${items.map((it, i) => `<figure class="sbg-item"><button type="button" class="sbg-open" data-gallery="${i}" aria-label="${esc(it.label)} 크게 보기"><img src="${esc(it.src)}" alt="" loading="lazy"></button><figcaption>${esc(it.label)}</figcaption></figure>`).join('')}</div>${docs ? `<p class="small muted">문서 파일 ${docs}개는 시간순·학생별 보기에서 받으세요.</p>` : ''}`;
+}
 function boardPostsHtml(data, mode) {
+  if (mode === 'photo') return photoGalleryHtml(data.posts);
   const options = { forTeacher: true, manageable: data.manageable };
   if (mode !== 'student') {
     return `<div class="sb-grid">${data.posts.map((p) => postCardHtml(p, options)).join('') || '<p class="empty-note" style="grid-column:1/-1">아직 게시물이 없습니다.</p>'}</div>`;
@@ -1409,6 +1440,25 @@ route(/^#\/boardview\/(\d+)$/, async (id) => {
   try { data = await api('GET', `/api/boards/${id}/posts`); }
   catch (e) { if (!e.handled && state.me) { toast(e.message, true); location.hash = '#/'; } return; }
   const b = data.board;
+  // 제출물이 있으면 아이들 것을 먼저 보여 준다. 예전에는 참여 코드·제출 설정·수업자료 카드
+  // 아래(한 화면 넘게 내려가야) 있어서, 수업 뒤 결과를 보러 온 선생님이 매번 한참 내려야 했다.
+  const manageBlock = data.manageable ? `
+    <div class="card" id="submission-settings-card">차시별 제출 설정을 불러오는 중…</div>
+    <div class="card" id="share-card"><div class="small muted">수업자료 불러오는 중…</div></div>` : '';
+  const postsBlock = `
+    <section class="sb-posts-section" aria-label="학생 제출물">
+      <div class="sb-viewbar">
+        <div class="sb-tabs" role="group" aria-label="제출물 보기 방식">
+          <button data-postview="photo" aria-pressed="false">사진 크게</button>
+          <button data-postview="time" aria-pressed="false">시간순</button>
+          <button data-postview="student" aria-pressed="false">학생별</button>
+        </div>
+        ${data.manageable && data.hasFiles ? `<button class="btn btn-soft btn-sm" id="board-zip" hidden>${icon('download')} 이 차시만 받기(ZIP)</button>` : ''}
+        <span class="small muted" id="sb-viewnote"></span>
+      </div>
+      <div class="sb-lessons" id="sb-lessons" role="group" aria-label="차시 고르기"></div>
+      <div id="sb-posts"></div>
+    </section>`;
   shell(b.title, `
     <div class="page-head">
       <div>
@@ -1441,26 +1491,43 @@ route(/^#\/boardview\/(\d+)$/, async (id) => {
       <div class="small muted" style="line-height:1.8">학생은 사이트 첫 화면의 <b>[학생 참여]</b> 탭에서<br>이 코드를 입력하면 됩니다. 학교 연결 수업은 학생 로그인이 필요합니다.</div>
     </div>` : ''}
     ${data.manageable ? rosterCardHtml(data.roster) : ''}
-    ${data.manageable ? '<div class="card" id="submission-settings-card">차시별 제출 설정을 불러오는 중…</div>' : ''}
-    ${data.manageable ? '<div class="card" id="share-card"><div class="small muted">수업자료 불러오는 중…</div></div>' : ''}
-    <div class="sb-viewbar">
-      <div class="sb-tabs" role="group" aria-label="제출물 보기 방식">
-        <button data-postview="time" aria-pressed="false">시간순</button>
-        <button data-postview="student" aria-pressed="false">학생별</button>
-      </div>
-      <span class="small muted" id="sb-viewnote"></span>
-    </div>
-    <div id="sb-posts"></div>`);
+    ${data.posts.length ? postsBlock + manageBlock : manageBlock + postsBlock}`);
 
-  // 수업 중에는 시간순, 수업이 끝난 뒤 한 학생 것을 모아 볼 때는 학생별.
-  // 고른 방식은 이 브라우저에 남겨 다음에 열 때도 같은 화면으로 연다.
+  // 수업 중에는 시간순, 수업이 끝난 뒤 한 학생 것을 모아 볼 때는 학생별, 그림만 훑어볼 때는 사진 크게.
+  // 고른 방식은 이 브라우저에 남겨 다음에 열 때도 같은 화면으로 연다. 고른 차시는 이 화면에서만.
   let postView = 'time';
-  try { if (localStorage.getItem('moakit:boardview') === 'student') postView = 'student'; } catch {}
+  try { const saved = localStorage.getItem('moakit:boardview'); if (saved === 'student' || saved === 'photo') postView = saved; } catch {}
+  const lessons = postLessons(data.posts);
+  let lesson = null;
+  const shown = () => ({ ...data, posts: postsOfLesson(data.posts, lesson) });
+  function drawLessons() {
+    const box = document.getElementById('sb-lessons');
+    if (lessons.length < 2) { box.hidden = true; return; }
+    box.innerHTML = [['', '전체'], ...lessons.map((t, i) => [String(i + 1), t || '차시 없음'])]
+      .map(([v, t]) => `<button data-lesson="${v}" aria-pressed="${(v ? lessons[Number(v) - 1] : null) === lesson}">${esc(t)}</button>`).join('');
+    box.querySelectorAll('[data-lesson]').forEach((btn) => {
+      btn.onclick = () => {
+        lesson = btn.dataset.lesson ? lessons[Number(btn.dataset.lesson) - 1] : null;
+        const zip = document.getElementById('board-zip');
+        if (zip) zip.hidden = lesson === null; // 전체는 위쪽 '전체 다운로드'가 맡는다
+        drawLessons(); drawPosts(); bindPostActions();
+      };
+    });
+  }
   function drawPosts() {
-    document.getElementById('sb-posts').innerHTML = boardPostsHtml(data, postView);
+    const view = shown();
+    document.getElementById('sb-posts').innerHTML = boardPostsHtml(view, postView);
     document.getElementById('sb-viewnote').textContent = postView === 'student'
       ? '한 학생이 낸 것을 모아서 봐요. 같은 학생인지는 학생 계정으로 가려냅니다.'
-      : '가장 최근에 낸 것이 먼저 나와요.';
+      : postView === 'photo'
+        ? '이름순이에요. 사진을 누르면 크게 보고, 화살표로 다음 아이 것을 봐요.'
+        : '가장 최근에 낸 것이 먼저 나와요.';
+    if (postView === 'photo') {
+      const items = galleryItems(view.posts);
+      document.querySelectorAll('[data-gallery]').forEach((btn) => {
+        btn.onclick = () => openGalleryLightbox(items, Number(btn.dataset.gallery));
+      });
+    }
     document.querySelectorAll('[data-postview]').forEach((b) => {
       b.classList.toggle('active', b.dataset.postview === postView);
       b.setAttribute('aria-pressed', String(b.dataset.postview === postView));
@@ -1497,7 +1564,7 @@ route(/^#\/boardview\/(\d+)$/, async (id) => {
     } catch (e) { if (!e.handled) toast(e.message, true); }
   };
   const dlAllBtn = document.getElementById('board-dlall');
-  if (dlAllBtn) dlAllBtn.onclick = () => downloadAll(id, dlAllBtn);
+  if (dlAllBtn) dlAllBtn.onclick = () => downloadZip(id, dlAllBtn, data.posts, b.title);
   const printBtn = document.getElementById('board-print');
   if (printBtn) printBtn.onclick = () => printBoardPhotos(id, printBtn);
   const rosterEditBtn = document.getElementById('roster-edit');
@@ -1517,8 +1584,11 @@ route(/^#\/boardview\/(\d+)$/, async (id) => {
       };
     });
   }
+  drawLessons();
   drawPosts();
   bindPostActions();
+  const zipBtn = document.getElementById('board-zip');
+  if (zipBtn) zipBtn.onclick = () => downloadZip(id, zipBtn, shown().posts, [b.title, lesson].filter(Boolean).join('_'));
 
   // 학생에게 보여줄 수업자료 고르기 (보드 관리자만)
   const shareCard = document.getElementById('share-card');
@@ -1712,27 +1782,125 @@ async function runPhotoPrint(posts, lesson) {
   window.print();
 }
 
-// 학생 제출물 일괄 다운로드 — 서명 URL을 받아 순차 저장 (zip 의존성 없이)
-async function downloadAll(boardId, btn) {
+// 사진 크게 보기 — 화살표(←/→)와 단추로 다음 아이 그림으로 넘긴다. Esc 나 바깥을 누르면 닫는다.
+function openGalleryLightbox(items, start) {
+  if (!items.length) return;
+  let at = Math.max(0, Math.min(items.length - 1, start));
+  const box = document.createElement('div');
+  box.className = 'img-lightbox gallery-lightbox';
+  box.innerHTML = `<button class="il-close" aria-label="닫기">✕</button>
+    <button class="gl-nav gl-prev" aria-label="이전 사진">‹</button>
+    <figure class="gl-figure"><img alt=""><figcaption><span class="gl-label"></span> <span class="gl-count small"></span> <a class="btn btn-soft btn-sm gl-down" target="_blank" rel="noopener">받기</a></figcaption></figure>
+    <button class="gl-nav gl-next" aria-label="다음 사진">›</button>`;
+  const show = () => {
+    const it = items[at];
+    box.querySelector('img').src = it.src;
+    box.querySelector('.gl-label').textContent = it.label;
+    box.querySelector('.gl-count').textContent = `${at + 1} / ${items.length}`;
+    box.querySelector('.gl-down').href = it.href;
+    box.querySelector('.gl-prev').disabled = at === 0;
+    box.querySelector('.gl-next').disabled = at === items.length - 1;
+  };
+  const close = () => { box.remove(); document.removeEventListener('keydown', onKey); };
+  const step = (d) => { const n = at + d; if (n >= 0 && n < items.length) { at = n; show(); } };
+  const onKey = (e) => { if (e.key === 'Escape') close(); else if (e.key === 'ArrowLeft') step(-1); else if (e.key === 'ArrowRight') step(1); };
+  box.addEventListener('click', (e) => {
+    if (e.target.closest('.gl-prev')) step(-1);
+    else if (e.target.closest('.gl-next')) step(1);
+    else if (e.target.closest('.gl-down') || e.target.closest('.gl-figure img')) return;
+    else close();
+  });
+  document.addEventListener('keydown', onKey);
+  document.body.appendChild(box);
+  show();
+}
+
+// ZIP 만들기(압축 없이 담기만). 수십 장을 한 장씩 받으면 브라우저가 매번 묻고 파일이 흩어진다.
+// 이름은 UTF-8 표시(비트 11)를 켜서 한글 학생 이름이 그대로 보이게 한다.
+const ZIP_CRC = (() => {
+  const t = new Uint32Array(256);
+  for (let n = 0; n < 256; n++) { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1; t[n] = c >>> 0; }
+  return t;
+})();
+function zipCrc32(bytes) {
+  let c = 0xFFFFFFFF;
+  for (let i = 0; i < bytes.length; i++) c = ZIP_CRC[(c ^ bytes[i]) & 0xFF] ^ (c >>> 8);
+  return (c ^ 0xFFFFFFFF) >>> 0;
+}
+function zipStore(files) {
+  const enc = new TextEncoder();
+  const head = [], central = [];
+  let offset = 0;
+  for (const f of files) {
+    const name = enc.encode(f.name), data = f.data, crc = zipCrc32(data);
+    const local = new DataView(new ArrayBuffer(30));
+    local.setUint32(0, 0x04034b50, true); local.setUint16(4, 20, true); local.setUint16(6, 0x0800, true);
+    local.setUint16(12, 0x21, true); // 1980-01-01
+    local.setUint32(14, crc, true); local.setUint32(18, data.length, true); local.setUint32(22, data.length, true);
+    local.setUint16(26, name.length, true);
+    head.push(new Uint8Array(local.buffer), name, data);
+    const cen = new DataView(new ArrayBuffer(46));
+    cen.setUint32(0, 0x02014b50, true); cen.setUint16(4, 20, true); cen.setUint16(6, 20, true); cen.setUint16(8, 0x0800, true);
+    cen.setUint16(14, 0x21, true);
+    cen.setUint32(16, crc, true); cen.setUint32(20, data.length, true); cen.setUint32(24, data.length, true);
+    cen.setUint16(28, name.length, true); cen.setUint32(42, offset, true);
+    central.push(new Uint8Array(cen.buffer), name);
+    offset += 30 + name.length + data.length;
+  }
+  const size = central.reduce((n, p) => n + p.length, 0);
+  const end = new DataView(new ArrayBuffer(22));
+  end.setUint32(0, 0x06054b50, true); end.setUint16(8, files.length, true); end.setUint16(10, files.length, true);
+  end.setUint32(12, size, true); end.setUint32(16, offset, true);
+  return new Blob([...head, ...central, new Uint8Array(end.buffer)], { type: 'application/zip' });
+}
+// 지금 보고 있는 목록(차시를 골랐으면 그 차시)의 파일을 ZIP 하나로. 저장소에서 바로 못 받으면
+// (네트워크·브라우저 제한) 예전처럼 한 장씩 내려받기로 물러난다.
+async function downloadZip(boardId, btn, posts, title) {
   const label = btn.innerHTML;
+  const done = () => { btn.disabled = false; btn.innerHTML = label; };
   btn.disabled = true;
   btn.innerHTML = '준비 중…';
   let files;
   try { ({ files } = await api('GET', `/api/boards/${boardId}/download-all`)); }
-  catch (e) { if (!e.handled) toast(e.message, true); btn.disabled = false; btn.innerHTML = label; return; }
-  if (!files.length) { toast('내려받을 제출 파일이 없습니다.', true); btn.disabled = false; btn.innerHTML = label; return; }
-  toast(`${files.length}개 파일을 내려받습니다. 브라우저가 여러 파일 저장을 물어보면 허용해 주세요.`);
+  catch (e) { if (!e.handled) toast(e.message, true); done(); return; }
+  const ids = new Set(posts.map((p) => Number(p.id)));
+  files = files.filter((f) => ids.has(Number(f.id)));
+  if (!files.length) { toast('내려받을 파일이 없습니다.', true); done(); return; }
+  const entries = [];
+  const used = new Set();
+  try {
+    for (let i = 0; i < files.length; i++) {
+      btn.innerHTML = `${i + 1}/${files.length}`;
+      const r = await fetch(files[i].url);
+      if (!r.ok) throw new Error(String(r.status));
+      let name = files[i].name || `file-${i + 1}`;
+      while (used.has(name)) name = `_${name}`;
+      used.add(name);
+      entries.push({ name, data: new Uint8Array(await r.arrayBuffer()) });
+    }
+  } catch {
+    toast('ZIP 으로 묶지 못해 한 장씩 내려받습니다. 브라우저가 물어보면 허용해 주세요.');
+    await saveOneByOne(files, btn);
+    done();
+    return;
+  }
+  const a = document.createElement('a');
+  const url = URL.createObjectURL(zipStore(entries));
+  a.href = url;
+  a.download = `${String(title || '학생 제출물').replace(/[\\/:*?"<>|]/g, '_')}.zip`;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 30000);
+  toast(`파일 ${entries.length}개를 ZIP 하나로 내려받았어요.`);
+  done();
+}
+async function saveOneByOne(files, btn) {
   for (let i = 0; i < files.length; i++) {
-    const f = files[i];
     const a = document.createElement('a');
-    a.href = f.url; a.download = f.name || '';
+    a.href = files[i].url; a.download = files[i].name || '';
     document.body.appendChild(a); a.click(); a.remove();
     btn.innerHTML = `${i + 1}/${files.length}`;
     await new Promise((r) => setTimeout(r, 700)); // 브라우저 다중 다운로드 차단 완화
   }
-  btn.disabled = false;
-  btn.innerHTML = label;
-  toast('전체 다운로드를 시작했습니다.');
 }
 
 /* ---------------- 프로그램 관리 (#/manage, admin) ---------------- */
