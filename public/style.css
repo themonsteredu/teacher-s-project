@@ -1279,3 +1279,17 @@ body { background: var(--bg); }
 .bv-blocked strong { display: block; color: var(--red-600, #c0392b); font-size: 15px; }
 .bv-blocked p { margin: 5px 0 0; line-height: 1.65; color: var(--text-2); word-break: keep-all; }
 .bv-blocked > div { flex: 1 1 320px; min-width: 0; }
+
+/* ============ 수업 보드: 사진 모아 인쇄 (printBoardPhotos) ============ */
+/* 화면 인쇄는 막혀 있다(#print-guard). 이 단추로 붙인 #photo-print 만 찍는다 — 한 쪽에 두 장 */
+#photo-print { display: none; }
+@media print {
+  body.photo-print > #app, body.photo-print #print-guard, body.photo-print .toast, body.photo-print .modal-back { display: none !important; }
+  body.photo-print > #photo-print { display: block; }
+  .pp-item {
+    height: 128mm; margin: 0 0 6mm; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; break-inside: avoid; page-break-inside: avoid;
+  }
+  .pp-item img { max-width: 100%; max-height: 114mm; object-fit: contain; }
+  .pp-item figcaption { margin-top: 3mm; font-size: 14pt; font-weight: 700; word-break: keep-all; }
+}

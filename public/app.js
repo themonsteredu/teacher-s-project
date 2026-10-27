@@ -1042,6 +1042,30 @@ function groupPostsByStudent(posts, roster) {
   const missing = (roster?.missing || []).map((name) => ({ key: `missing:${name}`, name, posts: [] }));
   return { list, missing };
 }
+// 사진 모아 인쇄 — 학생이 낸 사진을 이름순으로 한 쪽에 두 장씩 찍는다(교실 게시·포트폴리오용).
+// 차시를 고르면 그 차시 제출만. 문서 파일은 인쇄할 수 없어 뺀다.
+function photoLessons(posts) {
+  const seen = [];
+  for (const p of posts) {
+    const t = p.sessionTitle || '';
+    if (postFiles(p).some((f) => f.previewUrl) && !seen.includes(t)) seen.push(t);
+  }
+  return seen;
+}
+function photoPrintHtml(posts, lesson = null) {
+  const picked = posts
+    .filter((p) => lesson === null || (p.sessionTitle || '') === lesson)
+    .slice()
+    .sort((a, b) => String(a.student_name).localeCompare(String(b.student_name), 'ko') || Number(a.id) - Number(b.id));
+  const items = [];
+  for (const p of picked) {
+    for (const f of postFiles(p).filter((x) => x.previewUrl)) {
+      const label = [p.student_name, p.sessionTitle].filter(Boolean).join(' · ');
+      items.push(`<figure class="pp-item"><img src="${esc(f.previewUrl)}" alt=""><figcaption>${esc(label)}</figcaption></figure>`);
+    }
+  }
+  return { count: items.length, html: items.join('') };
+}
 function boardPostsHtml(data, mode) {
   const options = { forTeacher: true, manageable: data.manageable };
   if (mode !== 'student') {
@@ -1387,6 +1411,7 @@ route(/^#\/boardview\/(\d+)$/, async (id) => {
         <div class="desc">${esc(data.program.title)} · 게시물 ${data.posts.length}개 ${b.isOpen ? '· 마감하면 학생 제출·열람이 즉시 중단됩니다' : '· 결과물은 계속 보관됩니다'}</div>
       </div>
       <div style="display:flex;gap:8px;flex-wrap:wrap">
+        ${data.manageable && data.hasFiles ? `<button class="btn btn-soft btn-sm" id="board-print">${icon('fileText')} 사진 모아 인쇄</button>` : ''}
         ${data.manageable && data.hasFiles ? `<button class="btn btn-soft btn-sm" id="board-dlall">${icon('download')} 전체 다운로드</button>` : ''}
         ${data.manageable ? `<button class="btn ${b.isOpen ? 'btn-danger' : 'btn-primary'} btn-sm" id="board-toggle">${b.isOpen ? '마감하기' : '다시 열기'}</button>` : ''}
         ${data.manageable ? `<button class="btn btn-danger btn-sm" id="board-del">${icon('trash')} 수업 삭제</button>` : ''}
@@ -1468,6 +1493,8 @@ route(/^#\/boardview\/(\d+)$/, async (id) => {
   };
   const dlAllBtn = document.getElementById('board-dlall');
   if (dlAllBtn) dlAllBtn.onclick = () => downloadAll(id, dlAllBtn);
+  const printBtn = document.getElementById('board-print');
+  if (printBtn) printBtn.onclick = () => printBoardPhotos(id, printBtn);
   const rosterEditBtn = document.getElementById('roster-edit');
   if (rosterEditBtn) rosterEditBtn.onclick = () => openRosterModal(id, b.roster || '');
   function bindPostActions() {
@@ -1630,6 +1657,54 @@ function openRosterModal(boardId, current) {
       navigate();
     } catch (e) { if (!e.handled) { const m = back.querySelector('#rm-msg'); m.textContent = e.message; m.className = 'msg err'; } }
   };
+}
+
+// 사진 모아 인쇄. 화면 인쇄는 기본으로 막혀 있으므로(#print-guard), 인쇄할 사진만 담은
+// #photo-print 를 body 에 붙이고 body.photo-print 일 때만 그것을 찍는다. 미리보기 주소는
+// 시간이 지나면 만료되므로 누를 때마다 목록을 새로 받는다.
+async function printBoardPhotos(boardId, btn) {
+  const label = btn.innerHTML;
+  btn.disabled = true;
+  btn.innerHTML = '준비 중…';
+  const done = () => { btn.disabled = false; btn.innerHTML = label; };
+  let data;
+  try { data = await api('GET', `/api/boards/${boardId}/posts`); }
+  catch (e) { if (!e.handled) toast(e.message, true); done(); return; }
+  const lessons = photoLessons(data.posts);
+  if (!lessons.length) { toast('인쇄할 사진이 없습니다.', true); done(); return; }
+  const go = (lesson) => runPhotoPrint(data.posts, lesson).finally(done);
+  if (lessons.length === 1) { go(null); return; }
+  const back = openModal(`
+    <h3>어느 차시 사진을 인쇄할까요?</h3>
+    <div class="m-sub">학생 이름순으로, 한 쪽에 두 장씩 인쇄합니다.</div>
+    <div class="pick-grid">
+      <button class="btn btn-soft" data-pp-lesson="">전체</button>
+      ${lessons.map((t, i) => `<button class="btn btn-soft" data-pp-lesson="${i + 1}">${esc(t || '차시 없음')}</button>`).join('')}
+    </div>
+    <div class="m-actions"><button class="btn btn-ghost" id="pp-cancel">취소</button></div>`);
+  back.querySelector('#pp-cancel').onclick = () => { back.remove(); done(); };
+  back.querySelectorAll('[data-pp-lesson]').forEach((b) => {
+    b.onclick = () => { back.remove(); go(b.dataset.ppLesson ? lessons[Number(b.dataset.ppLesson) - 1] : null); };
+  });
+}
+async function runPhotoPrint(posts, lesson) {
+  const { count, html } = photoPrintHtml(posts, lesson);
+  if (!count) { toast('인쇄할 사진이 없습니다.', true); return; }
+  document.getElementById('photo-print')?.remove();
+  const box = document.createElement('div');
+  box.id = 'photo-print';
+  box.innerHTML = html;
+  document.body.appendChild(box);
+  toast(`사진 ${count}장을 불러오는 중이에요.`);
+  const imgs = [...box.querySelectorAll('img')];
+  await Promise.race([
+    Promise.all(imgs.map((img) => (img.complete ? null : new Promise((r) => { img.onload = r; img.onerror = r; })))),
+    new Promise((r) => setTimeout(r, 15000)),
+  ]);
+  const cleanup = () => { document.body.classList.remove('photo-print'); box.remove(); };
+  document.body.classList.add('photo-print');
+  window.addEventListener('afterprint', cleanup, { once: true });
+  window.print();
 }
 
 // 학생 제출물 일괄 다운로드 — 서명 URL을 받아 순차 저장 (zip 의존성 없이)
