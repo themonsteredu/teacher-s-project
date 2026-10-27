@@ -1295,3 +1295,27 @@ body { background: var(--bg); }
   .pp-item.is-pair img { max-width: calc(50% - 2mm); }
   .pp-item figcaption { margin-top: 3mm; font-size: 14pt; font-weight: 700; word-break: keep-all; }
 }
+
+/* ============ 수업 보드: 차시 고르기 · 사진 크게 · 크게 보기(이전·다음) ============ */
+.sb-posts-section { margin: 0 0 22px; }
+.sb-lessons { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 14px; }
+.sb-lessons button {
+  border: 1px solid var(--line-strong); background: #fff; color: var(--text-2); border-radius: 999px;
+  padding: 8px 16px; min-height: 40px; font: inherit; font-size: 13px; cursor: pointer; word-break: keep-all;
+}
+.sb-lessons button[aria-pressed="true"] { background: var(--teal-deep, #0a6f61); border-color: var(--teal-deep, #0a6f61); color: #fff; font-weight: 700; }
+.sb-gallery { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 280px), 1fr)); gap: 16px; }
+.sbg-item { margin: 0; background: #fff; border: 1px solid var(--line); border-radius: 16px; padding: 10px; box-shadow: var(--shadow-sm); }
+.sbg-open { display: block; width: 100%; border: 0; padding: 0; background: #f6f9f8; border-radius: 10px; cursor: zoom-in; aspect-ratio: 4 / 3; overflow: hidden; }
+.sbg-open img { width: 100%; height: 100%; object-fit: contain; display: block; }
+.sbg-item figcaption { margin-top: 8px; font-weight: 700; font-size: 15px; word-break: keep-all; }
+.gallery-lightbox { cursor: default; gap: 12px; }
+.gallery-lightbox .gl-figure { margin: 0; display: flex; flex-direction: column; align-items: center; gap: 12px; max-width: min(1100px, 100%); max-height: 100%; }
+.gallery-lightbox .gl-figure img { max-height: calc(100vh - 160px); }
+.gallery-lightbox figcaption { color: #fff; font-size: 18px; font-weight: 700; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; justify-content: center; word-break: keep-all; }
+.gallery-lightbox .gl-count { color: #cbd5e1; font-weight: 500; }
+.gallery-lightbox .gl-nav {
+  flex-shrink: 0; width: 56px; height: 56px; border-radius: 999px; border: none; background: #fff; color: #1e293b;
+  font-size: 34px; font-weight: 900; line-height: 1; cursor: pointer;
+}
+.gallery-lightbox .gl-nav:disabled { opacity: .3; cursor: default; }
