@@ -1042,7 +1042,8 @@ function groupPostsByStudent(posts, roster) {
   const missing = (roster?.missing || []).map((name) => ({ key: `missing:${name}`, name, posts: [] }));
   return { list, missing };
 }
-// 사진 모아 인쇄 — 학생이 낸 사진을 이름순으로 한 쪽에 두 장씩 찍는다(교실 게시·포트폴리오용).
+// 사진 모아 인쇄 — 학생이 낸 사진을 이름순으로 한 쪽에 두 칸씩 찍는다(교실 게시·포트폴리오용).
+// 한 제출에 사진이 여러 장이면(예: 활동지에 그린 그림 + 오토드로우 화면) 두 장씩 한 칸에 나란히 둔다.
 // 차시를 고르면 그 차시 제출만. 문서 파일은 인쇄할 수 없어 뺀다.
 function photoLessons(posts) {
   const seen = [];
@@ -1058,13 +1059,17 @@ function photoPrintHtml(posts, lesson = null) {
     .slice()
     .sort((a, b) => String(a.student_name).localeCompare(String(b.student_name), 'ko') || Number(a.id) - Number(b.id));
   const items = [];
+  let count = 0;
   for (const p of picked) {
-    for (const f of postFiles(p).filter((x) => x.previewUrl)) {
-      const label = [p.student_name, p.sessionTitle].filter(Boolean).join(' · ');
-      items.push(`<figure class="pp-item"><img src="${esc(f.previewUrl)}" alt=""><figcaption>${esc(label)}</figcaption></figure>`);
+    const photos = postFiles(p).filter((x) => x.previewUrl);
+    const label = [p.student_name, p.sessionTitle].filter(Boolean).join(' · ');
+    for (let i = 0; i < photos.length; i += 2) {
+      const pair = photos.slice(i, i + 2);
+      count += pair.length;
+      items.push(`<figure class="pp-item${pair.length > 1 ? ' is-pair' : ''}"><div class="pp-row">${pair.map((f) => `<img src="${esc(f.previewUrl)}" alt="">`).join('')}</div><figcaption>${esc(label)}</figcaption></figure>`);
     }
   }
-  return { count: items.length, html: items.join('') };
+  return { count, html: items.join('') };
 }
 function boardPostsHtml(data, mode) {
   const options = { forTeacher: true, manageable: data.manageable };

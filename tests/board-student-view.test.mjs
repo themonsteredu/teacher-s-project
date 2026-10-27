@@ -90,6 +90,7 @@ test('사진 모아 인쇄: 이름순으로 사진만, 차시를 고르면 그 �
   assert.equal(all.count, 3, '문서는 빼고 사진만');
   assert.ok(all.html.indexOf('https://s/b') < all.html.indexOf('https://s/d'), '같은 학생은 낸 차례대로');
   assert.ok(all.html.indexOf('https://s/d') < all.html.indexOf('https://s/a'), '김하늘이 이도윤보다 먼저(이름순)');
+  assert.ok(!all.html.includes('is-pair'), '한 장짜리 제출은 한 칸에 한 장');
   const eight = ctx.photoPrintHtml(posts, '8차시');
   assert.equal(eight.count, 2);
   assert.ok(!eight.html.includes('https://s/d'));
@@ -101,4 +102,16 @@ test('사진 모아 인쇄: 이름은 이스케이프되고 인쇄 스타일이 
   assert.ok(!html.includes('<b>x</b>'));
   assert.ok(!html.includes('"onerror="'));
   for (const selector of ['#photo-print', 'body.photo-print', '.pp-item']) assert.ok(css.includes(selector), `${selector} 규칙이 있어야 한다`);
+});
+
+test('사진 모아 인쇄: 한 제출의 사진 두 장(내 그림 + 오토드로우)은 한 칸에 나란히', () => {
+  const { count, html } = ctx.photoPrintHtml([post({ student_name: '김하늘', attachments: [
+    { index: 0, name: '활동지.jpg', previewUrl: 'https://s/0' },
+    { index: 1, name: '오토드로우.png', previewUrl: 'https://s/1' },
+    { index: 2, name: '하나 더.png', previewUrl: 'https://s/2' },
+  ] })], null);
+  assert.equal(count, 3);
+  assert.equal((html.match(/class="pp-item/g) || []).length, 2, '세 장이면 두 장 + 한 장');
+  assert.equal((html.match(/is-pair/g) || []).length, 1);
+  assert.ok(html.indexOf('https://s/1') < html.indexOf('</div>'), '첫 두 장이 한 줄에');
 });
