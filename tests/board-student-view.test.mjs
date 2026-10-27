@@ -77,3 +77,28 @@ test('학생별 보기에 쓰는 스타일이 실제로 있다', () => {
     assert.ok(css.includes(selector), `${selector} 규칙이 style.css 에 있어야 한다`);
   }
 });
+
+test('사진 모아 인쇄: 이름순으로 사진만, 차시를 고르면 그 차시만', () => {
+  const posts = [
+    post({ id: 1, student_name: '이도윤', sessionTitle: '8차시', attachments: [{ index: 0, name: 'a.png', previewUrl: 'https://s/a' }] }),
+    post({ id: 2, student_name: '김하늘', sessionTitle: '8차시', attachments: [{ index: 0, name: 'b.png', previewUrl: 'https://s/b' }, { index: 1, name: 'c.pdf', previewUrl: null }] }),
+    post({ id: 3, student_name: '김하늘', sessionTitle: '9차시', attachments: [{ index: 0, name: 'd.png', previewUrl: 'https://s/d' }] }),
+    post({ id: 4, student_name: '박서준', sessionTitle: '8차시', attachments: [{ index: 0, name: 'e.pdf', previewUrl: null }] }),
+  ];
+  assert.deepEqual([...ctx.photoLessons(posts)], ['8차시', '9차시'], '사진이 있는 차시만');
+  const all = ctx.photoPrintHtml(posts, null);
+  assert.equal(all.count, 3, '문서는 빼고 사진만');
+  assert.ok(all.html.indexOf('https://s/b') < all.html.indexOf('https://s/d'), '같은 학생은 낸 차례대로');
+  assert.ok(all.html.indexOf('https://s/d') < all.html.indexOf('https://s/a'), '김하늘이 이도윤보다 먼저(이름순)');
+  const eight = ctx.photoPrintHtml(posts, '8차시');
+  assert.equal(eight.count, 2);
+  assert.ok(!eight.html.includes('https://s/d'));
+  assert.ok(eight.html.includes('김하늘 · 8차시'));
+});
+
+test('사진 모아 인쇄: 이름은 이스케이프되고 인쇄 스타일이 있다', () => {
+  const { html } = ctx.photoPrintHtml([post({ student_name: '<b>x</b>', attachments: [{ index: 0, name: 'a.png', previewUrl: 'https://s/a"onerror="y' }] })], null);
+  assert.ok(!html.includes('<b>x</b>'));
+  assert.ok(!html.includes('"onerror="'));
+  for (const selector of ['#photo-print', 'body.photo-print', '.pp-item']) assert.ok(css.includes(selector), `${selector} 규칙이 있어야 한다`);
+});
