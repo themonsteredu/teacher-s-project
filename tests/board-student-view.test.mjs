@@ -166,3 +166,11 @@ test('ZIP: 압축 없이 담은 파일이 표준 구조이고 한글 이름은 U
   const nameLen = view.getUint16(cdir + 28, true);
   assert.equal(new TextDecoder().decode(bytes.slice(cdir + 46, cdir + 46 + nameLen)), '김하늘_8차시.png');
 });
+
+test('선생님만 열람인 제출물(기본 상태)은 흐리게 하지 않고, 바둑판은 줄을 맞춘다', () => {
+  const submitted = ctx.postCardHtml(post({ hidden: true, submission: true }), { forTeacher: true, manageable: true });
+  assert.ok(!submitted.includes('is-hidden'), '제출물은 선생님만 열람이 기본이라 흐리지 않는다');
+  const hiddenNote = ctx.postCardHtml(post({ hidden: true, submission: false }), { forTeacher: true, manageable: true });
+  assert.ok(hiddenNote.includes('is-hidden'), '선생님이 숨긴 일반 게시물은 흐리게');
+  assert.match(css, /\.sb-grid \{ display: grid;/, '신문 단(columns) 대신 줄 맞춘 바둑판');
+});
