@@ -11,11 +11,11 @@ const source=readFileSync(new URL('../lib/api.js',import.meta.url),'utf8');
 const SCHOOL='286b4334-5836-4b36-a778-b693c1734d93';
 const OWNER=1, VIEWER=5, STRANGER=9;
 
-async function call(method,path,{userId=OWNER,role='teacher',viewers=[VIEWER],bound=true,body={}}={}) {
+async function call(method,path,{userId=OWNER,role='teacher',viewers=[VIEWER],bound=true,body={},ownerActive=true,ownerSchool=true}={}) {
   const board={id:16,created_by:OWNER,program_id:11,title:'2학년 2반',code:'ab12cd',roster:'',is_open:true,class_date:null,created_at:'x'};
   const post={id:21,board_id:16,storage_path:'board16/a.png',file_name:'a.png',mime:'image/png',student_name:'김하늘',content:'',hidden:true};
   const users=[
-    {id:OWNER,name:'원장',username:'owner',role:'teacher',active:true},
+    {id:OWNER,name:'원장',username:'owner',role:'teacher',active:ownerActive},
     {id:VIEWER,name:'담임',username:'homeroom',role:'teacher',active:true},
     {id:7,name:'퇴직',username:'gone',role:'teacher',active:false},
   ];
@@ -31,6 +31,7 @@ async function call(method,path,{userId=OWNER,role='teacher',viewers=[VIEWER],bo
       if(sql.startsWith('SELECT * FROM programs'))return {id:11,title:'AI 교재',published:true};
       if(sql.startsWith('SELECT * FROM board_posts'))return post;
       if(sql.includes('FROM users WHERE username'))return users.find(u=>u.username===args[0])||null;
+      if(sql.includes('FROM users WHERE id = $1'))return users.find(u=>u.id===Number(args[0]))||null;
       throw new Error(sql);
     },
     q:async(sql,args)=>{
@@ -56,7 +57,7 @@ async function call(method,path,{userId=OWNER,role='teacher',viewers=[VIEWER],bo
     './student-accounts/http':{authorizeSchool:async(user)=>{
       effects.schoolChecks.push(user.id);
       // 수업을 연 선생님만 그 학교 담당자다
-      if(user.id!==OWNER)throw Object.assign(new Error('학교 관리 권한이 없습니다.'),{status:403});
+      if(user.id!==OWNER||!ownerSchool)throw Object.assign(new Error('학교 관리 권한이 없습니다.'),{status:403});
     }},
   };
   const module={exports:{}};
@@ -77,7 +78,7 @@ test('함께 보는 선생님은 학교 담당자가 아니어도 제출물을 �
   assert.equal(r.result.viewOnly,true);
   assert.equal(r.result.manageable,false);
   assert.equal(r.result.posts.length,1);
-  assert.deepEqual(r.schoolChecks,[],'넘겨받은 수업이라 학교 확인을 다시 하지 않는다');
+  assert.deepEqual(r.schoolChecks,[OWNER],'보는 사람이 아니라 넘겨준 선생님의 학교 권한을 확인한다');
 });
 
 test('목록에 없는 선생님은 여전히 못 본다',async()=>{
@@ -138,11 +139,31 @@ test('함께 보는 선생님의 내 수업 목록에 그 수업이 함께 보�
   const r=await call('GET','/api/my-boards',{userId:VIEWER});
   assert.equal(r.status,200);
   assert.deepEqual(r.result.boards.map(b=>[b.id,b.shared,b.mine]),[[16,true,false]]);
-  assert.deepEqual(r.schoolChecks,[],'넘겨받은 수업은 학교 확인으로 빠지지 않는다');
+  assert.ok(!r.schoolChecks.includes(VIEWER),'보는 사람에게 학교 담당을 요구하지 않는다');
   const stranger=await call('GET','/api/my-boards',{userId:STRANGER});
   assert.deepEqual(stranger.result.boards,[]);
 });
 
 test('수업을 지울 때 함께 보기 설정도 지운다',()=>{
   assert.match(source,/\[`sb:config:\$\{id\}`, `sb:viewers:\$\{id\}`\]/);
+});
+
+test('넘겨준 선생님이 쉬는 계정이 되거나 학교 권한을 잃으면 함께 보기도 멈춘다',async()=>{
+  for(const opts of [{ownerActive:false},{ownerSchool:false}]) {
+    for(const path of ['/api/boards/16/posts','/api/boards/16/download-all','/api/posts/21/download']) {
+      const r=await call('GET',path,{userId:VIEWER,...opts});
+      assert.equal(r.status,403,`${JSON.stringify(opts)} ${path}`);
+      assert.equal(r.signed,0);
+    }
+    const list=await call('GET','/api/my-boards',{userId:VIEWER,...opts});
+    assert.deepEqual(list.result.boards,[],`${JSON.stringify(opts)} 내 수업 목록에서도 빠진다`);
+  }
+});
+
+test('학교 권한을 잃은 선생님도 함께 보기를 거둘(빼기) 수 있다',async()=>{
+  const r=await call('DELETE',`/api/boards/16/viewers/${VIEWER}`,{ownerSchool:false});
+  assert.equal(r.status,200);
+  assert.deepEqual(r.deletes,['sb:viewers:16']);
+  const add=await call('POST','/api/boards/16/viewers',{ownerSchool:false,viewers:[],body:{username:'homeroom'}});
+  assert.equal(add.status,403,'더하기는 여전히 학교 권한이 있어야 한다');
 });

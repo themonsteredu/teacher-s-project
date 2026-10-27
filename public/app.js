@@ -1098,8 +1098,8 @@ function galleryItems(posts) {
 function photoGalleryHtml(posts) {
   const items = galleryItems(posts);
   const docs = posts.reduce((n, p) => n + postFiles(p).filter((f) => !f.previewUrl).length, 0);
-  if (!items.length) return `<p class="empty-note">아직 사진이 없습니다.${docs ? ` 문서 파일 ${docs}개는 시간순·학생별 보기에서 받으세요.` : ''}</p>`;
-  return `<div class="sb-gallery">${items.map((it, i) => `<figure class="sbg-item"><button type="button" class="sbg-open" data-gallery="${i}" aria-label="${esc(it.label)} 크게 보기"><img src="${esc(it.src)}" alt="" loading="lazy"></button><figcaption>${esc(it.label)}</figcaption></figure>`).join('')}</div>${docs ? `<p class="small muted">문서 파일 ${docs}개는 시간순·학생별 보기에서 받으세요.</p>` : ''}`;
+  if (!items.length) return `<p class="empty-note">아직 사진이 없습니다.${docs ? ` 문서 파일 ${docs}개는 이름별·올린 순서 보기에서 받으세요.` : ''}</p>`;
+  return `<div class="sb-gallery">${items.map((it, i) => `<figure class="sbg-item"><button type="button" class="sbg-open" data-gallery="${i}" aria-label="${esc(it.label)} 크게 보기"><img src="${esc(it.src)}" alt="" loading="lazy"></button><figcaption>${esc(it.label)}</figcaption></figure>`).join('')}</div>${docs ? `<p class="small muted">문서 파일 ${docs}개는 이름별·올린 순서 보기에서 받으세요.</p>` : ''}`;
 }
 function boardPostsHtml(data, mode) {
   if (mode === 'photo') return photoGalleryHtml(data.posts);
@@ -1284,14 +1284,19 @@ route(/^#\/myclass$/, async () => {
     const hay = `${b.title} ${b.programTitle} ${b.code} ${b.teacherName || ''}`.toLowerCase();
     return hay.includes(search);
   });
-  const title = showOwner ? '전체 수업' : '내 수업';
+  // 관리자 문구는 관리자에게만. 교사 목록에 남의 수업이 있다면 함께 보기로 받은 것뿐이다.
+  const adminView = isAdmin() && showOwner;
+  const hasShared = boards.some((b) => b.shared);
+  const title = adminView ? '전체 수업' : '내 수업';
   shell(title, `
     <div class="page-head">
       <div>
         <div class="ph-t">${title}</div>
-        <div class="desc">${showOwner
+        <div class="desc">${adminView
           ? '관리자에게는 모든 선생님의 수업이 보입니다. 어느 수업이든 열어서 그대로 진행할 수 있습니다.'
-          : '날짜·주제별로 수업을 여러 개 열고, 반마다 자료를 고르고 학생 활동을 모읍니다.'}</div>
+          : hasShared
+            ? '날짜·주제별로 수업을 여러 개 열고, 반마다 자료를 고르고 학생 활동을 모읍니다. 함께 보기로 받은 수업은 아이들이 낸 것을 보고, 받고, 인쇄할 수 있어요.'
+            : '날짜·주제별로 수업을 여러 개 열고, 반마다 자료를 고르고 학생 활동을 모읍니다.'}</div>
       </div>
       <div><button class="btn btn-primary btn-sm" id="mc-new">${icon('plus')} 새 수업 열기</button></div>
     </div>
