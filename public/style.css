@@ -1136,20 +1136,21 @@ body { background: var(--bg); }
 .sb-sub { font-size: 13px; color: var(--text-3); font-weight: 600; margin-top: 3px; }
 .sb-form { margin-bottom: 20px; }
 /* 패들렛식 벽돌쌓기(masonry) — 카드가 내용 높이에 맞춰 흐르듯 쌓임 */
-.sb-grid { columns: 250px; column-gap: 14px; }
-.sb-grid > .empty-note { column-span: all; }
+/* 줄을 맞춘 바둑판(왼쪽→오른쪽으로 읽힌다). 예전 신문 단(columns)은 위→아래로 흘러 순서가 뒤섞여 보였다 */
+.sb-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 250px), 1fr)); gap: 14px; align-items: start; }
+.sb-grid > .empty-note { grid-column: 1 / -1; }
 .post-card {
   background: #fff; border: 1px solid var(--line); border-radius: 16px;
   padding: 13px 15px; box-shadow: var(--shadow-sm);
   display: flex; flex-direction: column; gap: 9px;
-  break-inside: avoid; margin-bottom: 14px; /* masonry: 카드 중간 잘림 방지 */
+  break-inside: avoid; /* 칸 사이는 .sb-grid 의 gap */
 }
 .post-card.is-hidden { opacity: .55; border-style: dashed; }
 .post-card .pc-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
 .post-card .pc-name { font-weight: 800; font-size: 13.5px; }
 .post-card .pc-time { font-size: 11px; color: var(--text-3); white-space: nowrap; }
 /* 작품 미리보기: 원본 비율 그대로 표시(크롭 없음), 클릭하면 확대 */
-.post-card .pc-img { width: 100%; border-radius: 10px; display: block; cursor: zoom-in; }
+.post-card .pc-img { width: 100%; border-radius: 10px; display: block; cursor: zoom-in; aspect-ratio: 4 / 3; object-fit: contain; background: #f6f9f8; }
 
 /* 작품 확대 라이트박스 */
 .img-lightbox {
@@ -1319,3 +1320,17 @@ body { background: var(--bg); }
   font-size: 34px; font-weight: 900; line-height: 1; cursor: pointer;
 }
 .gallery-lightbox .gl-nav:disabled { opacity: .3; cursor: default; }
+
+/* 함께 보는 선생님 */
+.bv-viewonly { background: var(--teal-50, #e8f7f4); border-color: #bfe6dd; line-height: 1.7; word-break: keep-all; }
+#viewer-card .vc-list { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+#viewer-card .vc-remove { border: 0; background: transparent; cursor: pointer; font-weight: 800; color: var(--text-2); padding: 0 2px; }
+#viewer-card .vc-add { display: flex; gap: 8px; flex-wrap: wrap; }
+#viewer-card .vc-add .input { flex: 1 1 200px; min-width: 0; }
+
+/* 이름별 보기: 아이마다 한 칸, 줄 맞춘 바둑판 */
+.sb-students { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 270px), 1fr)); gap: 18px 16px; align-items: start; }
+.sb-students .sb-student { margin: 0; }
+.sb-students .sb-grid { grid-template-columns: 1fr; }
+/* hidden 속성이 붙은 단추는 .btn 의 display 보다 앞서 숨긴다 */
+.btn[hidden] { display: none !important; }

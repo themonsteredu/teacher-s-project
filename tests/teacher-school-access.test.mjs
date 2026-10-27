@@ -33,6 +33,7 @@ async function call(method,path,{bound=true,allowed=false,role='teacher',account
       // 쓰기 판정을 먼저 한다 — DELETE 의 하위 SELECT 가 아래 조회 분기에 먼저 걸리면
       // 그 쓰기가 기록되지 않는다.
       if(/^(UPDATE|DELETE|INSERT)/.test(sql)){effects.mutations.push(sql);return [];}
+      if(sql.includes("LIKE 'sb:viewers:%'"))return []; // 함께 보기로 받은 수업 없음
       if(sql.startsWith('SELECT id FROM boards WHERE program_id='))return [board];
       if(sql.includes('FROM boards b'))return [board,legacy];
       if(sql.startsWith('SELECT board_id, student_name')){effects.nameQueries.push(args[0]);return [];}

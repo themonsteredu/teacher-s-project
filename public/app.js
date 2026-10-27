@@ -1009,7 +1009,7 @@ function postCardHtml(p, { forTeacher = false, manageable = false } = {}) {
     ? `<div class="pc-photos${photos.length > 1 ? ' is-many' : ''}">${photos.map((f) => `<img class="pc-img" src="${esc(f.previewUrl)}" alt="" loading="lazy">`).join('')}${photos.length > 1 ? `<span class="pc-count">사진 ${photos.length}장</span>` : ''}</div>` : '';
   const fileChip = docs.length ? `<div class="pc-file">📄 ${esc(docs[0].name)}${docs.length > 1 ? ` 외 ${docs.length - 1}개` : ''}</div>` : '';
   return `
-    <div class="post-card ${p.hidden ? 'is-hidden' : ''}">
+    <div class="post-card ${p.hidden && !p.submission ? 'is-hidden' : ''}">
       <div class="pc-head"><span class="pc-name">${esc(p.student_name)}</span><span class="pc-time">${esc(String(p.created_at).slice(5, 16))}</span></div>
       ${gallery}
       ${p.submission ? `<div class="pc-body"><small>${esc(p.sessionTitle)}</small><h3>${esc(p.title)}</h3><span class="badge green">제출 완료</span> <span class="small muted">활동 기록 미연결</span></div>` : ''}
@@ -1116,7 +1116,8 @@ function boardPostsHtml(data, mode) {
       ${g.posts.length ? `<div class="sb-grid">${g.posts.map((p) => postCardHtml(p, options)).join('')}</div>` : ''}
     </section>`;
   };
-  return list.map(section).join('') + missing.map(section).join('');
+  // 아이마다 한 칸씩 바둑판으로(한 줄에 서너 명). 예전처럼 아이마다 화면 한 줄을 다 쓰면 너무 길었다.
+  return `<div class="sb-students">${list.map(section).join('') + missing.map(section).join('')}</div>`;
 }
 
 function careerMaterialUrl(link, code, studentId, sessionId = '') {
@@ -1234,7 +1235,9 @@ route(/^#\/myclass$/, async () => {
   let search = '';
   const ownerBadge = (b) => (b.mine
     ? '<span class="badge teal">내 수업</span>'
-    : `<span class="badge gray">담당 ${esc(b.teacherName || '알 수 없음')}</span>`);
+    : b.shared
+      ? `<span class="badge teal">함께 보기</span> <span class="badge gray">담당 ${esc(b.teacherName || '알 수 없음')}</span>`
+      : `<span class="badge gray">담당 ${esc(b.teacherName || '알 수 없음')}</span>`);
   const card = (b) => `
     <div class="class-card ${b.isOpen ? '' : 'closed'}">
       <div class="cc-top">
@@ -1248,8 +1251,8 @@ route(/^#\/myclass$/, async () => {
       <div class="cc-actions">
         <a class="btn btn-primary btn-sm" href="#/boardview/${b.id}">${icon('monitor')} 수업 열기</a>
         <a class="btn btn-ghost btn-sm" href="#/program/${b.programId}">프로그램</a>
-        <button class="btn btn-ghost btn-sm" data-edit-board="${b.id}" data-title="${esc(b.title)}" title="수업 이름 바꾸기">${icon('edit')} 이름 수정</button>
-        <button class="btn btn-ghost btn-sm cc-del" data-del-board="${b.id}" data-title="${esc(b.title)}" title="수업 삭제">${icon('trash')}</button>
+        ${b.shared ? '' : `<button class="btn btn-ghost btn-sm" data-edit-board="${b.id}" data-title="${esc(b.title)}" title="수업 이름 바꾸기">${icon('edit')} 이름 수정</button>
+        <button class="btn btn-ghost btn-sm cc-del" data-del-board="${b.id}" data-title="${esc(b.title)}" title="수업 삭제">${icon('trash')}</button>`}
       </div>
     </div>`;
   // 날짜별 그룹 (최신 날짜 먼저, 날짜 미정은 맨 아래)
@@ -1442,18 +1445,21 @@ route(/^#\/boardview\/(\d+)$/, async (id) => {
   const b = data.board;
   // 제출물이 있으면 아이들 것을 먼저 보여 준다. 예전에는 참여 코드·제출 설정·수업자료 카드
   // 아래(한 화면 넘게 내려가야) 있어서, 수업 뒤 결과를 보러 온 선생님이 매번 한참 내려야 했다.
+  // 함께 보는 선생님(담임 등)은 보기·받기·인쇄만 한다
+  const canSee = data.manageable || data.viewOnly;
   const manageBlock = data.manageable ? `
+    <div class="card" id="viewer-card"><div class="small muted">함께 보는 선생님 불러오는 중…</div></div>
     <div class="card" id="submission-settings-card">차시별 제출 설정을 불러오는 중…</div>
     <div class="card" id="share-card"><div class="small muted">수업자료 불러오는 중…</div></div>` : '';
   const postsBlock = `
     <section class="sb-posts-section" aria-label="학생 제출물">
       <div class="sb-viewbar">
         <div class="sb-tabs" role="group" aria-label="제출물 보기 방식">
+          <button data-postview="student" aria-pressed="false">이름별</button>
           <button data-postview="photo" aria-pressed="false">사진 크게</button>
-          <button data-postview="time" aria-pressed="false">시간순</button>
-          <button data-postview="student" aria-pressed="false">학생별</button>
+          <button data-postview="time" aria-pressed="false">올린 순서</button>
         </div>
-        ${data.manageable && data.hasFiles ? `<button class="btn btn-soft btn-sm" id="board-zip" hidden>${icon('download')} 이 차시만 받기(ZIP)</button>` : ''}
+        ${canSee && data.hasFiles ? `<button class="btn btn-soft btn-sm" id="board-zip" hidden>${icon('download')} 이 차시만 받기(ZIP)</button>` : ''}
         <span class="small muted" id="sb-viewnote"></span>
       </div>
       <div class="sb-lessons" id="sb-lessons" role="group" aria-label="차시 고르기"></div>
@@ -1466,8 +1472,8 @@ route(/^#\/boardview\/(\d+)$/, async (id) => {
         <div class="desc">${esc(data.program.title)} · 게시물 ${data.posts.length}개 ${b.isOpen ? '· 마감하면 학생 제출·열람이 즉시 중단됩니다' : '· 결과물은 계속 보관됩니다'}</div>
       </div>
       <div style="display:flex;gap:8px;flex-wrap:wrap">
-        ${data.manageable && data.hasFiles ? `<button class="btn btn-soft btn-sm" id="board-print">${icon('fileText')} 사진 모아 인쇄</button>` : ''}
-        ${data.manageable && data.hasFiles ? `<button class="btn btn-soft btn-sm" id="board-dlall">${icon('download')} 전체 다운로드</button>` : ''}
+        ${canSee && data.hasFiles ? `<button class="btn btn-soft btn-sm" id="board-print">${icon('fileText')} 사진 모아 인쇄</button>` : ''}
+        ${canSee && data.hasFiles ? `<button class="btn btn-soft btn-sm" id="board-dlall">${icon('download')} 전체 다운로드</button>` : ''}
         ${data.manageable ? `<button class="btn ${b.isOpen ? 'btn-danger' : 'btn-primary'} btn-sm" id="board-toggle">${b.isOpen ? '마감하기' : '다시 열기'}</button>` : ''}
         ${data.manageable ? `<button class="btn btn-danger btn-sm" id="board-del">${icon('trash')} 수업 삭제</button>` : ''}
         <a class="btn btn-ghost btn-sm" href="#/program/${data.program.id}">← 프로그램</a>
@@ -1490,13 +1496,15 @@ route(/^#\/boardview\/(\d+)$/, async (id) => {
       </div>
       <div class="small muted" style="line-height:1.8">학생은 사이트 첫 화면의 <b>[학생 참여]</b> 탭에서<br>이 코드를 입력하면 됩니다. 학교 연결 수업은 학생 로그인이 필요합니다.</div>
     </div>` : ''}
+    ${data.viewOnly ? '<div class="card bv-viewonly small">함께 보기로 받은 수업이에요. 아이들이 낸 것을 보고, 받고, 인쇄할 수 있어요. 공개·삭제·설정은 수업을 연 선생님이 해요.</div>' : ''}
     ${data.manageable ? rosterCardHtml(data.roster) : ''}
     ${data.posts.length ? postsBlock + manageBlock : manageBlock + postsBlock}`);
 
   // 수업 중에는 시간순, 수업이 끝난 뒤 한 학생 것을 모아 볼 때는 학생별, 그림만 훑어볼 때는 사진 크게.
   // 고른 방식은 이 브라우저에 남겨 다음에 열 때도 같은 화면으로 연다. 고른 차시는 이 화면에서만.
-  let postView = 'time';
-  try { const saved = localStorage.getItem('moakit:boardview'); if (saved === 'student' || saved === 'photo') postView = saved; } catch {}
+  // 처음에는 이름별(가나다순으로 한 아이 것을 모아)로 연다. 고른 적이 있으면 그 보기로.
+  let postView = 'student';
+  try { const saved = localStorage.getItem('moakit:boardview'); if (saved === 'time' || saved === 'photo' || saved === 'student') postView = saved; } catch {}
   const lessons = postLessons(data.posts);
   let lesson = null;
   const shown = () => ({ ...data, posts: postsOfLesson(data.posts, lesson) });
@@ -1518,9 +1526,9 @@ route(/^#\/boardview\/(\d+)$/, async (id) => {
     const view = shown();
     document.getElementById('sb-posts').innerHTML = boardPostsHtml(view, postView);
     document.getElementById('sb-viewnote').textContent = postView === 'student'
-      ? '한 학생이 낸 것을 모아서 봐요. 같은 학생인지는 학생 계정으로 가려냅니다.'
+      ? '가나다순으로, 한 아이가 낸 것을 모아서 봐요.'
       : postView === 'photo'
-        ? '이름순이에요. 사진을 누르면 크게 보고, 화살표로 다음 아이 것을 봐요.'
+        ? '가나다순이에요. 사진을 누르면 크게 보고, 화살표로 다음 아이 것을 봐요.'
         : '가장 최근에 낸 것이 먼저 나와요.';
     if (postView === 'photo') {
       const items = galleryItems(view.posts);
@@ -1591,11 +1599,50 @@ route(/^#\/boardview\/(\d+)$/, async (id) => {
   if (zipBtn) zipBtn.onclick = () => downloadZip(id, zipBtn, shown().posts, [b.title, lesson].filter(Boolean).join('_'));
 
   // 학생에게 보여줄 수업자료 고르기 (보드 관리자만)
+  const viewerCard = document.getElementById('viewer-card');
+  if (viewerCard) loadViewerCard(viewerCard, id);
   const shareCard = document.getElementById('share-card');
   if (shareCard) loadShareCard(shareCard, id);
   const submissionSettings = document.getElementById('submission-settings-card');
   if (submissionSettings) loadSubmissionSettings(submissionSettings, id);
 });
+
+// 함께 보는 선생님 — 담임선생님처럼 다른 선생님 계정이 이 수업 제출물을 보고·받고·인쇄하게 한다.
+function viewerCardHtml(viewers) {
+  const list = viewers.length
+    ? `<div class="vc-list">${viewers.map((v) => `<span class="name-chip done">${esc(v.name)} <small class="muted">${esc(v.username)}</small> <button class="vc-remove" data-viewer-remove="${v.id}" aria-label="${esc(v.name)} 빼기">✕</button></span>`).join('')}</div>`
+    : '<div class="small muted">아직 없어요.</div>';
+  return `<h2 style="margin:0 0 4px">함께 보는 선생님</h2>
+    <div class="small muted" style="margin-bottom:10px">담임선생님 같은 다른 선생님이 자기 모아허브 계정으로 이 수업의 아이들 제출물을 보고, 받고, 인쇄할 수 있어요. 공개·삭제·설정은 못 해요.</div>
+    ${list}
+    <form class="vc-add" id="viewer-add">
+      <input class="input" id="viewer-username" placeholder="선생님 모아허브 아이디" autocomplete="off" maxlength="60">
+      <button class="btn btn-primary btn-sm" type="submit">더하기</button>
+    </form>
+    <div class="msg" id="viewer-msg"></div>`;
+}
+async function loadViewerCard(el, boardId) {
+  const draw = (viewers) => {
+    el.innerHTML = viewerCardHtml(viewers);
+    const msg = el.querySelector('#viewer-msg');
+    const fail = (e) => { if (!e.handled) { msg.textContent = e.message; msg.className = 'msg err'; } };
+    el.querySelector('#viewer-add').onsubmit = async (e) => {
+      e.preventDefault();
+      const username = el.querySelector('#viewer-username').value.trim();
+      if (!username) return;
+      try { draw((await api('POST', `/api/boards/${boardId}/viewers`, { username })).viewers); toast('함께 보는 선생님을 더했어요. 그 선생님의 [내 수업]에 이 수업이 보여요.'); }
+      catch (err) { fail(err); }
+    };
+    el.querySelectorAll('[data-viewer-remove]').forEach((b) => {
+      b.onclick = async () => {
+        try { draw((await api('DELETE', `/api/boards/${boardId}/viewers/${b.dataset.viewerRemove}`)).viewers); }
+        catch (err) { fail(err); }
+      };
+    });
+  };
+  try { draw((await api('GET', `/api/boards/${boardId}/viewers`)).viewers); }
+  catch (e) { el.innerHTML = `<div class="small muted">${esc(e.message)}</div>`; }
+}
 
 const KIND_TAG = { link: '🔗 링크', aiapp: '🖥 웹앱', video: '▶ 영상' };
 async function loadShareCard(el, boardId) {
