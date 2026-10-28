@@ -145,7 +145,7 @@ test('함께 보는 선생님의 내 수업 목록에 그 수업이 함께 보�
 });
 
 test('수업을 지울 때 함께 보기 설정도 지운다',()=>{
-  assert.match(source,/\[`sb:config:\$\{id\}`, `sb:viewers:\$\{id\}`\]/);
+  assert.match(source,/\[`sb:config:\$\{id\}`, `sb:viewers:\$\{id\}`[,\]]/);
 });
 
 test('넘겨준 선생님이 쉬는 계정이 되거나 학교 권한을 잃으면 함께 보기도 멈춘다',async()=>{
