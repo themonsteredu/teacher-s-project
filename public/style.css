@@ -1398,3 +1398,96 @@ body { background: var(--bg); }
   .tool-line .dl-left { flex-basis: 100%; }
   .tool-line .dl-actions { width: 100%; justify-content: flex-end; }
 }
+
+/* 반 개설 — 반 먼저, 과정·도구는 나중에 (#/myclass 반 카드 · #/class/:id · 아이들 반 코드 화면) */
+.kc-group { background: var(--card); border: 1px solid var(--line); border-radius: var(--r-lg); padding: 14px; }
+.kc-group.is-closed { background: var(--bg); }
+.kc-top { display: flex; align-items: center; justify-content: space-between; gap: 8px 12px; flex-wrap: wrap; padding-bottom: 10px; margin-bottom: 10px; border-bottom: 1px solid var(--line); }
+.kc-head { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; margin: 0; font-size: 16px; font-weight: 800; word-break: keep-all; overflow-wrap: anywhere; }
+.kc-head svg { width: 16px; height: 16px; color: var(--text-2); flex: none; }
+.kc-sum { display: flex; align-items: center; gap: 6px 10px; flex-wrap: wrap; font-size: 12.5px; color: var(--text-2); word-break: keep-all; }
+.kc-legacyhint { margin-top: 10px; }
+.kc-make { margin-left: auto; }
+.kc-warn { background: var(--amber-50); color: var(--text); margin-bottom: 14px; line-height: 1.6; word-break: keep-all; }
+.kc-back { display: inline-block; margin-bottom: 8px; color: var(--text-2); font-weight: 700; text-decoration: none; }
+.kc-back:hover { color: var(--text); text-decoration: underline; }
+.kc-title { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; word-break: keep-all; overflow-wrap: anywhere; }
+.kc-codepanel { display: flex; align-items: center; justify-content: space-between; gap: 14px 24px; flex-wrap: wrap; margin-bottom: 18px; }
+.kc-codehint { font-size: 14px; font-weight: 800; color: var(--text-2); word-break: keep-all; }
+.kc-codeside { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; max-width: 320px; line-height: 1.6; word-break: keep-all; }
+.kc-closednote { margin-top: 6px; color: var(--red-600); line-height: 1.6; word-break: keep-all; }
+.kc-cards { display: flex; flex-direction: column; gap: 16px; }
+.kc-sec h2 { font-size: 16px; font-weight: 800; margin: 0; word-break: keep-all; }
+.kc-sechead { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+.kc-small-code { font-variant-numeric: tabular-nums; letter-spacing: 1px; }
+.kc-tools { list-style: none; display: flex; flex-direction: column; }
+.kc-tool { display: flex; align-items: center; gap: 10px 12px; flex-wrap: wrap; padding: 10px 0; border-bottom: 1px solid var(--line); }
+.kc-tool:last-child { border-bottom: none; }
+.kc-tool .dl-ico svg { width: 18px; height: 18px; }
+.kc-tool-main { flex: 1 1 180px; min-width: 0; }
+.kc-tool-t { font-weight: 800; word-break: keep-all; overflow-wrap: anywhere; }
+.kc-note { line-height: 1.6; word-break: keep-all; margin: 0 0 10px; }
+.kc-infobtns { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 8px; }
+.kc-infobtns .btn:disabled { opacity: .55; cursor: not-allowed; }
+.kc-codeinput { text-transform: uppercase; letter-spacing: 2px; font-weight: 700; }
+.kc-form textarea { resize: vertical; }
+.kc-find { display: block; margin-bottom: 10px; }
+.kc-find input { width: 100%; padding: 10px 13px; border: 1px solid var(--line-strong); border-radius: 10px; font: inherit; }
+.kc-pick-list { display: flex; flex-direction: column; gap: 8px; max-height: 52vh; overflow-y: auto; }
+.kc-pick {
+  display: flex; align-items: center; gap: 10px; width: 100%; min-height: 48px; padding: 10px 12px; text-align: left;
+  background: var(--card); color: var(--text); border: 1px solid var(--line-strong); border-radius: var(--r-md); font: inherit;
+}
+.kc-pick[hidden] { display: none; }
+.kc-pick:hover:not(:disabled) { border-color: var(--blue-500); background: var(--blue-50); }
+.kc-pick:focus-visible { outline: 3px solid var(--blue-500); outline-offset: 2px; }
+.kc-pick:disabled { background: var(--bg); cursor: not-allowed; }
+.kc-pick-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; word-break: keep-all; overflow-wrap: anywhere; }
+.kc-pick-main .badge { align-self: flex-start; }
+.kc-pick-desc { line-height: 1.5; }
+.kc-pick-go { flex: none; font-size: 12.5px; font-weight: 700; color: var(--blue-600); }
+.kc-check { flex: none; width: 24px; height: 24px; border: 2px solid var(--line-strong); border-radius: 7px; display: flex; align-items: center; justify-content: center; font-weight: 900; }
+.kc-toggle[aria-pressed="true"] { border-color: var(--blue-600); background: var(--blue-50); }
+.kc-toggle[aria-pressed="true"] .kc-check { background: var(--blue-600); border-color: var(--blue-600); color: var(--card); }
+.kc-toggle[aria-pressed="true"] .kc-check::after { content: '✓'; }
+/* 참여 코드 크게 보기(칠판 투영) */
+.kc-bigcode {
+  position: fixed; inset: 0; z-index: 300; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px;
+  padding: 24px; background: var(--navy-900); color: var(--card); text-align: center; cursor: pointer;
+}
+.kc-big-label { font-size: clamp(20px, 4vw, 40px); font-weight: 800; word-break: keep-all; overflow-wrap: anywhere; }
+.kc-big-code { font-size: clamp(64px, 18vw, 240px); font-weight: 900; letter-spacing: .12em; line-height: 1; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.kc-big-help { font-size: clamp(15px, 2.4vw, 26px); line-height: 1.6; word-break: keep-all; }
+.kc-big-close { margin-top: 10px; min-height: 44px; padding: 10px 20px; border: 2px solid var(--card); border-radius: 999px; background: transparent; color: var(--card); font-size: 16px; font-weight: 700; }
+.kc-big-close:focus-visible { outline: 3px solid var(--blue-500); outline-offset: 3px; }
+/* 아이들 반 코드 화면: 크게 누를 수 있는 카드 */
+.kcl { max-width: 880px; margin: 0 auto; padding: 32px 16px 48px; }
+.kcl-head { text-align: center; margin-bottom: 24px; }
+.kcl-brand { font-size: 13px; font-weight: 800; color: var(--blue-600); letter-spacing: .02em; }
+.kcl-head h1 { margin: 8px 0 6px; font-size: clamp(26px, 6vw, 40px); line-height: 1.3; word-break: keep-all; text-wrap: balance; overflow-wrap: anywhere; }
+.kcl-head p { color: var(--text-2); font-size: 16px; word-break: keep-all; }
+.kcl-sec { margin-bottom: 26px; }
+.kcl-sec h2 { font-size: 18px; font-weight: 800; margin: 0 0 12px; word-break: keep-all; }
+.kcl-grid { list-style: none; display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; }
+.kcl-card {
+  display: flex; flex-direction: column; gap: 8px; height: 100%; min-height: 120px; padding: 18px;
+  background: var(--card); color: var(--text); border: 2px solid var(--line-strong); border-radius: var(--r-lg);
+  text-decoration: none; box-shadow: var(--shadow-sm);
+}
+.kcl-card:hover { border-color: var(--blue-500); background: var(--blue-50); }
+.kcl-card:focus-visible { outline: 4px solid var(--blue-500); outline-offset: 3px; }
+.kcl-mark { font-size: 30px; line-height: 1; }
+.kcl-title { font-size: 19px; line-height: 1.4; word-break: keep-all; overflow-wrap: anywhere; }
+.kcl-go { margin-top: auto; font-size: 15px; font-weight: 800; color: var(--blue-600); }
+.kcl-empty { margin: 20px 0 28px; padding: 22px 16px; text-align: center; font-size: 17px; line-height: 1.7; color: var(--text-2); background: var(--card); border: 1px dashed var(--line-strong); border-radius: var(--r-lg); word-break: keep-all; }
+.kcl-foot { display: flex; justify-content: center; }
+@media (max-width: 560px) {
+  .kc-top { align-items: flex-start; }
+  .kc-sum .btn-primary { flex: 1 1 100%; justify-content: center; }
+  .kc-codepanel .sb-code { letter-spacing: 8px; }
+  .kc-codeside { max-width: none; width: 100%; }
+  .kc-codeside .btn { width: 100%; justify-content: center; }
+  .kcl-grid { grid-template-columns: 1fr; }
+  .kcl-card { min-height: 96px; }
+}
+@media (prefers-reduced-motion: reduce) { .kc-pick, .kcl-card { transition: none; } }

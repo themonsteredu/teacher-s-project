@@ -48,3 +48,8 @@
 .sc-photo-count{position:absolute;right:6px;top:6px;display:flex;align-items:center;gap:4px;background:rgba(3,74,78,.88);color:#fff;border-radius:20px;font-size:11px;padding:4px 9px;pointer-events:none}
 .sc-photo-count .ic{width:13px;height:13px}
 .sc-selected+.sc-selected{margin-top:6px}
+
+/* 반 코드 화면에서 들어온 과정: 반 목록으로 돌아가기 */
+.sc-classback{display:inline-flex;align-items:center;min-height:36px;margin-bottom:8px;padding:6px 12px;border:1px solid var(--sc-line);border-radius:999px;color:var(--sc-teal);font-weight:700;font-size:14px;text-decoration:none;word-break:keep-all}
+.sc-classback:hover{background:var(--sc-line)}
+.sc-classback:focus-visible{outline:3px solid var(--sc-teal);outline-offset:2px}

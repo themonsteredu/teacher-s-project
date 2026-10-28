@@ -215,7 +215,7 @@ function menuItems() {
 function activeMenuHref(hash = location.hash || '#/') {
   const section = hash.split('/')[1];
   if (section === 'program') return '#/';
-  if (section === 'boardview') return '#/myclass';
+  if (section === 'boardview' || section === 'class') return '#/myclass';
   if (section === 'resources') return '#/manage';
   if (section === 'password') return '#/settings';
   return section ? `#/${section}` : '#/';
@@ -1225,6 +1225,14 @@ route(/^#\/board\/([A-Za-z0-9]{4,10})$/, async (code) => {
   try { data = await api('GET', `/api/join-board/${code}`); }
   catch (e) {
     if (e.handled) return; // site_closed → 폐쇄 화면이 이미 렌더됨
+    // 과정(수업) 코드가 아니면 반 코드일 수 있다 — 반 개설 뒤로 아이들은 반 코드 하나로 들어온다.
+    // 과정 코드를 먼저 보므로 이미 뿌린 예전 코드는 그대로 산다. 로그인이 필요한 수업(401)은 반으로 넘기지 않는다.
+    if (e.status === 403 || e.status === 404) {
+      let cls = null;
+      try { cls = await api('GET', `/api/join-class/${code}`); }
+      catch (e2) { if (e2.handled) return; }
+      if (cls && cls.class) { renderClassLanding(code, cls); return; }
+    }
     $app.innerHTML = `
       <div class="login-wrap"><div class="login-card" style="text-align:center">
         <div class="lmark">수업</div>
@@ -1340,6 +1348,135 @@ function boardInSchoolChip(b, chipId) {
 }
 /* ---- 반별로 묶기 끝 ---- */
 
+/* ---- 반 먼저 (#/myclass · #/class/:id · 아이들 반 코드 화면) ----
+ * 원장님 결정: 수업 열기는 프로그램 고르기가 아니라 반 개설(학교·학년·반)부터 한다.
+ * 반(settings sb:cls:<id>)을 만든 뒤 그 반이 쓸 과정(프로그램마다 연 수업)과 도구함 도구를 넣고,
+ * 아이들은 반 코드 하나로 들어와 과정·도구 목록에서 골라 시작한다.
+ * 과정 = 보드의 sb:class 에 classId 가 붙은 것. 반 개설 전에 연 수업(classId 없음)은
+ * 학교|학년|반이 같은 반 카드 아래에 [반에 넣기]로 보인다 — 예전 과정 코드는 그대로 산다.
+ * DOM 을 쓰지 않는 함수만 여기 모은다 — tests/class-first-ui.test.mjs 가 이 구간을 떼어 시험한다. */
+// 반 이름: 서버가 준 label → 직접 붙인 이름 → '2학년 3반'
+function classNameOf(c) {
+  return String((c && (c.label || c.name)) || classRoomLabel(c) || '이름 없는 반');
+}
+// 머리 제목 '보성초 · 2학년 3반' — 학교가 없으면 반 이름만
+function classHeading(c) {
+  return [c && c.school, classNameOf(c)].filter(Boolean).join(' · ');
+}
+function classInfoKey(info) {
+  return hasClassInfo(info) ? `${info.school || ''}|${info.grade || ''}|${info.room || ''}` : '';
+}
+function compareClasses(a, b) {
+  const info = (c) => ({ school: c.school || '', grade: c.grade || null, room: c.room || '' });
+  return compareClassInfo(info(a), info(b)) || koCompare(classNameOf(a), classNameOf(b));
+}
+// 고칠 수 있는 줄이 하나라도 있어야 안내·묶음 단추를 보인다(함께 보기로 받은 수업만 있으면 눌러도 403 이다).
+function editableBoards(boards) { return boards.filter((b) => !b.shared); }
+function withEditFlags(g) {
+  const canEdit = editableBoards(g.boards).length > 0;
+  // 반 개설에는 학년·반·반 이름 중 하나가 있어야 한다(학교만으로는 반 이름이 안 나온다).
+  return { ...g, canEdit, canCreate: canEdit && !!(g.info && (g.info.grade || g.info.room)) };
+}
+// 반 카드 + 반으로 개설하지 않은 학교|학년|반 묶음 + 반 미지정(맨 뒤).
+// classes: GET /api/classes, boards: GET /api/my-boards 에서 담당·학교 고르기를 거친 것.
+// → { classes: [{ cls, curricula, legacy }], legacy: [{ key, info, label, boards, canEdit, canCreate }], unassigned: { boards, canEdit } | null }
+function groupClassesAndBoards(classes, boards) {
+  const list = [...classes].sort(compareClasses).map((cls) => ({ cls, curricula: [], legacy: [] }));
+  const byId = new Map(list.map((g) => [String(g.cls.id), g]));
+  const byKey = new Map();
+  for (const g of list) { const k = classInfoKey(g.cls); if (k && !byKey.has(k)) byKey.set(k, g); }
+  const rest = [];
+  for (const b of boards) {
+    const cid = b.classInfo && b.classInfo.classId;
+    const home = cid ? byId.get(String(cid)) : null;
+    if (home) { home.curricula.push(b); continue; }
+    // 반 개설 전에 연 수업(또는 이 화면에 없는 반의 수업)은 학교|학년|반이 같은 반 아래로
+    const match = byKey.get(classGroupKey(b));
+    if (match) match.legacy.push(b); else rest.push(b);
+  }
+  for (const g of list) { g.curricula.sort(compareClassRows); g.legacy.sort(compareClassRows); }
+  const groups = groupBoardsByClass(rest);
+  const none = groups.find((g) => !g.key);
+  return {
+    classes: list,
+    legacy: groups.filter((g) => g.key).map(withEditFlags),
+    unassigned: none ? withEditFlags({ ...none, info: null }) : null,
+  };
+}
+function classSearchText(c) {
+  return `${classHeading(c)} ${c.code || ''} ${c.ownerName || ''}`.toLowerCase();
+}
+function boardSearchText(b, cls) {
+  return `${b.title} ${b.programTitle} ${b.code} ${b.teacherName || ''} ${classLabel(b.classInfo)} ${cls ? classSearchText(cls) : ''}`.toLowerCase();
+}
+// 찾기: 반 이름·반 코드가 맞으면 그 반을 통째로, 아니면 맞는 수업만 남긴다.
+function searchClassGroups(grouped, search) {
+  if (!search) return grouped;
+  const hit = (b, cls) => boardSearchText(b, cls).includes(search);
+  const classes = grouped.classes.map((g) => (classSearchText(g.cls).includes(search) ? g
+    : { ...g, curricula: g.curricula.filter((b) => hit(b, g.cls)), legacy: g.legacy.filter((b) => hit(b, g.cls)) }))
+    .filter((g) => classSearchText(g.cls).includes(search) || g.curricula.length || g.legacy.length);
+  const legacy = grouped.legacy.map((g) => withEditFlags({ ...g, boards: g.boards.filter((b) => hit(b)) })).filter((g) => g.boards.length);
+  const left = grouped.unassigned ? grouped.unassigned.boards.filter((b) => hit(b)) : [];
+  return { classes, legacy, unassigned: left.length ? withEditFlags({ ...grouped.unassigned, boards: left }) : null };
+}
+function classGroupsBoardCount(grouped) {
+  return grouped.classes.reduce((n, g) => n + g.curricula.length + g.legacy.length, 0)
+    + grouped.legacy.reduce((n, g) => n + g.boards.length, 0) + (grouped.unassigned ? grouped.unassigned.boards.length : 0);
+}
+// 명단은 서버가 글자(한 줄에 한 명) 또는 배열로 줄 수 있다 — 고치기 칸에는 한 줄에 한 명으로.
+function rosterText(r) {
+  if (Array.isArray(r)) return r.map((x) => String(x ?? '')).join('\n');
+  return typeof r === 'string' ? r : '';
+}
+// 아이들 화면: 반 코드로 들어오면 그 반의 과정·도구를 큰 카드로(GET /api/join-class/:code).
+// 과정은 #/board/<과정 코드>, 웹사이트는 새 창 보통 링크, 도구함 웹앱은 반 코드로 확인하는 학생 경로로 연다.
+const BOARD_CODE_UI = /^[a-z0-9]{4,10}$/i;
+function classLandingCurricula(data) {
+  return ((data && data.curricula) || []).filter((c) => BOARD_CODE_UI.test(String(c && c.code || '')));
+}
+function classLandingTools(data) {
+  // 서버가 이미 검사한 주소지만 https 가 아닌 것은 링크로 만들지 않는다(javascript: 같은 주소 차단)
+  return ((data && data.tools) || []).filter((t) => (t && t.kind === 'site'
+    ? /^https:\/\//i.test(String(t.url || '')) : /^\d+$/.test(String(t && t.id))));
+}
+function classLandingHtml(code, data) {
+  const cls = (data && data.class) || {};
+  const curricula = classLandingCurricula(data);
+  const tools = classLandingTools(data);
+  const safeCode = String(code || '').toLowerCase();
+  const card = (href, mark, title, go, external) => `
+        <li><a class="kcl-card${external ? ' is-tool' : ''}" href="${esc(href)}"${external ? ' target="_blank" rel="noopener"' : ''}>
+          <span class="kcl-mark" aria-hidden="true">${mark}</span>
+          <b class="kcl-title">${esc(title)}</b>
+          <span class="kcl-go">${go}${external ? '<span class="mcg-sr"> (새 창)</span>' : ''}</span></a></li>`;
+  const curriculumCards = curricula.map((c) => card(`#/board/${String(c.code).toLowerCase()}`, '📘', c.title || '과정', '들어가기 →', false)).join('');
+  const toolCards = tools.map((t) => (t.kind === 'site'
+    ? card(t.url, '🔗', t.title || '웹사이트', '열기 ↗', true)
+    : card(`/api/join-class/${safeCode}/tool/${t.id}/open`, '🧩', t.title || '웹앱', '열기 ↗', true))).join('');
+  return `
+    <div class="kcl">
+      <header class="kcl-head">
+        <div class="kcl-brand">모아허브 · 우리 반</div>
+        <h1>${esc(classHeading(cls))}</h1>
+        <p>오늘 할 것을 골라 눌러 보세요.</p>
+      </header>
+      ${curricula.length || tools.length ? '' : '<p class="kcl-empty" role="status">아직 선생님이 과정을 넣지 않았어요.<br>조금 기다렸다가 다시 들어와 보세요.</p>'}
+      ${curricula.length ? `
+      <section class="kcl-sec" aria-labelledby="kcl-cur">
+        <h2 id="kcl-cur">배우는 과정</h2>
+        <ul class="kcl-grid">${curriculumCards}</ul>
+      </section>` : ''}
+      ${tools.length ? `
+      <section class="kcl-sec" aria-labelledby="kcl-tool">
+        <h2 id="kcl-tool">쓰는 도구</h2>
+        <ul class="kcl-grid">${toolCards}</ul>
+      </section>` : ''}
+      <div class="kcl-foot"><a class="btn btn-soft" href="#/login">다른 코드 넣기</a></div>
+    </div>`;
+}
+/* ---- 반 먼저 끝 ---- */
+
 // 새 수업·수업 정보 수정 모달이 함께 쓰는 학교·학년·반 칸. schools 는 내 수업에 이미 쓴 학교 이름(고르기 목록).
 let knownClassSchools = []; // 마지막으로 연 [내 수업]의 학교 이름 — 프로그램 화면의 '새 보드'도 같은 목록을 쓴다
 function lastClassSchool() { try { return localStorage.getItem('moakit:lastSchool') || ''; } catch { return ''; } }
@@ -1390,28 +1527,41 @@ function bindAutoTitleHint(root, prefix, programTitle, emptyText = '') {
 }
 
 route(/^#\/myclass$/, async () => {
-  const data = await api('GET', '/api/my-boards');
+  // 반 목록과 수업 목록을 함께 받는다. 반 목록만 실패하면(잠시 끊김 등) 수업은 예전처럼 반별로 보인다.
+  const [data, classData] = await Promise.all([
+    api('GET', '/api/my-boards'),
+    api('GET', '/api/classes').catch((e) => { if (e.handled) throw e; return { classes: [], failed: true }; }),
+  ]);
   const boards = data.boards;
+  const classes = classData.classes || [];
   const byId = new Map(boards.map((b) => [String(b.id), b]));
-  knownClassSchools = classSchools(boards);
-  // 관리자는 전 교사의 수업을 본다. 남의 반이 하나라도 섞여 있을 때만 담당 표시와
-  // 선생님별 고르기를 켠다 — 교사 화면은 자기 수업뿐이라 예전 그대로다.
+  const classById = new Map(classes.map((c) => [String(c.id), c]));
+  // 학교 칩·학교 고르기 목록은 반과 수업을 함께 본다 — 반만 만들고 과정이 아직 없어도 학교가 나오게
+  const classAsBoard = (c) => ({ classInfo: { school: c.school || '', grade: c.grade || null, room: c.room || '' } });
+  knownClassSchools = classSchools([...boards, ...classes.map(classAsBoard)]);
+  // 관리자는 전 교사의 수업·반을 본다. 남의 것이 하나라도 섞여 있을 때만 담당 표시와
+  // 선생님별 고르기를 켠다 — 교사 화면은 자기 것뿐이라 예전 그대로다.
   const others = boards.filter((b) => !b.mine);
-  const showOwner = others.length > 0;
-  const teachers = [...new Set(others.map((b) => b.teacherName || '(담당 없음)'))].sort((a, b) => a.localeCompare(b, 'ko'));
+  const otherClasses = classes.filter((c) => !c.mine);
+  const showOwner = others.length > 0 || otherClasses.length > 0;
+  const teacherOfBoard = (b) => b.teacherName || '(담당 없음)';
+  const teacherOfClass = (c) => c.ownerName || '(담당 없음)';
+  const teachers = [...new Set([...others.map(teacherOfBoard), ...otherClasses.map(teacherOfClass)])].sort((a, b) => a.localeCompare(b, 'ko'));
   let pickedTeacher = 'all';
   let search = '';
-  // 반별(기본): 한 반이 프로그램마다 연 수업을 그 반 아래 한 줄씩. 날짜별: 예전 날짜 묶음.
+  // 반별(기본): 반 카드 아래에 그 반의 과정. 날짜별: 예전 날짜 묶음.
   // 고른 보기는 이 브라우저에 남긴다. 학교 칩은 반별 보기에서만 걸린다.
   let view = 'class';
   try { if (localStorage.getItem('moakit:myclass') === 'date') view = 'date'; } catch {}
-  const schoolChips = classSchoolChips(boards);
+  const schoolChips = classSchoolChips([...boards, ...classes.map(classAsBoard)]);
   let pickedSchool = 'all';
+  let shown = { classes: [], legacy: [], unassigned: null }; // 마지막으로 그린 반별 묶음 — 단추가 번호로 찾는다
   const ownerBadge = (b) => (b.mine
     ? '<span class="badge teal">내 수업</span>'
     : b.shared
       ? `<span class="badge teal">함께 보기</span> <span class="badge gray">담당 ${esc(b.teacherName || '알 수 없음')}</span>`
       : `<span class="badge gray">담당 ${esc(b.teacherName || '알 수 없음')}</span>`);
+  const classOwnerBadge = (c) => (c.mine ? '<span class="badge teal">내 반</span>' : `<span class="badge gray">담당 ${esc(c.ownerName || '알 수 없음')}</span>`);
   const statusBadge = (b) => (b.isOpen ? '<span class="badge green">진행 중</span>' : '<span class="badge gray">마감됨</span>');
   const card = (b) => `
     <div class="class-card ${b.isOpen ? '' : 'closed'}">
@@ -1431,10 +1581,19 @@ route(/^#\/myclass$/, async () => {
         <button class="btn btn-ghost btn-sm cc-del" data-del-board="${b.id}" data-title="${esc(b.title)}" title="수업 삭제" aria-label="수업 삭제: ${esc(b.title)}">${icon('trash')}</button>`}
       </div>
     </div>`;
-  // 반별 보기의 한 줄 = 한 수업. 큰 글자는 프로그램(커리큘럼) 이름 — 같은 반 안에서는 그게 수업을 가른다.
-  // 반 미지정 줄은 [수업 정보 수정] 자리에 [반 정하기]가 나온다(같은 창을 반 칸부터 연다).
-  const row = (b, unassigned) => {
+  // 반별 보기의 한 줄 = 한 수업(과정). 큰 글자는 프로그램(커리큘럼) 이름 — 같은 반 안에서는 그게 수업을 가른다.
+  // mode: 'in'(반의 과정) · 'legacy'(반 개설 전 수업 — 같은 반에 [반에 넣기]) · 'group'(반으로 개설하지 않은 묶음)
+  //       · 'unassigned'(반 미지정 — [반에 넣기]로 내 반 고르기). 함께 보는 수업에는 고치는 단추가 없다.
+  const row = (b, mode, cls) => {
     const where = classLabel(b.classInfo);
+    const attach = mode === 'legacy'
+      ? `<button type="button" class="btn btn-soft btn-sm" data-attach-board="${b.id}" data-attach-class="${esc(cls.id)}">${icon('users')} 반에 넣기<span class="mcg-sr"> — ${esc(b.title)}을 ${esc(classHeading(cls))}에</span></button>`
+      : mode === 'unassigned'
+        ? `<button type="button" class="btn btn-soft btn-sm" data-pick-class="${b.id}">${icon('users')} 반에 넣기<span class="mcg-sr"> — ${esc(b.title)}</span></button>`
+        : '';
+    const edit = attach
+      ? `<button type="button" class="btn btn-ghost btn-sm" data-edit-board="${b.id}" title="수업 정보 수정" aria-label="수업 정보 수정: ${esc(b.title)}">${icon('edit')}</button>`
+      : `<button type="button" class="btn btn-ghost btn-sm" data-edit-board="${b.id}">${icon('edit')} 수업 정보 수정<span class="mcg-sr"> — ${esc(b.title)}</span></button>`;
     return `
       <li class="mcg-row${b.isOpen ? '' : ' is-closed'}">
         <div class="mcg-main">
@@ -1451,16 +1610,14 @@ route(/^#\/myclass$/, async () => {
         <div class="mcg-actions">
           <a class="btn btn-primary btn-sm" href="#/boardview/${b.id}">${icon('monitor')} 수업 열기<span class="mcg-sr"> — ${esc(where ? `${where} ${b.programTitle}` : b.title)}</span></a>
           <a class="btn btn-ghost btn-sm" href="#/program/${b.programId}">프로그램<span class="mcg-sr"> — ${esc(b.programTitle)}</span></a>
-          ${b.shared ? '' : `${unassigned
-            ? `<button type="button" class="btn btn-soft btn-sm" data-edit-board="${b.id}" data-focus="class">${icon('users')} 반 정하기<span class="mcg-sr"> — ${esc(b.title)}</span></button>`
-            : `<button type="button" class="btn btn-ghost btn-sm" data-edit-board="${b.id}">${icon('edit')} 수업 정보 수정<span class="mcg-sr"> — ${esc(b.title)}</span></button>`}
+          ${b.shared ? '' : `${attach}${edit}
           <button type="button" class="btn btn-ghost btn-sm cc-del" data-del-board="${b.id}" data-title="${esc(b.title)}" title="수업 삭제" aria-label="수업 삭제: ${esc(b.title)}">${icon('trash')}</button>`}
         </div>
       </li>`;
   };
-  const emptyHtml = () => (boards.length
-    ? '<div class="empty-note">고른 조건에 맞는 수업이 없습니다.</div>'
-    : '<div class="empty-note">아직 만든 수업이 없습니다. 위 <b>[새 수업 열기]</b> 로 첫 수업을 만들어 보세요.</div>');
+  const emptyHtml = () => (boards.length || classes.length
+    ? '<div class="empty-note">고른 조건에 맞는 반·수업이 없습니다.</div>'
+    : '<div class="empty-note">아직 만든 반이 없습니다. 위 <b>[반 개설]</b>로 첫 반을 만들고, 그 반이 쓸 과정과 도구를 넣어 보세요.</div>');
   // 날짜별 그룹 (최신 날짜 먼저, 날짜 미정은 맨 아래)
   const dateListHtml = (rows) => {
     const groups = new Map();
@@ -1478,52 +1635,87 @@ route(/^#\/myclass$/, async () => {
       <div class="class-grid">${groups.get(k).map(card).join('')}</div>
     </div>`).join('');
   };
-  // 반별 그룹 (학교 → 학년 → 반, 반 미지정은 맨 아래)
-  const classListHtml = (rows) => groupBoardsByClass(rows).map((g, i) => `
+  // 반 카드: 머리(학교 · 반 이름, 반 코드, 과정·도구 수, [반 열기]) + 그 반의 과정 줄 + 반 개설 전 같은 반 수업
+  const classCardHtml = (g, i) => {
+    const c = g.cls;
+    const legacyEditable = editableBoards(g.legacy).length > 0;
+    return `
+    <section class="mcg-group kc-group${c.isOpen === false ? ' is-closed' : ''}" aria-labelledby="kc-h-${i}">
+      <div class="kc-top">
+        <h2 class="kc-head" id="kc-h-${i}">${icon('users')} <span>${esc(classHeading(c))}</span>${c.isOpen === false ? ' <span class="badge gray">마감됨</span>' : ''}</h2>
+        <div class="kc-sum">
+          <span class="mcg-code">반 코드 <b>${esc(String(c.code || '').toUpperCase())}</b></span>
+          <span class="small muted">과정 ${typeof c.curriculumCount === 'number' ? c.curriculumCount : g.curricula.length} · 도구 ${(c.tools || []).length}</span>
+          ${showOwner ? classOwnerBadge(c) : ''}
+          <a class="btn btn-primary btn-sm" href="#/class/${esc(c.id)}">${icon('layers')} 반 열기<span class="mcg-sr"> — ${esc(classHeading(c))}</span></a>
+        </div>
+      </div>
+      ${g.curricula.length || g.legacy.length ? '' : '<p class="mcg-hint small muted">아직 넣은 과정이 없어요. [반 열기]에서 과정과 도구를 넣어 주세요.</p>'}
+      ${g.curricula.length ? `<ul class="mcg-rows">${g.curricula.map((b) => row(b, 'in', c)).join('')}</ul>` : ''}
+      ${g.legacy.length ? `
+      ${legacyEditable ? '<p class="mcg-hint small muted kc-legacyhint">반 개설 전에 연 같은 반 수업이에요. [반에 넣기]를 누르면 이 반의 과정으로 들어가 아이들이 반 코드로도 들어올 수 있어요.</p>' : ''}
+      <ul class="mcg-rows">${g.legacy.map((b) => row(b, 'legacy', c)).join('')}</ul>` : ''}
+    </section>`;
+  };
+  // 반으로 개설하지 않은 학교|학년|반 묶음 — #57 모양 그대로, [이 반 개설하기]로 반을 만들고 수업을 넣는다
+  const legacyGroupHtml = (g, i) => `
     <section class="mcg-group" aria-labelledby="mcg-h-${i}">
-      <h2 class="mcg-head" id="mcg-h-${i}">${icon('users')} <span>${esc(g.label)}</span> <span class="small muted">· 수업 ${g.boards.length}개</span></h2>
-      ${g.key ? '' : '<p class="mcg-hint small muted">어느 반 수업인지 아직 정하지 않았어요. [반 정하기]로 학교·학년·반을 고르면 그 반 아래로 모여요.</p>'}
-      <ul class="mcg-rows">${g.boards.map((b) => row(b, !g.key)).join('')}</ul>
-    </section>`).join('');
-  const visible = () => boards.filter((b) => {
-    if (pickedTeacher === 'mine' && !b.mine) return false;
-    if (pickedTeacher !== 'all' && pickedTeacher !== 'mine' && (b.teacherName || '(담당 없음)') !== pickedTeacher) return false;
+      <h2 class="mcg-head" id="mcg-h-${i}">${icon('users')} <span>${esc(g.label)}</span> <span class="small muted">· 수업 ${g.boards.length}개</span>
+        ${g.canCreate ? `<button type="button" class="btn btn-soft btn-sm kc-make" data-make-class="${i}">${icon('plus')} 이 반 개설하기<span class="mcg-sr"> — ${esc(g.label)}</span></button>` : ''}</h2>
+      ${g.canCreate ? '<p class="mcg-hint small muted">아직 반으로 개설하지 않은 수업이에요. [이 반 개설하기]를 누르면 반이 만들어지고 이 수업들이 그 반의 과정으로 들어가요.</p>' : ''}
+      <ul class="mcg-rows">${g.boards.map((b) => row(b, 'group')).join('')}</ul>
+    </section>`;
+  const unassignedHtml = (g) => `
+    <section class="mcg-group" aria-labelledby="mcg-h-none">
+      <h2 class="mcg-head" id="mcg-h-none">${icon('users')} <span>반 미지정</span> <span class="small muted">· 수업 ${g.boards.length}개</span></h2>
+      ${g.canEdit ? '<p class="mcg-hint small muted">어느 반 수업인지 아직 정하지 않았어요. [반에 넣기]로 내 반을 고르면 그 반의 과정으로 모여요.</p>' : ''}
+      <ul class="mcg-rows">${g.boards.map((b) => row(b, 'unassigned')).join('')}</ul>
+    </section>`;
+  const teacherPass = (mine, name) => {
+    if (pickedTeacher === 'mine') return mine;
+    return pickedTeacher === 'all' || name === pickedTeacher;
+  };
+  const boardHay = (b) => boardSearchText(b, b.classInfo && b.classInfo.classId ? classById.get(String(b.classInfo.classId)) : null);
+  const visibleBoards = () => boards.filter((b) => {
+    if (!teacherPass(!!b.mine, teacherOfBoard(b))) return false;
     if (view === 'class' && !boardInSchoolChip(b, pickedSchool)) return false;
-    if (!search) return true;
-    const hay = `${b.title} ${b.programTitle} ${b.code} ${b.teacherName || ''} ${classLabel(b.classInfo)}`.toLowerCase();
-    return hay.includes(search);
+    if (view === 'class' || !search) return true; // 반별 보기의 찾기는 searchClassGroups 가 한다
+    return boardHay(b).includes(search);
   });
+  const visibleClasses = () => classes.filter((c) => teacherPass(!!c.mine, teacherOfClass(c)) && boardInSchoolChip(classAsBoard(c), pickedSchool));
   // 관리자 문구는 관리자에게만. 교사 목록에 남의 수업이 있다면 함께 보기로 받은 것뿐이다.
   const adminView = isAdmin() && showOwner;
   const hasShared = boards.some((b) => b.shared);
   const title = adminView ? '전체 수업' : '내 수업';
+  const anything = boards.length || classes.length;
   shell(title, `
     <div class="page-head">
       <div>
         <div class="ph-t">${title}</div>
         <div class="desc">${adminView
-          ? '관리자에게는 모든 선생님의 수업이 보입니다. 어느 수업이든 열어서 그대로 진행할 수 있습니다.'
+          ? '관리자에게는 모든 선생님의 반과 수업이 보입니다. 어느 수업이든 열어서 그대로 진행할 수 있습니다.'
           : hasShared
-            ? '반마다 프로그램별로 수업을 열고, 자료를 고르고 학생 활동을 모읍니다. 함께 보기로 받은 수업은 아이들이 낸 것을 보고, 받고, 인쇄할 수 있어요.'
-            : '반마다 프로그램별로 수업을 열고, 자료를 고르고 학생 활동을 모읍니다.'}</div>
+            ? '반을 먼저 개설하고, 그 반이 쓸 과정과 도구를 넣어요. 아이들은 반 코드 하나로 들어와요. 함께 보기로 받은 수업은 아이들이 낸 것을 보고, 받고, 인쇄할 수 있어요.'
+            : '반을 먼저 개설하고, 그 반이 쓸 과정과 도구를 넣어요. 아이들은 반 코드 하나로 들어와 골라서 시작해요.'}</div>
       </div>
-      <div><button class="btn btn-primary btn-sm" id="mc-new">${icon('plus')} 새 수업 열기</button></div>
+      <div><button class="btn btn-primary btn-sm" id="mc-new-class">${icon('plus')} 반 개설</button></div>
     </div>
+    ${classData.failed ? '<div class="card kc-warn small">반 목록을 불러오지 못했어요. 수업은 아래에 그대로 보입니다. 잠시 뒤 새로고침해 주세요.</div>' : ''}
     ${showOwner ? `
     <div class="mc-toolbar">
       <label class="mc-filter">담당 선생님
         <select id="mc-teacher">
           <option value="all">전체 (${boards.length}개)</option>
           <option value="mine">내 수업 (${boards.length - others.length}개)</option>
-          ${teachers.map((t) => `<option value="${esc(t)}">${esc(t)} (${others.filter((b) => (b.teacherName || '(담당 없음)') === t).length}개)</option>`).join('')}
+          ${teachers.map((t) => `<option value="${esc(t)}">${esc(t)} (${others.filter((b) => teacherOfBoard(b) === t).length}개)</option>`).join('')}
         </select>
       </label>
-      <label class="mc-filter wide">수업 찾기
-        <input id="mc-search" type="search" placeholder="수업 이름 · 프로그램 · 참여 코드 · 선생님 · 학교·반" autocomplete="off">
+      <label class="mc-filter wide">찾기
+        <input id="mc-search" type="search" placeholder="반 이름 · 반 코드 · 수업 이름 · 프로그램 · 참여 코드 · 선생님" autocomplete="off">
       </label>
       <span class="small muted" id="mc-count"></span>
     </div>` : ''}
-    ${boards.length ? `
+    ${anything ? `
     <div class="mcg-bar">
       <div class="sb-tabs" role="group" aria-label="수업 묶는 방식">
         <button type="button" data-mc-view="class">반별</button>
@@ -1534,6 +1726,11 @@ route(/^#\/myclass$/, async () => {
     <div class="sb-lessons mcg-schools" id="mcg-schools" role="group" aria-label="학교 고르기" hidden></div>` : ''}
     <div id="mc-list"></div>
   `);
+  // 반에 넣기: 보드의 sb:class 에 classId 를 붙인다(서버가 그 반의 학교·학년·반으로 맞춘다)
+  const attachBoard = async (boardId, classId, quiet = false) => {
+    await api('PATCH', `/api/boards/${boardId}`, { classId });
+    if (!quiet) { toast('반에 넣었습니다. 아이들이 반 코드로도 이 과정에 들어올 수 있어요.'); navigate(); }
+  };
   function bindCards() {
     document.querySelectorAll('[data-del-board]').forEach((btn) => {
       btn.onclick = async () => {
@@ -1553,6 +1750,37 @@ route(/^#\/myclass$/, async () => {
         classInfo: b.classInfo, programTitle: b.programTitle, schools: knownClassSchools, focus: btn.dataset.focus,
       });
     });
+    document.querySelectorAll('[data-attach-board]').forEach((btn) => {
+      btn.onclick = async () => {
+        btn.disabled = true;
+        try { await attachBoard(btn.dataset.attachBoard, btn.dataset.attachClass); }
+        catch (e) { btn.disabled = false; if (!e.handled) toast(e.message, true); }
+      };
+    });
+    document.querySelectorAll('[data-pick-class]').forEach((btn) => {
+      const b = byId.get(btn.dataset.pickClass);
+      if (!b) return;
+      // 고를 수 있는 반: 내가 만든 반(관리자는 전부)
+      btn.onclick = () => openPickClassModal(b, classes.filter((c) => c.mine || isAdmin()), (classId) => attachBoard(b.id, classId));
+    });
+    document.querySelectorAll('[data-make-class]').forEach((btn) => {
+      const g = shown.legacy[Number(btn.dataset.makeClass)];
+      if (!g) return;
+      btn.onclick = async () => {
+        const mine = editableBoards(g.boards);
+        if (!confirm(`'${g.label}' 반을 개설하고 수업 ${mine.length}개를 이 반의 과정으로 넣을까요?\n아이들은 새 반 코드로도, 예전 과정 코드로도 들어올 수 있어요.`)) return;
+        btn.disabled = true;
+        try {
+          const r = await api('POST', '/api/classes', { school: g.info.school || '', grade: g.info.grade || null, room: g.info.room || '' });
+          let failed = 0;
+          for (const b of mine) { try { await attachBoard(b.id, r.id, true); } catch (e) { if (e.handled) return; failed += 1; } }
+          toast(failed
+            ? `반은 만들었지만 수업 ${failed}개는 넣지 못했어요. [반에 넣기]로 다시 넣어 주세요. 반 코드: ${String(r.code || '').toUpperCase()}`
+            : `반을 개설했습니다. 반 코드: ${String(r.code || '').toUpperCase()}`, failed > 0);
+          navigate();
+        } catch (e) { btn.disabled = false; if (!e.handled) toast(e.message, true); }
+      };
+    });
   }
   function drawSchoolChips() {
     const box = document.getElementById('mcg-schools');
@@ -1570,21 +1798,31 @@ route(/^#\/myclass$/, async () => {
     });
   }
   function redraw() {
-    const rows = visible();
     document.querySelectorAll('[data-mc-view]').forEach((b) => {
       const on = b.dataset.mcView === view;
       b.classList.toggle('active', on);
       b.setAttribute('aria-pressed', String(on));
     });
     const note = document.getElementById('mcg-note');
-    if (note) note.textContent = view === 'class' ? '한 반이 연 수업을 프로그램마다 한 줄로 모아 봐요.' : '수업 날짜가 최근인 것부터 봐요.';
+    if (note) note.textContent = view === 'class' ? '반마다 그 반이 쓰는 과정을 한 줄씩 모아 봐요.' : '수업 날짜가 최근인 것부터 봐요.';
     drawSchoolChips();
-    document.getElementById('mc-list').innerHTML = !rows.length ? emptyHtml() : view === 'class' ? classListHtml(rows) : dateListHtml(rows);
-    const count = document.getElementById('mc-count');
-    if (count) count.textContent = rows.length === boards.length ? `${boards.length}개 수업` : `${rows.length} / ${boards.length}개 수업`;
+    const list = document.getElementById('mc-list');
+    let count;
+    if (view === 'class') {
+      shown = searchClassGroups(groupClassesAndBoards(visibleClasses(), visibleBoards()), search);
+      count = classGroupsBoardCount(shown);
+      const html = shown.classes.map(classCardHtml).join('') + shown.legacy.map(legacyGroupHtml).join('') + (shown.unassigned ? unassignedHtml(shown.unassigned) : '');
+      list.innerHTML = html || emptyHtml();
+    } else {
+      const rows = visibleBoards();
+      count = rows.length;
+      list.innerHTML = rows.length ? dateListHtml(rows) : emptyHtml();
+    }
+    const countEl = document.getElementById('mc-count');
+    if (countEl) countEl.textContent = count === boards.length ? `${boards.length}개 수업` : `${count} / ${boards.length}개 수업`;
     bindCards();
   }
-  document.getElementById('mc-new').onclick = () => openNewClassModal({ schools: knownClassSchools });
+  document.getElementById('mc-new-class').onclick = () => openClassFormModal(null, { schools: knownClassSchools });
   document.getElementById('mc-teacher')?.addEventListener('change', (e) => { pickedTeacher = e.target.value; redraw(); });
   document.getElementById('mc-search')?.addEventListener('input', (e) => { search = e.target.value.trim().toLowerCase(); redraw(); });
   document.querySelectorAll('[data-mc-view]').forEach((btn) => {
@@ -1596,6 +1834,415 @@ route(/^#\/myclass$/, async () => {
   });
   redraw();
 });
+
+// 반 미지정 수업 → 내 반 하나를 골라 넣는다. 반이 없으면 반 개설부터 안내한다.
+function openPickClassModal(board, classes, onPick) {
+  const list = [...classes].sort(compareClasses);
+  const back = openModal(`
+    <h3>반에 넣기</h3>
+    <div class="m-sub"><b>${esc(board.programTitle || board.title)}</b> 수업을 어느 반의 과정으로 넣을까요? 넣으면 그 반의 학교·학년·반으로 정리되고, 아이들은 반 코드로도 들어올 수 있어요. 예전 과정 코드도 그대로예요.</div>
+    ${list.length ? `<div class="kc-pick-list">${list.map((c) => `
+      <button type="button" class="kc-pick" data-pick-cls="${esc(c.id)}">
+        <span class="kc-pick-main"><b>${esc(classHeading(c))}</b><span class="small muted">반 코드 ${esc(String(c.code || '').toUpperCase())}${c.isOpen === false ? ' · 마감됨' : ''}</span></span>
+        <span class="kc-pick-go" aria-hidden="true">넣기 →</span>
+      </button>`).join('')}</div>`
+    : '<p class="empty-note">아직 만든 반이 없어요. 먼저 [반 개설]로 반을 만들어 주세요.</p>'}
+    <div class="m-actions">
+      <button type="button" class="btn btn-ghost" id="pc-cancel">닫기</button>
+      ${list.length ? '' : `<button type="button" class="btn btn-primary" id="pc-new">${icon('plus')} 반 개설</button>`}
+    </div>
+    <div class="msg" id="pc-msg"></div>`);
+  back.querySelector('#pc-cancel').onclick = () => back.remove();
+  back.querySelector('#pc-new')?.addEventListener('click', () => {
+    back.remove();
+    openClassFormModal(null, { schools: knownClassSchools, preset: board.classInfo });
+  });
+  back.querySelectorAll('[data-pick-cls]').forEach((btn) => {
+    btn.onclick = async () => {
+      back.querySelectorAll('[data-pick-cls]').forEach((b) => { b.disabled = true; });
+      try { await onPick(btn.dataset.pickCls); back.remove(); }
+      catch (e) {
+        back.querySelectorAll('[data-pick-cls]').forEach((b) => { b.disabled = false; });
+        if (!e.handled) { const msg = back.querySelector('#pc-msg'); msg.textContent = e.message; msg.className = 'msg err'; }
+      }
+    };
+  });
+  back.querySelector('[data-pick-cls]')?.focus();
+}
+
+// 반 개설(cls 없음)과 반 정보 수정(cls 있음)이 함께 쓰는 창.
+// 서버 규칙과 같게: 학년·반·반 이름 중 하나는 있어야 하고, 코드는 영문·숫자 4~10자(비우면 자동).
+// opts: schools(학교 고르기 목록) · preset(새 반의 학교·학년·반 기본값)
+function openClassFormModal(cls = null, opts = {}) {
+  const editing = !!cls;
+  const before = editing
+    ? { ...normClassFields(cls), name: String(cls.name || ''), code: String(cls.code || '').toLowerCase(), roster: rosterText(cls.roster) }
+    : null;
+  const back = openModal(`
+    <h3>${editing ? '반 정보 수정' : '반 개설'}</h3>
+    <div class="m-sub">${editing
+      ? '학교·학년·반을 바꾸면 이 반의 과정도 함께 그 반으로 정리됩니다. 아이들이 낸 것은 그대로예요.'
+      : '반을 먼저 만들고, 그다음에 이 반이 쓸 과정(프로그램)과 도구를 넣어요. 아이들은 반 코드 하나로 들어와 골라서 시작해요.'}</div>
+    <div class="form-grid kc-form">
+      ${classFieldsHtml('kc', opts.schools || [])}
+      <div class="mcg-full"><label for="kc-name">반 이름 (선택)</label>
+        <input id="kc-name" maxlength="60" autocomplete="off" aria-describedby="kc-name-hint">
+        <div class="small muted mcg-titlehint" id="kc-name-hint"></div></div>
+      <div class="mcg-full"><label for="kc-code">참여 코드 (선택 · 영문·숫자 4~10자)</label>
+        <input id="kc-code" class="kc-codeinput" maxlength="10" placeholder="${editing ? '' : '비워 두면 자동'}" autocomplete="off" aria-describedby="kc-code-hint">
+        <div class="small muted mcg-titlehint" id="kc-code-hint">${editing ? '코드를 바꾸면 아이들은 새 코드로 들어와야 해요.' : '비워 두면 숫자 6자리로 정해져요. 아이들은 이 코드 하나로 들어와요.'}</div></div>
+      <div class="mcg-full"><label for="kc-roster">학생 명단 (선택 — 한 줄에 한 명)</label>
+        <textarea id="kc-roster" rows="3" placeholder="김민준&#10;이서연&#10;박도윤" aria-describedby="kc-roster-hint"></textarea>
+        <div class="small muted mcg-titlehint" id="kc-roster-hint">명단을 넣으면 과정마다 누가 냈고 안 냈는지 대조해 줘요.${editing ? ' 바꾸면 이 반의 모든 과정 명단도 함께 바뀌어요.' : ''}</div></div>
+    </div>
+    <div class="m-actions">
+      <button type="button" class="btn btn-ghost" id="kc-cancel">취소</button>
+      <button type="button" class="btn btn-primary" id="kc-save">${editing ? '저장' : '반 개설'}</button>
+    </div>
+    <div class="msg" id="kc-msg"></div>`);
+  const nameInput = back.querySelector('#kc-name');
+  const codeInput = back.querySelector('#kc-code');
+  const rosterInput = back.querySelector('#kc-roster');
+  const msg = back.querySelector('#kc-msg');
+  const saveBtn = back.querySelector('#kc-save');
+  if (editing) {
+    fillClassFields(back, 'kc', before);
+    nameInput.value = before.name;
+    codeInput.value = before.code;
+    rosterInput.value = before.roster;
+  } else {
+    // 학교는 지난번에 고른 학교로 채워 둔다(한 선생님은 대개 한 학교에서 여러 반을 맡는다)
+    const preset = normClassFields(opts.preset || {});
+    fillClassFields(back, 'kc', { ...preset, school: preset.school || lastClassSchool() });
+  }
+  // 반 이름을 비우면 어떤 이름으로 보이는지 미리 보여 준다
+  const nameHint = back.querySelector('#kc-name-hint');
+  const updateName = () => {
+    const auto = classRoomLabel(readClassFields(back, 'kc'));
+    nameInput.placeholder = auto || '예: 별빛반';
+    nameHint.textContent = auto ? `비워 두면 '${auto}'(으)로 보여요.` : '학년·반을 고르지 않으면 반 이름을 적어 주세요.';
+  };
+  back.querySelectorAll('#kc-grade, #kc-room').forEach((el) => ['input', 'change'].forEach((t) => el.addEventListener(t, updateName)));
+  updateName();
+  back.querySelector(editing ? '#kc-name' : '#kc-school').focus();
+  back.querySelector('#kc-cancel').onclick = () => back.remove();
+  const fail = (text, el) => { msg.textContent = text; msg.className = 'msg err'; el?.focus(); };
+  const save = async () => {
+    const info = readClassFields(back, 'kc');
+    const name = nameInput.value.replace(/\s+/g, ' ').trim();
+    const code = codeInput.value.trim().toLowerCase();
+    const roster = rosterInput.value;
+    if (!info.grade && !info.room && !name) return fail('학년·반을 고르거나 반 이름을 적어 주세요.', back.querySelector('#kc-grade'));
+    if (code && !BOARD_CODE_UI.test(code)) return fail('참여 코드는 영문·숫자 4~10자예요.', codeInput);
+    if (editing && !code) return fail('참여 코드는 비울 수 없어요. 예전 코드를 그대로 두거나 새 코드를 적어 주세요.', codeInput);
+    saveBtn.disabled = true;
+    try {
+      if (editing) {
+        const body = {};
+        for (const k of ['school', 'grade', 'room']) if (info[k] !== before[k]) body[k] = info[k];
+        if (name !== before.name) body.name = name;
+        if (code !== before.code) body.code = code;
+        if (roster.trim() !== before.roster.trim()) body.roster = roster;
+        if (!Object.keys(body).length) { back.remove(); return; }
+        await api('PATCH', `/api/classes/${encodeURIComponent(cls.id)}`, body);
+        rememberClassSchool(body.school);
+        back.remove();
+        toast(body.code ? `반 정보를 바꿨습니다. 새 반 코드: ${code.toUpperCase()}` : '반 정보를 바꿨습니다.');
+        navigate();
+      } else {
+        const r = await api('POST', '/api/classes', {
+          ...info, name: name || undefined, code: code || undefined, roster: roster.trim() ? roster : undefined,
+        });
+        rememberClassSchool(info.school);
+        back.remove();
+        toast(`반을 개설했습니다. 반 코드: ${String(r.code || '').toUpperCase()} — 이제 과정과 도구를 넣어 주세요.`);
+        location.hash = `#/class/${r.id}`;
+      }
+    } catch (e) {
+      saveBtn.disabled = false;
+      if (!e.handled) fail(e.message);
+    }
+  };
+  saveBtn.onclick = save;
+  back.querySelectorAll('#kc-school, #kc-room, #kc-name, #kc-code').forEach((el) => el.addEventListener('keydown', (e) => { if (e.key === 'Enter') save(); }));
+}
+
+// 참여 코드를 화면 가득 — 칠판(프로젝터)에 띄우는 용. Esc·아무 곳이나 누르면 닫힌다.
+function openBigCode(code, label) {
+  const box = document.createElement('div');
+  box.className = 'kc-bigcode';
+  box.setAttribute('role', 'dialog');
+  box.setAttribute('aria-modal', 'true');
+  box.setAttribute('aria-label', `참여 코드 ${String(code).toUpperCase()} 크게 보기`);
+  box.innerHTML = `
+    <div class="kc-big-label">${esc(label)}</div>
+    <div class="kc-big-code">${esc(String(code).toUpperCase())}</div>
+    <div class="kc-big-help">${esc(location.host)} 첫 화면 <b>[학생 참여]</b>에 이 코드를 넣어요</div>
+    <button type="button" class="kc-big-close">닫기 (Esc)</button>`;
+  const before = document.activeElement;
+  const close = () => { box.remove(); document.removeEventListener('keydown', onKey); window.removeEventListener('hashchange', close); before?.focus?.(); };
+  const onKey = (e) => { if (e.key === 'Escape') close(); };
+  box.addEventListener('click', close);
+  document.addEventListener('keydown', onKey);
+  window.addEventListener('hashchange', close);
+  document.body.appendChild(box);
+  box.querySelector('.kc-big-close').focus();
+}
+
+// 과정 추가: 프로그램을 고르면 이 반 이름으로 수업(보드)이 하나 열리고 반에 붙는다.
+// 비공개 프로그램은 참여 코드를 띄워도 아이들이 못 들어오므로 교사에게는 고를 수 없게 둔다(관리자는 표시만).
+function openClassProgramPicker(programs, haveIds, onPick) {
+  const admin = isAdmin();
+  const back = openModal(`
+    <h3>과정 추가</h3>
+    <div class="m-sub">이 반이 배울 프로그램을 고르세요. 고르면 과정마다 수업 화면이 열리고, 아이들은 반 코드로 들어와 이 과정을 눌러 시작해요.</div>
+    ${programs.length > 6 ? '<label class="kc-find"><span class="mcg-sr">프로그램 찾기</span><input id="cp-find" type="search" placeholder="프로그램 이름으로 찾기" autocomplete="off"></label>' : ''}
+    <div class="kc-pick-list" id="cp-list">${programs.length ? programs.map((p) => {
+      const have = haveIds.has(String(p.id));
+      const locked = p.published === false && !admin;
+      return `
+      <button type="button" class="kc-pick" data-cp="${p.id}" data-name="${esc(String(p.title || '').toLowerCase())}"${have || locked ? ' disabled' : ''}>
+        <span class="kc-pick-main"><b>${esc(p.title)}</b>
+          <span class="small muted">${[p.category, p.grade].filter(Boolean).map(esc).join(' · ')}${have ? ' · 이미 넣은 과정' : ''}</span>
+          ${p.published === false ? '<span class="badge red plain">비공개 · 학생 입장 불가</span>' : ''}</span>
+        <span class="kc-pick-go" aria-hidden="true">${have ? '넣음' : locked ? '' : '넣기 →'}</span>
+      </button>`;
+    }).join('') : '<p class="empty-note">사용할 수 있는 프로그램이 없습니다. 관리자에게 프로그램 공개를 요청하세요.</p>'}</div>
+    ${!admin && programs.some((p) => p.published === false) ? '<p class="small muted kc-note">비공개 프로그램은 관리자가 공개한 뒤에 넣을 수 있어요.</p>' : ''}
+    <div class="m-actions"><button type="button" class="btn btn-ghost" id="cp-cancel">닫기</button></div>
+    <div class="msg" id="cp-msg"></div>`);
+  back.querySelector('#cp-cancel').onclick = () => back.remove();
+  back.querySelector('#cp-find')?.addEventListener('input', (e) => {
+    const s = e.target.value.trim().toLowerCase();
+    back.querySelectorAll('[data-cp]').forEach((b) => { b.hidden = !!s && !b.dataset.name.includes(s); });
+  });
+  back.querySelectorAll('[data-cp]').forEach((btn) => {
+    btn.onclick = async () => {
+      const p = programs.find((x) => String(x.id) === btn.dataset.cp);
+      if (!p) return;
+      const all = [...back.querySelectorAll('[data-cp]')];
+      const was = all.map((b) => b.disabled);
+      all.forEach((b) => { b.disabled = true; });
+      try { await onPick(p); back.remove(); }
+      catch (e) {
+        all.forEach((b, i) => { b.disabled = was[i]; });
+        if (!e.handled) { const msg = back.querySelector('#cp-msg'); msg.textContent = e.message; msg.className = 'msg err'; }
+      }
+    };
+  });
+  (back.querySelector('#cp-find') || back.querySelector('[data-cp]:not([disabled])'))?.focus();
+}
+
+// 도구 추가: 도구함(GET /api/tool-library)에서 여러 개를 골라 한 번에 넣는다. 이미 넣은 도구는 고를 수 없다.
+const CLASS_TOOL_MAX = 30; // 서버 PUT /api/classes/:id/tools 와 같은 한도
+function classToolIcon(t) {
+  return `<span class="dl-ico" aria-hidden="true">${icon(t.kind === 'site' ? 'link' : 'box')}</span>`;
+}
+function openClassToolPicker(library, currentIds, onSave) {
+  const have = new Set(currentIds.map(String));
+  const picked = [];
+  const back = openModal(`
+    <h3>도구 추가</h3>
+    <div class="m-sub">도구함의 웹사이트·웹앱을 이 반에 넣어요. 여러 개를 골라도 돼요. 아이들은 반 코드로 들어와 바로 열 수 있어요.</div>
+    <div class="kc-pick-list">${library.length ? library.map((t) => `
+      <button type="button" class="kc-pick kc-toggle" data-tp="${t.id}" aria-pressed="false"${have.has(String(t.id)) ? ' disabled' : ''}>
+        ${classToolIcon(t)}
+        <span class="kc-pick-main"><b>${esc(t.title)}</b>
+          <span class="small muted">${t.kind === 'site' ? `웹사이트 · ${esc(siteHost(t.url))}` : '웹앱'}${have.has(String(t.id)) ? ' · 이미 넣음' : ''}</span>
+          ${t.description ? `<span class="small muted kc-pick-desc">${esc(t.description)}</span>` : ''}</span>
+        <span class="kc-check" aria-hidden="true"></span>
+      </button>`).join('') : '<p class="empty-note">도구함이 비어 있습니다. 관리자가 <b>도구함</b>에 웹앱이나 웹사이트 주소를 먼저 넣어야 해요.</p>'}</div>
+    <div class="m-actions">
+      <button type="button" class="btn btn-ghost" id="tp-cancel">취소</button>
+      <button type="button" class="btn btn-primary" id="tp-save" disabled>넣기</button>
+    </div>
+    <div class="msg" id="tp-msg"></div>`);
+  const saveBtn = back.querySelector('#tp-save');
+  const msg = back.querySelector('#tp-msg');
+  back.querySelector('#tp-cancel').onclick = () => back.remove();
+  back.querySelectorAll('[data-tp]').forEach((btn) => {
+    btn.onclick = () => {
+      const id = Number(btn.dataset.tp);
+      const at = picked.indexOf(id);
+      if (at >= 0) picked.splice(at, 1);
+      else if (have.size + picked.length >= CLASS_TOOL_MAX) { msg.textContent = `한 반에는 도구를 ${CLASS_TOOL_MAX}개까지 넣을 수 있어요.`; msg.className = 'msg err'; return; }
+      else picked.push(id);
+      btn.setAttribute('aria-pressed', String(at < 0));
+      msg.textContent = '';
+      saveBtn.disabled = !picked.length;
+      saveBtn.textContent = picked.length ? `${picked.length}개 넣기` : '넣기';
+    };
+  });
+  saveBtn.onclick = async () => {
+    if (!picked.length) return;
+    saveBtn.disabled = true;
+    try { await onSave(picked); back.remove(); }
+    catch (e) { saveBtn.disabled = false; if (!e.handled) { msg.textContent = e.message; msg.className = 'msg err'; } }
+  };
+  back.querySelector('[data-tp]:not([disabled])')?.focus();
+}
+
+/* ---------------- 반 화면 (#/class/:id — 반을 만든 교사·관리자) ----------------
+ * 반 코드(아이들은 이 코드 하나로 들어온다) · 과정(프로그램마다 연 수업) · 도구(도구함 웹사이트·웹앱) · 반 정보. */
+route(/^#\/class\/([0-9a-f]{12})$/, async (id) => {
+  let data;
+  try { data = await api('GET', `/api/classes/${id}`); }
+  catch (e) {
+    if (e.handled) return;
+    toast(e.status === 404 ? '없는 반이에요. 이미 지워졌을 수 있어요.' : e.status === 403 ? '이 반은 만든 선생님만 열 수 있어요.' : e.message, true);
+    location.hash = '#/myclass';
+    return;
+  }
+  const cls = data.class || data;
+  const curricula = data.curricula || cls.curricula || [];
+  const tools = data.tools || cls.tools || [];
+  const open = cls.isOpen !== false;
+  const heading = classHeading(cls);
+  const curriculumRow = (b) => `
+      <li class="mcg-row${b.isOpen ? '' : ' is-closed'}">
+        <div class="mcg-main">
+          <div class="mcg-prog">${esc(b.programTitle || b.title)}${b.programPublished === false ? ' <span class="badge red">프로그램 비공개</span>' : ''}</div>
+          <div class="mcg-meta">
+            ${b.isOpen ? '<span class="badge green">진행 중</span>' : '<span class="badge gray">마감됨</span>'}
+            ${b.isOpen ? `<span class="kc-small-code">과정 코드 ${esc(String(b.code || '').toUpperCase())}</span>` : ''}
+            ${rosterBadge(b.roster) || `<span>제출 ${Number(b.postCount) || 0}개</span>`}
+          </div>
+        </div>
+        <div class="mcg-actions">
+          <a class="btn btn-primary btn-sm" href="#/boardview/${b.id}">${icon('monitor')} 수업 열기<span class="mcg-sr"> — ${esc(b.programTitle || b.title)}</span></a>
+        </div>
+      </li>`;
+  const toolRow = (t) => {
+    const site = t.kind === 'site';
+    const safeUrl = site && /^https:\/\//i.test(String(t.url || '')) ? t.url : '';
+    return `
+      <li class="kc-tool">
+        ${classToolIcon(t)}
+        <div class="kc-tool-main"><div class="kc-tool-t">${esc(t.title)}</div>
+          <div class="small muted">${site ? `웹사이트 · <span title="${esc(t.url)}">${esc(siteHost(t.url))}</span>` : '웹앱'}</div></div>
+        <div class="mcg-actions">
+          ${site
+            ? (safeUrl ? `<a class="btn btn-ghost btn-sm" href="${esc(safeUrl)}" target="_blank" rel="noopener">${icon('link')} 열기<span class="mcg-sr"> — ${esc(t.title)} (새 창)</span></a>` : '')
+            : `<button type="button" class="btn btn-ghost btn-sm" data-kc-run="${t.id}" data-name="${esc(t.title)}">${icon('play')} 열기<span class="mcg-sr"> — ${esc(t.title)}</span></button>`}
+          <button type="button" class="btn btn-ghost btn-sm" data-kc-drop="${t.id}">${icon('x')} 빼기<span class="mcg-sr"> — ${esc(t.title)}</span></button>
+        </div>
+      </li>`;
+  };
+  shell(heading, `
+    <a class="kc-back small" href="#/myclass">← 내 수업</a>
+    <div class="page-head">
+      <div>
+        <div class="ph-t kc-title">${esc(heading)} ${open ? '<span class="badge green">진행 중</span>' : '<span class="badge gray">마감됨</span>'}</div>
+        <div class="desc">반에 과정(프로그램)과 도구를 넣어 두면, 아이들은 반 코드 하나로 들어와 골라서 시작해요.${cls.ownerName && !cls.mine ? ` · 담당 ${esc(cls.ownerName)}` : ''}</div>
+      </div>
+    </div>
+    <div class="card kc-codepanel">
+      <div>
+        <div class="kc-codehint">아이들은 이 코드 하나로 들어와요</div>
+        <div class="sb-code">${esc(String(cls.code || '').toUpperCase())}</div>
+        ${open ? '' : '<p class="small kc-closednote">반이 마감돼서 지금은 이 코드로 들어올 수 없어요. 아래 [반 다시 열기]를 누르면 들어올 수 있어요.</p>'}
+      </div>
+      <div class="kc-codeside">
+        <button type="button" class="btn btn-primary" id="kc-big">${icon('monitor')} 크게 보기</button>
+        <div class="small muted">첫 화면 [학생 참여]에 이 코드를 넣으면 이 반의 과정·도구 목록이 나와요.</div>
+      </div>
+    </div>
+    <div class="kc-cards">
+      <section class="card kc-sec" aria-labelledby="kc-cur-h">
+        <div class="kc-sechead"><h2 id="kc-cur-h">과정 <span class="small muted">${curricula.length}개</span></h2>
+          <button type="button" class="btn btn-soft btn-sm" id="kc-add-cur">${icon('plus')} 과정 추가</button></div>
+        ${curricula.length
+          ? `<ul class="mcg-rows">${curricula.map(curriculumRow).join('')}</ul>`
+          : '<p class="empty-note">아직 넣은 과정이 없어요. [과정 추가]로 이 반이 배울 프로그램을 골라 주세요.</p>'}
+      </section>
+      <section class="card kc-sec" aria-labelledby="kc-tool-h">
+        <div class="kc-sechead"><h2 id="kc-tool-h">도구 <span class="small muted">${tools.length}개</span></h2>
+          <button type="button" class="btn btn-soft btn-sm" id="kc-add-tool">${icon('plus')} 도구 추가</button></div>
+        ${tools.length
+          ? `<ul class="kc-tools">${tools.map(toolRow).join('')}</ul>`
+          : '<p class="empty-note">아직 넣은 도구가 없어요. [도구 추가]로 도구함의 웹사이트·웹앱을 넣어 주세요.</p>'}
+      </section>
+      <section class="card kc-sec" aria-labelledby="kc-info-h">
+        <div class="kc-sechead"><h2 id="kc-info-h">반 정보</h2></div>
+        <p class="small muted kc-note">반을 마감하면 아이들이 반 코드로 들어올 수 없어요. 과정마다 연 수업은 각자 열림·마감 상태를 그대로 가지고, 과정 코드로는 예전처럼 들어올 수 있어요.</p>
+        <div class="kc-infobtns">
+          <button type="button" class="btn btn-ghost btn-sm" id="kc-edit">${icon('edit')} 반 정보 수정</button>
+          <button type="button" class="btn btn-ghost btn-sm" id="kc-toggle">${icon('power')} ${open ? '반 마감' : '반 다시 열기'}</button>
+          <button type="button" class="btn btn-ghost btn-sm cc-del" id="kc-del"${curricula.length ? ' disabled aria-describedby="kc-del-why"' : ''}>${icon('trash')} 반 삭제</button>
+        </div>
+        ${curricula.length ? '<p class="small muted kc-note" id="kc-del-why">과정이 있는 반은 지울 수 없어요. 과정을 먼저 지우거나 다른 반으로 옮기세요.</p>' : ''}
+      </section>
+    </div>`);
+  document.getElementById('kc-big').onclick = () => openBigCode(cls.code || '', heading);
+  document.getElementById('kc-add-cur').onclick = async () => {
+    let programs;
+    try { programs = (await api('GET', '/api/programs')).programs || []; }
+    catch (e) { if (!e.handled) toast(e.message, true); return; }
+    const haveIds = new Set(curricula.map((b) => String(b.programId)));
+    openClassProgramPicker(programs, haveIds, async (p) => {
+      const r = await api('POST', `/api/classes/${id}/curricula`, { programId: p.id });
+      toast(`과정을 넣었습니다: ${p.title}${r && r.code ? ` (과정 코드 ${String(r.code).toUpperCase()})` : ''}`);
+      navigate();
+    });
+  };
+  const saveTools = async (ids, text) => {
+    await api('PUT', `/api/classes/${id}/tools`, { toolIds: ids });
+    toast(text);
+    navigate();
+  };
+  document.getElementById('kc-add-tool').onclick = async () => {
+    let library;
+    try { library = (await api('GET', '/api/tool-library')).tools || []; }
+    catch (e) { if (!e.handled) toast(e.message, true); return; }
+    const current = tools.map((t) => Number(t.id));
+    openClassToolPicker(library, current, (picked) => saveTools([...current, ...picked], `도구 ${picked.length}개를 넣었습니다.`));
+  };
+  document.querySelectorAll('[data-kc-run]').forEach((b) => {
+    b.onclick = () => openSlidePresent(`/api/tools/${b.dataset.kcRun}/open`, b.dataset.name);
+  });
+  document.querySelectorAll('[data-kc-drop]').forEach((b) => {
+    b.onclick = async () => {
+      const t = tools.find((x) => String(x.id) === b.dataset.kcDrop);
+      if (!confirm(`'${t ? t.title : '이 도구'}'을(를) 이 반에서 뺄까요?\n도구함에서는 지워지지 않아요.`)) return;
+      b.disabled = true;
+      try { await saveTools(tools.map((x) => Number(x.id)).filter((x) => String(x) !== b.dataset.kcDrop), '도구를 뺐습니다.'); }
+      catch (e) { b.disabled = false; if (!e.handled) toast(e.message, true); }
+    };
+  });
+  document.getElementById('kc-edit').onclick = () => openClassFormModal(cls, { schools: knownClassSchools });
+  document.getElementById('kc-toggle').onclick = async () => {
+    const ask = open
+      ? '반을 마감할까요?\n아이들이 반 코드로 들어올 수 없게 됩니다. 과정마다 연 수업은 각자 열림·마감 상태를 그대로 가져요(과정 코드로는 들어올 수 있어요).'
+      : '반을 다시 열까요?\n아이들이 반 코드로 다시 들어올 수 있어요.';
+    if (!confirm(ask)) return;
+    try {
+      await api('PATCH', `/api/classes/${id}`, { isOpen: !open });
+      toast(open ? '반을 마감했습니다.' : '반을 다시 열었습니다.');
+      navigate();
+    } catch (e) { if (!e.handled) toast(e.message, true); }
+  };
+  document.getElementById('kc-del').onclick = async () => {
+    if (curricula.length) return;
+    if (!confirm(`'${heading}' 반을 삭제할까요?\n반 코드는 더 이상 쓸 수 없게 됩니다. 되돌릴 수 없어요.`)) return;
+    try {
+      await api('DELETE', `/api/classes/${id}`);
+      toast('반을 삭제했습니다.');
+      location.hash = '#/myclass';
+    } catch (e) { if (!e.handled) toast(e.message, true); }
+  };
+});
+
+// 아이들 반 코드 화면: 반 이름과 과정·도구 카드. 과정으로 들어간 뒤 '← 우리 반 목록'으로 돌아오도록
+// 반 코드와 그 반의 과정 코드를 이 탭(sessionStorage)에만 기억한다 — 공유 태블릿의 다음 아이에게 남지 않게.
+function renderClassLanding(code, data) {
+  try {
+    sessionStorage.setItem('moakit:class-landing', JSON.stringify({
+      code, boards: classLandingCurricula(data).map((c) => String(c.code).toLowerCase()),
+    }));
+  } catch {}
+  document.title = `${classHeading((data && data.class) || {})} — 모아허브`;
+  $app.innerHTML = classLandingHtml(code, data);
+}
 
 // 수업 정보 수정(이름·학교·학년·반) — 만든 교사 또는 관리자(PATCH /api/boards/:id 가 같은 규칙으로 막는다).
 // 참여 코드·제출물은 그대로이므로 수업 중에 고쳐도 학생 화면은 영향받지 않는다.
