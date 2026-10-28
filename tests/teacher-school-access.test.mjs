@@ -37,6 +37,7 @@ async function call(method,path,{bound=true,allowed=false,role='teacher',account
       if(sql.startsWith('SELECT id FROM boards WHERE program_id='))return [board];
       if(sql.includes('FROM boards b'))return [board,legacy];
       if(sql.startsWith('SELECT board_id, student_name')){effects.nameQueries.push(args[0]);return [];}
+      if(sql.includes('FROM settings WHERE key=ANY'))return []; // 반 정보(sb:class:) 없음
       if(sql.includes('FROM board_posts'))return [post];
       if(sql.includes('FROM program_files')||sql.includes('FROM program_links')||sql.includes('FROM lessons')||sql.includes('FROM board_items'))return [];
       throw new Error(sql);

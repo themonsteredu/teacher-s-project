@@ -719,9 +719,10 @@ route(/^#\/program\/(\d+)$/, async (id) => {
   document.getElementById('new-board').onclick = () => {
     const back = openModal(`
       <h3>새 활동 보드</h3>
-      <div class="m-sub">학년·반마다 하나씩 만들어 쓰면 좋아요. 참여 코드는 학생이 입력하는 값입니다.</div>
+      <div class="m-sub">학년·반마다 하나씩 만들어 쓰면 좋아요. 반을 고르면 [내 수업]에서 그 반 아래에 모입니다. 참여 코드는 학생이 입력하는 값입니다.</div>
       <div class="form-grid" style="grid-template-columns:1fr 1fr">
-        <div style="grid-column:1/-1"><label>보드 이름 (반·주제)</label><input id="nb-title" placeholder="예: 2학년 2반 · 분수의 덧셈"></div>
+        ${classFieldsHtml('nb')}
+        <div style="grid-column:1/-1"><label for="nb-title">보드 이름 (선택)</label><input id="nb-title" maxlength="100" autocomplete="off"></div>
         <div><label>수업 날짜</label><input id="nb-date" type="date"><div class="small muted" style="margin-top:5px">날짜별로 정리돼요. 비워도 됩니다.</div></div>
         <div><label>참여 코드 (영문·숫자 4~10자)</label>
           <input id="nb-code" maxlength="10" placeholder="예: bs2622" autocomplete="off" style="text-transform:uppercase;letter-spacing:2px;font-weight:700">
@@ -735,19 +736,26 @@ route(/^#\/program\/(\d+)$/, async (id) => {
         <button class="btn btn-primary" id="nb-save">보드 만들기</button>
       </div>
       <div class="msg" id="nb-msg"></div>`);
+    // 새 수업 열기(#/myclass)와 같은 학교·학년·반 칸 — 학교는 지난번에 고른 학교로 채워 둔다
+    fillClassFields(back, 'nb', { school: lastClassSchool() });
+    bindAutoTitleHint(back, 'nb', back.querySelector('#nb-title'), () => p.title, '학년·반을 고르면 비워 둬도 이름이 자동으로 붙어요');
     back.querySelector('#nb-cancel').onclick = () => back.remove();
     back.querySelector('#nb-save').onclick = async () => {
+      const info = readClassFields(back, 'nb');
       const title = back.querySelector('#nb-title').value.trim();
       const code = back.querySelector('#nb-code').value.trim().toLowerCase();
       const class_date = back.querySelector('#nb-date').value || undefined;
       const roster = back.querySelector('#nb-roster').value;
       const msg = back.querySelector('#nb-msg');
-      if (!title) { msg.textContent = '보드 이름을 입력하세요.'; msg.className = 'msg err'; return; }
+      if (!title && !info.grade && !info.room) { msg.textContent = '보드 이름을 적거나 학년·반을 골라 주세요.'; msg.className = 'msg err'; return; }
       if (code && !/^[a-z0-9]{4,10}$/.test(code)) { msg.textContent = '참여 코드는 영문·숫자 4~10자여야 합니다.'; msg.className = 'msg err'; return; }
       try {
-        const r = await api('POST', `/api/programs/${p.id}/boards`, { title, code: code || undefined, class_date, roster });
+        const r = await api('POST', `/api/programs/${p.id}/boards`, { title, ...info, code: code || undefined, class_date, roster });
+        rememberClassSchool(info.school);
         back.remove();
-        toast(`보드가 열렸습니다. 참여 코드: ${r.code.toUpperCase()}`);
+        toast(r.classSaved === false
+          ? `보드는 열렸지만 반 정보는 저장하지 못했어요. [내 수업]의 [수업 정보 수정]에서 다시 정해 주세요. 참여 코드: ${r.code.toUpperCase()}`
+          : `보드가 열렸습니다. 참여 코드: ${r.code.toUpperCase()}`, r.classSaved === false);
         location.hash = `#/boardview/${r.id}`;
       } catch (err) { if (!err.handled) { msg.textContent = err.message; msg.className = 'msg err'; } }
     };
@@ -1248,9 +1256,136 @@ function rosterBadge(r) {
   const done = r.missingCount === 0;
   return `<span class="badge ${done ? 'green' : 'amber'}" title="명단 ${r.total}명 중 제출 ${r.submittedCount}명">제출 ${r.submittedCount}/${r.total}</span>`;
 }
+
+/* ---- 반별로 묶기 (#/myclass) ----
+ * 한 반(보성초 2학년 3반)이 프로그램(커리큘럼)마다 수업을 따로 열고, 수업마다 참여 코드가 다르다.
+ * 서버가 수업마다 classInfo {school, grade, room} 를 준다(settings sb:class:<보드>, 없으면 null).
+ * 묶음 열쇠에 학교 이름이 들어가야 다른 학교의 2학년 3반과 섞이지 않는다.
+ * DOM 을 쓰지 않는 함수만 여기 모은다 — tests/class-groups.test.mjs 가 이 구간을 떼어 시험한다. */
+const koCompare = (a, b) => String(a || '').localeCompare(String(b || ''), 'ko');
+function hasClassInfo(info) { return !!info && !!(info.school || info.grade || info.room); }
+// 서버 normClassInfo() 와 같은 규칙: 학교 40자, 학년 1~6(그 밖은 null), 반은 끝의 '반'을 떼고 10자
+function normClassFields(v) {
+  const text = (s, max) => String(s ?? '').replace(/[\u0000-\u001f\u007f]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, max);
+  const g = /^(?:초\s*)?([1-6])\s*(?:학년)?$/.exec(text(v && v.grade, 10));
+  return { school: text(v && v.school, 40), grade: g ? Number(g[1]) : null, room: text(text(v && v.room, 40).replace(/반$/, ''), 10) };
+}
+function classRoomLabel(info) {
+  return [info && info.grade ? `${info.grade}학년` : '', info && info.room ? `${info.room}반` : ''].filter(Boolean).join(' ');
+}
+// '보성초 · 2학년 3반' — 없는 칸은 뺀다
+function classLabel(info) {
+  return hasClassInfo(info) ? [info.school, classRoomLabel(info)].filter(Boolean).join(' · ') : '';
+}
+// 이름을 비우고 반만 고르면 붙는 이름. lib/api.js 의 autoBoardTitle() 과 같아야 한다.
+function autoClassTitle(info, programTitle) {
+  return [classRoomLabel(info), String(programTitle || '').trim()].filter(Boolean).join(' · ').slice(0, 100);
+}
+function classGroupKey(b) {
+  const i = b && b.classInfo;
+  return hasClassInfo(i) ? `${i.school || ''}|${i.grade || ''}|${i.room || ''}` : '';
+}
+// 줄의 큰 글자는 프로그램 이름이다. 수업 이름이 자동 이름(또는 프로그램 이름) 그대로면 같은 말을 두 번 쓰지 않는다.
+function showBoardTitle(b) {
+  const title = String(b.title || '').trim();
+  return !!title && title !== String(b.programTitle || '').trim() && title !== autoClassTitle(b.classInfo, b.programTitle);
+}
+// 반: 둘 다 숫자면 숫자 차례(9반 → 10반), 아니면 가나다. 반 미정은 뒤로.
+function compareClassRoom(a, b) {
+  if (!a !== !b) return a ? -1 : 1;
+  if (/^\d+$/.test(a) && /^\d+$/.test(b)) return Number(a) - Number(b);
+  return koCompare(a, b);
+}
+// 학교(가나다, 학교 미지정은 뒤) → 학년(숫자) → 반
+function compareClassInfo(a, b) {
+  if (!a.school !== !b.school) return a.school ? -1 : 1;
+  return koCompare(a.school, b.school) || (a.grade || 99) - (b.grade || 99) || compareClassRoom(a.room || '', b.room || '');
+}
+// 한 반 안에서는 진행 중 먼저 → 프로그램 이름 → 최근 날짜
+function compareClassRows(a, b) {
+  if (!a.isOpen !== !b.isOpen) return a.isOpen ? -1 : 1;
+  const byProgram = koCompare(a.programTitle, b.programTitle);
+  if (byProgram) return byProgram;
+  const da = a.classDate || '', db = b.classDate || '';
+  if (da !== db) { if (!da) return 1; if (!db) return -1; return da < db ? 1 : -1; }
+  return Number(b.id) - Number(a.id);
+}
+// [{ key, info, label, boards }] — 반 미지정(key '')은 맨 뒤
+function groupBoardsByClass(boards) {
+  const groups = new Map();
+  for (const b of boards) {
+    const key = classGroupKey(b);
+    if (!groups.has(key)) groups.set(key, { key, info: key ? b.classInfo : null, label: key ? classLabel(b.classInfo) : '반 미지정', boards: [] });
+    groups.get(key).boards.push(b);
+  }
+  const list = [...groups.values()];
+  for (const g of list) g.boards.sort(compareClassRows);
+  return list.sort((a, b) => (!a.key ? 1 : !b.key ? -1 : compareClassInfo(a.info, b.info)));
+}
+function classSchools(boards) {
+  return [...new Set(boards.map((b) => (hasClassInfo(b.classInfo) ? b.classInfo.school : '')).filter(Boolean))].sort(koCompare);
+}
+// 학교 칩: 학교가 둘 이상일 때만. '학교 미지정'은 반은 정했는데 학교를 비운 수업이 있을 때만.
+function classSchoolChips(boards) {
+  const schools = classSchools(boards);
+  if (schools.length < 2) return [];
+  const chips = [{ id: 'all', label: '전체' }, ...schools.map((s) => ({ id: `school:${s}`, label: s }))];
+  if (boards.some((b) => hasClassInfo(b.classInfo) && !b.classInfo.school)) chips.push({ id: 'none', label: '학교 미지정' });
+  return chips;
+}
+function boardInSchoolChip(b, chipId) {
+  if (!chipId || chipId === 'all') return true;
+  if (!hasClassInfo(b.classInfo)) return false; // 반 미지정은 '전체'에서만
+  return chipId === 'none' ? !b.classInfo.school : chipId === `school:${b.classInfo.school}`;
+}
+/* ---- 반별로 묶기 끝 ---- */
+
+// 새 수업·수업 정보 수정 모달이 함께 쓰는 학교·학년·반 칸. schools 는 내 수업에 이미 쓴 학교 이름(고르기 목록).
+let knownClassSchools = []; // 마지막으로 연 [내 수업]의 학교 이름 — 프로그램 화면의 '새 보드'도 같은 목록을 쓴다
+function lastClassSchool() { try { return localStorage.getItem('moakit:lastSchool') || ''; } catch { return ''; } }
+function rememberClassSchool(school) { if (school) { try { localStorage.setItem('moakit:lastSchool', school); } catch {} } }
+function classFieldsHtml(prefix, schools = []) {
+  const names = [...new Set([...schools, ...knownClassSchools, lastClassSchool()].filter(Boolean))].sort(koCompare);
+  return `
+      <div class="mcg-full"><label for="${prefix}-school">학교</label>
+        <input id="${prefix}-school" list="${prefix}-schools" maxlength="40" placeholder="예: 보성초" autocomplete="off">
+        <datalist id="${prefix}-schools">${names.map((s) => `<option value="${esc(s)}"></option>`).join('')}</datalist></div>
+      <div><label for="${prefix}-grade">학년</label>
+        <select id="${prefix}-grade"><option value="">선택 안 함</option>${[1, 2, 3, 4, 5, 6].map((g) => `<option value="${g}">${g}학년</option>`).join('')}</select></div>
+      <div><label for="${prefix}-room">반</label>
+        <input id="${prefix}-room" maxlength="10" placeholder="예: 3" autocomplete="off"></div>`;
+}
+function fillClassFields(root, prefix, info) {
+  root.querySelector(`#${prefix}-school`).value = (info && info.school) || '';
+  root.querySelector(`#${prefix}-grade`).value = info && info.grade ? String(info.grade) : '';
+  root.querySelector(`#${prefix}-room`).value = (info && info.room) || '';
+}
+function readClassFields(root, prefix) {
+  return normClassFields({
+    school: root.querySelector(`#${prefix}-school`).value,
+    grade: root.querySelector(`#${prefix}-grade`).value,
+    room: root.querySelector(`#${prefix}-room`).value,
+  });
+}
+// 이름 칸을 비우면 어떤 이름이 붙는지 미리 보여 준다(학년·반·프로그램을 바꿀 때마다)
+function bindAutoTitleHint(root, prefix, titleInput, programTitle, fallback) {
+  const update = () => {
+    const info = readClassFields(root, prefix);
+    titleInput.placeholder = info.grade || info.room ? `비워 두면 '${autoClassTitle(info, programTitle())}'` : fallback;
+  };
+  root.querySelectorAll(`#${prefix}-grade, #${prefix}-room`).forEach((el) => {
+    el.addEventListener('input', update);
+    el.addEventListener('change', update);
+  });
+  update();
+  return update;
+}
+
 route(/^#\/myclass$/, async () => {
   const data = await api('GET', '/api/my-boards');
   const boards = data.boards;
+  const byId = new Map(boards.map((b) => [String(b.id), b]));
+  knownClassSchools = classSchools(boards);
   // 관리자는 전 교사의 수업을 본다. 남의 반이 하나라도 섞여 있을 때만 담당 표시와
   // 선생님별 고르기를 켠다 — 교사 화면은 자기 수업뿐이라 예전 그대로다.
   const others = boards.filter((b) => !b.mine);
@@ -1258,35 +1393,68 @@ route(/^#\/myclass$/, async () => {
   const teachers = [...new Set(others.map((b) => b.teacherName || '(담당 없음)'))].sort((a, b) => a.localeCompare(b, 'ko'));
   let pickedTeacher = 'all';
   let search = '';
+  // 반별(기본): 한 반이 프로그램마다 연 수업을 그 반 아래 한 줄씩. 날짜별: 예전 날짜 묶음.
+  // 고른 보기는 이 브라우저에 남긴다. 학교 칩은 반별 보기에서만 걸린다.
+  let view = 'class';
+  try { if (localStorage.getItem('moakit:myclass') === 'date') view = 'date'; } catch {}
+  const schoolChips = classSchoolChips(boards);
+  let pickedSchool = 'all';
   const ownerBadge = (b) => (b.mine
     ? '<span class="badge teal">내 수업</span>'
     : b.shared
       ? `<span class="badge teal">함께 보기</span> <span class="badge gray">담당 ${esc(b.teacherName || '알 수 없음')}</span>`
       : `<span class="badge gray">담당 ${esc(b.teacherName || '알 수 없음')}</span>`);
+  const statusBadge = (b) => (b.isOpen ? '<span class="badge green">진행 중</span>' : '<span class="badge gray">마감됨</span>');
   const card = (b) => `
     <div class="class-card ${b.isOpen ? '' : 'closed'}">
       <div class="cc-top">
         <div class="cc-title">${esc(b.title)}</div>
-        ${b.isOpen ? '<span class="badge green">진행 중</span>' : '<span class="badge gray">마감됨</span>'}
+        ${statusBadge(b)}
       </div>
       ${showOwner ? `<div class="cc-owner">${ownerBadge(b)}</div>` : ''}
+      ${hasClassInfo(b.classInfo) ? `<div class="mcg-cardclass small">${icon('users')} ${esc(classLabel(b.classInfo))}</div>` : ''}
       <div class="cc-prog small muted">${esc(b.programTitle)}${b.programPublished ? '' : ' · <span style="color:#c0392b">프로그램 비공개</span>'}</div>
       ${b.isOpen ? `<div class="cc-code">참여 코드 <b>${esc(b.code)}</b></div>` : ''}
       <div class="cc-stat small muted">🧑‍🎓 제출 ${b.postCount}개 · 📚 공유 자료 ${b.itemCount}개 ${rosterBadge(b.roster)}</div>
       <div class="cc-actions">
         <a class="btn btn-primary btn-sm" href="#/boardview/${b.id}">${icon('monitor')} 수업 열기</a>
         <a class="btn btn-ghost btn-sm" href="#/program/${b.programId}">프로그램</a>
-        ${b.shared ? '' : `<button class="btn btn-ghost btn-sm" data-edit-board="${b.id}" data-title="${esc(b.title)}" title="수업 이름 바꾸기">${icon('edit')} 이름 수정</button>
-        <button class="btn btn-ghost btn-sm cc-del" data-del-board="${b.id}" data-title="${esc(b.title)}" title="수업 삭제">${icon('trash')}</button>`}
+        ${b.shared ? '' : `<button class="btn btn-ghost btn-sm" data-edit-board="${b.id}" title="수업 이름·학교·학년·반 고치기">${icon('edit')} 수업 정보 수정</button>
+        <button class="btn btn-ghost btn-sm cc-del" data-del-board="${b.id}" data-title="${esc(b.title)}" title="수업 삭제" aria-label="수업 삭제: ${esc(b.title)}">${icon('trash')}</button>`}
       </div>
     </div>`;
+  // 반별 보기의 한 줄 = 한 수업. 큰 글자는 프로그램(커리큘럼) 이름 — 같은 반 안에서는 그게 수업을 가른다.
+  // 반 미지정 줄은 [수업 정보 수정] 자리에 [반 정하기]가 나온다(같은 창을 반 칸부터 연다).
+  const row = (b, unassigned) => {
+    const where = classLabel(b.classInfo);
+    return `
+      <li class="mcg-row${b.isOpen ? '' : ' is-closed'}">
+        <div class="mcg-main">
+          <div class="mcg-prog">${esc(b.programTitle)}${b.programPublished ? '' : ' <span class="badge red">프로그램 비공개</span>'}</div>
+          ${showBoardTitle(b) ? `<div class="mcg-title">${esc(b.title)}</div>` : ''}
+          <div class="mcg-meta">
+            ${statusBadge(b)}
+            ${b.isOpen ? `<span class="mcg-code">코드 <b>${esc(String(b.code).toUpperCase())}</b></span>` : ''}
+            ${rosterBadge(b.roster) || `<span>제출 ${b.postCount}개</span>`}
+            ${b.classDate ? `<span>${esc(dateLabel(b.classDate))}</span>` : ''}
+            ${showOwner ? `<span class="mcg-owner">${ownerBadge(b)}</span>` : ''}
+          </div>
+        </div>
+        <div class="mcg-actions">
+          <a class="btn btn-primary btn-sm" href="#/boardview/${b.id}">${icon('monitor')} 수업 열기<span class="mcg-sr"> — ${esc(where ? `${where} ${b.programTitle}` : b.title)}</span></a>
+          <a class="btn btn-ghost btn-sm" href="#/program/${b.programId}">프로그램<span class="mcg-sr"> — ${esc(b.programTitle)}</span></a>
+          ${b.shared ? '' : `${unassigned
+            ? `<button type="button" class="btn btn-soft btn-sm" data-edit-board="${b.id}" data-focus="class">${icon('users')} 반 정하기<span class="mcg-sr"> — ${esc(b.title)}</span></button>`
+            : `<button type="button" class="btn btn-ghost btn-sm" data-edit-board="${b.id}">${icon('edit')} 수업 정보 수정<span class="mcg-sr"> — ${esc(b.title)}</span></button>`}
+          <button type="button" class="btn btn-ghost btn-sm cc-del" data-del-board="${b.id}" data-title="${esc(b.title)}" title="수업 삭제" aria-label="수업 삭제: ${esc(b.title)}">${icon('trash')}</button>`}
+        </div>
+      </li>`;
+  };
+  const emptyHtml = () => (boards.length
+    ? '<div class="empty-note">고른 조건에 맞는 수업이 없습니다.</div>'
+    : '<div class="empty-note">아직 만든 수업이 없습니다. 위 <b>[새 수업 열기]</b> 로 첫 수업을 만들어 보세요.</div>');
   // 날짜별 그룹 (최신 날짜 먼저, 날짜 미정은 맨 아래)
-  const listHtml = (rows) => {
-    if (!rows.length) {
-      return boards.length
-        ? '<div class="empty-note">고른 조건에 맞는 수업이 없습니다.</div>'
-        : '<div class="empty-note">아직 만든 수업이 없습니다. 위 <b>[새 수업 열기]</b> 로 첫 수업을 만들어 보세요.</div>';
-    }
+  const dateListHtml = (rows) => {
     const groups = new Map();
     for (const b of rows) {
       const key = b.classDate || '';
@@ -1302,11 +1470,19 @@ route(/^#\/myclass$/, async () => {
       <div class="class-grid">${groups.get(k).map(card).join('')}</div>
     </div>`).join('');
   };
+  // 반별 그룹 (학교 → 학년 → 반, 반 미지정은 맨 아래)
+  const classListHtml = (rows) => groupBoardsByClass(rows).map((g, i) => `
+    <section class="mcg-group" aria-labelledby="mcg-h-${i}">
+      <h2 class="mcg-head" id="mcg-h-${i}">${icon('users')} <span>${esc(g.label)}</span> <span class="small muted">· 수업 ${g.boards.length}개</span></h2>
+      ${g.key ? '' : '<p class="mcg-hint small muted">어느 반 수업인지 아직 정하지 않았어요. [반 정하기]로 학교·학년·반을 고르면 그 반 아래로 모여요.</p>'}
+      <ul class="mcg-rows">${g.boards.map((b) => row(b, !g.key)).join('')}</ul>
+    </section>`).join('');
   const visible = () => boards.filter((b) => {
     if (pickedTeacher === 'mine' && !b.mine) return false;
     if (pickedTeacher !== 'all' && pickedTeacher !== 'mine' && (b.teacherName || '(담당 없음)') !== pickedTeacher) return false;
+    if (view === 'class' && !boardInSchoolChip(b, pickedSchool)) return false;
     if (!search) return true;
-    const hay = `${b.title} ${b.programTitle} ${b.code} ${b.teacherName || ''}`.toLowerCase();
+    const hay = `${b.title} ${b.programTitle} ${b.code} ${b.teacherName || ''} ${classLabel(b.classInfo)}`.toLowerCase();
     return hay.includes(search);
   });
   // 관리자 문구는 관리자에게만. 교사 목록에 남의 수업이 있다면 함께 보기로 받은 것뿐이다.
@@ -1335,11 +1511,20 @@ route(/^#\/myclass$/, async () => {
         </select>
       </label>
       <label class="mc-filter wide">수업 찾기
-        <input id="mc-search" type="search" placeholder="수업 이름 · 프로그램 · 참여 코드 · 선생님" autocomplete="off">
+        <input id="mc-search" type="search" placeholder="수업 이름 · 프로그램 · 참여 코드 · 선생님 · 학교·반" autocomplete="off">
       </label>
       <span class="small muted" id="mc-count"></span>
     </div>` : ''}
-    <div id="mc-list">${listHtml(visible())}</div>
+    ${boards.length ? `
+    <div class="mcg-bar">
+      <div class="sb-tabs" role="group" aria-label="수업 묶는 방식">
+        <button type="button" data-mc-view="class">반별</button>
+        <button type="button" data-mc-view="date">날짜별</button>
+      </div>
+      <span class="small muted" id="mcg-note"></span>
+    </div>
+    <div class="sb-lessons mcg-schools" id="mcg-schools" role="group" aria-label="학교 고르기" hidden></div>` : ''}
+    <div id="mc-list"></div>
   `);
   function bindCards() {
     document.querySelectorAll('[data-del-board]').forEach((btn) => {
@@ -1354,31 +1539,70 @@ route(/^#\/myclass$/, async () => {
       };
     });
     document.querySelectorAll('[data-edit-board]').forEach((btn) => {
-      btn.onclick = () => openRenameClassModal(btn.dataset.editBoard, btn.dataset.title || '');
+      const b = byId.get(btn.dataset.editBoard);
+      if (!b) return;
+      btn.onclick = () => openRenameClassModal(b.id, b.title, {
+        classInfo: b.classInfo, programTitle: b.programTitle, schools: knownClassSchools, focus: btn.dataset.focus,
+      });
+    });
+  }
+  function drawSchoolChips() {
+    const box = document.getElementById('mcg-schools');
+    if (!box) return;
+    if (view !== 'class' || !schoolChips.length) { box.hidden = true; box.innerHTML = ''; return; }
+    box.hidden = false;
+    box.innerHTML = schoolChips.map((c, i) => `<button type="button" data-mcg-school="${i}" aria-pressed="${c.id === pickedSchool}">${esc(c.label)}</button>`).join('');
+    box.querySelectorAll('[data-mcg-school]').forEach((btn) => {
+      btn.onclick = () => {
+        pickedSchool = schoolChips[Number(btn.dataset.mcgSchool)].id;
+        redraw();
+        // 칩을 다시 그려도 키보드 초점이 고른 칩에 남게
+        document.querySelector(`[data-mcg-school="${btn.dataset.mcgSchool}"]`)?.focus();
+      };
     });
   }
   function redraw() {
     const rows = visible();
-    document.getElementById('mc-list').innerHTML = listHtml(rows);
+    document.querySelectorAll('[data-mc-view]').forEach((b) => {
+      const on = b.dataset.mcView === view;
+      b.classList.toggle('active', on);
+      b.setAttribute('aria-pressed', String(on));
+    });
+    const note = document.getElementById('mcg-note');
+    if (note) note.textContent = view === 'class' ? '한 반이 연 수업을 프로그램마다 한 줄로 모아 봐요.' : '수업 날짜가 최근인 것부터 봐요.';
+    drawSchoolChips();
+    document.getElementById('mc-list').innerHTML = !rows.length ? emptyHtml() : view === 'class' ? classListHtml(rows) : dateListHtml(rows);
     const count = document.getElementById('mc-count');
     if (count) count.textContent = rows.length === boards.length ? `${boards.length}개 수업` : `${rows.length} / ${boards.length}개 수업`;
     bindCards();
   }
-  document.getElementById('mc-new').onclick = () => openNewClassModal();
+  document.getElementById('mc-new').onclick = () => openNewClassModal({ schools: knownClassSchools });
   document.getElementById('mc-teacher')?.addEventListener('change', (e) => { pickedTeacher = e.target.value; redraw(); });
   document.getElementById('mc-search')?.addEventListener('input', (e) => { search = e.target.value.trim().toLowerCase(); redraw(); });
-  if (showOwner) redraw(); else bindCards();
+  document.querySelectorAll('[data-mc-view]').forEach((btn) => {
+    btn.onclick = () => {
+      view = btn.dataset.mcView === 'date' ? 'date' : 'class';
+      try { localStorage.setItem('moakit:myclass', view); } catch {}
+      redraw();
+    };
+  });
+  redraw();
 });
 
-// 수업 이름 바꾸기 — 만든 교사 또는 관리자(PATCH /api/boards/:id 가 같은 규칙으로 막는다).
-// 참여 코드·제출물은 그대로이므로 수업 중에 이름만 고쳐도 학생 화면은 영향받지 않는다.
-function openRenameClassModal(id, current) {
+// 수업 정보 수정(이름·학교·학년·반) — 만든 교사 또는 관리자(PATCH /api/boards/:id 가 같은 규칙으로 막는다).
+// 참여 코드·제출물은 그대로이므로 수업 중에 고쳐도 학생 화면은 영향받지 않는다.
+// opts: classInfo(지금 반 정보) · programTitle(자동 이름용) · schools(학교 고르기 목록) · focus('class'면 반 칸부터).
+// 예전처럼 (id, 이름)만 넘겨도 된다 — 손댄 반 칸만 보내므로 이미 저장된 반 정보가 지워지지 않는다.
+function openRenameClassModal(id, current, opts = {}) {
+  const before = normClassFields(opts.classInfo || {});
+  const programTitle = opts.programTitle || '';
   const back = openModal(`
-    <h3>수업 이름 바꾸기</h3>
-    <div class="m-sub">반·주제가 드러나게 적으면 목록에서 찾기 쉽습니다. 참여 코드와 제출된 결과물은 그대로입니다.</div>
+    <h3>수업 정보 수정</h3>
+    <div class="m-sub">반을 정하면 [내 수업]의 반별 보기에서 그 반 아래에 모입니다. 참여 코드와 제출된 결과물은 그대로입니다.</div>
     <div class="form-grid">
-      <div style="grid-column:1/-1"><label>수업 이름</label>
-        <input id="rc-title" maxlength="100" placeholder="예: 2학년 2반 · 분수의 덧셈" autocomplete="off"></div>
+      <div class="mcg-full"><label for="rc-title">수업 이름</label>
+        <input id="rc-title" maxlength="100" autocomplete="off"></div>
+      ${classFieldsHtml('rc', opts.schools || [])}
     </div>
     <div class="m-actions">
       <button class="btn btn-ghost" id="rc-cancel">취소</button>
@@ -1388,31 +1612,44 @@ function openRenameClassModal(id, current) {
   const input = back.querySelector('#rc-title');
   const msg = back.querySelector('#rc-msg');
   const saveBtn = back.querySelector('#rc-save');
-  input.value = current;
-  input.focus();
-  input.select();
+  input.value = current || '';
+  fillClassFields(back, 'rc', before);
+  bindAutoTitleHint(back, 'rc', input, () => programTitle, '예: 2학년 2반 · 분수의 덧셈');
+  if (opts.focus === 'class') back.querySelector(before.school ? '#rc-grade' : '#rc-school').focus();
+  else { input.focus(); input.select(); }
   back.querySelector('#rc-cancel').onclick = () => back.remove();
   const save = async () => {
-    const title = input.value.trim();
-    if (!title) { msg.textContent = '수업 이름을 입력하세요.'; input.focus(); return; }
-    if (title === current) { back.remove(); return; }
+    const info = readClassFields(back, 'rc');
+    const changed = ['school', 'grade', 'room'].filter((k) => info[k] !== before[k]);
+    const hasRoom = !!(info.grade || info.room);
+    let title = input.value.trim();
+    // 이름을 비웠거나, 예전 자동 이름을 그대로 둔 채 반만 바꿨으면 새 반에 맞춰 이름도 다시 붙인다
+    const wasAuto = !!(before.grade || before.room) && title === autoClassTitle(before, programTitle);
+    if (hasRoom && (!title || (changed.length && wasAuto))) title = autoClassTitle(info, programTitle);
+    if (!title) { msg.textContent = '수업 이름을 적거나 학년·반을 골라 주세요.'; msg.className = 'msg err'; input.focus(); return; }
+    const body = {};
+    if (title !== current) body.title = title;
+    for (const k of changed) body[k] = info[k];
+    if (!Object.keys(body).length) { back.remove(); return; }
     saveBtn.disabled = true;
     try {
-      await api('PATCH', `/api/boards/${id}`, { title });
+      await api('PATCH', `/api/boards/${id}`, body);
+      rememberClassSchool(body.school);
       back.remove();
-      toast('수업 이름을 바꿨습니다.');
+      toast(changed.length ? '수업 정보를 바꿨습니다.' : '수업 이름을 바꿨습니다.');
       navigate();
     } catch (e) {
       saveBtn.disabled = false;
-      if (!e.handled) msg.textContent = e.message;
+      if (!e.handled) { msg.textContent = e.message; msg.className = 'msg err'; }
     }
   };
   saveBtn.onclick = save;
-  input.addEventListener('keydown', (e) => { if (e.key === 'Enter') save(); });
+  back.querySelectorAll('#rc-title, #rc-school, #rc-room').forEach((el) => el.addEventListener('keydown', (e) => { if (e.key === 'Enter') save(); }));
 }
 
-// 대시보드에서 바로 새 수업(보드) 열기 — 프로그램 선택 포함
-async function openNewClassModal() {
+// 대시보드에서 바로 새 수업(보드) 열기 — 프로그램·반 선택 포함.
+// 같은 반이 다른 프로그램을 할 때도 수업을 하나 더 연다(프로그램마다 참여 코드가 따로). 반을 고르면 반별 보기에서 그 반 아래에 모인다.
+async function openNewClassModal(options = {}) {
   let programs = [];
   try { programs = (await api('GET', '/api/programs')).programs; }
   catch (e) { if (!e.handled) toast(e.message, true); return; }
@@ -1425,10 +1662,11 @@ async function openNewClassModal() {
   const opts = programs.map((p) => `<option value="${p.id}">${esc(p.title)}${p.published === false ? ' — 비공개 · 학생 입장 불가' : ''}</option>`).join('');
   const back = openModal(`
     <h3>새 수업 열기</h3>
-    <div class="m-sub">프로그램을 고르고, 날짜·주제로 이름을 붙이면 날짜별로 정리됩니다.</div>
+    <div class="m-sub">프로그램과 반을 고르면 [내 수업]에서 반별로 모입니다. 같은 반이 다른 프로그램을 할 때도 수업을 하나 더 열면 됩니다.</div>
     <div class="form-grid" style="grid-template-columns:1fr 1fr">
       <div style="grid-column:1/-1"><label>프로그램</label><select id="nc-prog">${opts}</select></div>
-      <div style="grid-column:1/-1"><label>수업 이름 (반·주제)</label><input id="nc-title" placeholder="예: 2학년 2반 · 분수의 덧셈"></div>
+      ${classFieldsHtml('nc', options.schools || [])}
+      <div style="grid-column:1/-1"><label for="nc-title">수업 이름 (선택)</label><input id="nc-title" maxlength="100" autocomplete="off"></div>
       <div><label>수업 날짜</label><input id="nc-date" type="date"></div>
       <div><label>참여 코드 (영문·숫자 4~10자)</label>
         <input id="nc-code" maxlength="10" placeholder="비워두면 자동" autocomplete="off" style="text-transform:uppercase;letter-spacing:2px;font-weight:700"></div>
@@ -1441,27 +1679,36 @@ async function openNewClassModal() {
       <button class="btn btn-primary" id="nc-save">수업 만들기</button>
     </div>
     <div class="msg" id="nc-msg"></div>`);
+  const pickedProgram = () => programs.find((p) => String(p.id) === back.querySelector('#nc-prog').value);
+  // 학교는 지난번에 고른 학교로 채워 둔다(한 선생님은 대개 한 학교에서 여러 반을 맡는다)
+  fillClassFields(back, 'nc', { school: options.school ?? lastClassSchool() });
+  const titleInput = back.querySelector('#nc-title');
+  const hint = bindAutoTitleHint(back, 'nc', titleInput, () => (pickedProgram() || {}).title || '', '학년·반을 고르면 비워 둬도 이름이 자동으로 붙어요');
   const ncWarn = () => {
-    const picked = programs.find((p) => String(p.id) === back.querySelector('#nc-prog').value);
+    const picked = pickedProgram();
     back.querySelector('#nc-msg').textContent = picked && picked.published === false
       ? '이 프로그램은 비공개라 참여 코드를 띄워도 학생이 들어오지 못합니다. 프로그램을 먼저 공개하세요.' : '';
   };
-  back.querySelector('#nc-prog').addEventListener('change', ncWarn);
+  back.querySelector('#nc-prog').addEventListener('change', () => { ncWarn(); hint(); });
   ncWarn();
   back.querySelector('#nc-cancel').onclick = () => back.remove();
   back.querySelector('#nc-save').onclick = async () => {
     const programId = back.querySelector('#nc-prog').value;
-    const title = back.querySelector('#nc-title').value.trim();
+    const info = readClassFields(back, 'nc');
+    const title = titleInput.value.trim();
     const code = back.querySelector('#nc-code').value.trim().toLowerCase();
     const class_date = back.querySelector('#nc-date').value || undefined;
     const roster = back.querySelector('#nc-roster').value;
     const msg = back.querySelector('#nc-msg');
-    if (!title) { msg.textContent = '수업 이름을 입력하세요.'; msg.className = 'msg err'; return; }
+    if (!title && !info.grade && !info.room) { msg.textContent = '수업 이름을 적거나 학년·반을 골라 주세요.'; msg.className = 'msg err'; return; }
     if (code && !/^[a-z0-9]{4,10}$/.test(code)) { msg.textContent = '참여 코드는 영문·숫자 4~10자여야 합니다.'; msg.className = 'msg err'; return; }
     try {
-      const r = await api('POST', `/api/programs/${programId}/boards`, { title, code: code || undefined, class_date, roster });
+      const r = await api('POST', `/api/programs/${programId}/boards`, { title, ...info, code: code || undefined, class_date, roster });
+      rememberClassSchool(info.school);
       back.remove();
-      toast(`수업이 열렸습니다. 참여 코드: ${r.code.toUpperCase()}`);
+      toast(r.classSaved === false
+        ? `수업은 열렸지만 반 정보는 저장하지 못했어요. [수업 정보 수정]에서 다시 정해 주세요. 참여 코드: ${r.code.toUpperCase()}`
+        : `수업이 열렸습니다. 참여 코드: ${r.code.toUpperCase()}`, r.classSaved === false);
       location.hash = `#/boardview/${r.id}`;
     } catch (err) { if (!err.handled) { msg.textContent = err.message; msg.className = 'msg err'; } }
   };
@@ -1498,6 +1745,7 @@ route(/^#\/boardview\/(\d+)$/, async (id) => {
   shell(b.title, `
     <div class="page-head">
       <div>
+        ${hasClassInfo(b.classInfo) ? `<div class="mcg-where small">${icon('users')} ${esc(classLabel(b.classInfo))}</div>` : ''}
         <div class="ph-t">${esc(b.title)} ${b.isOpen ? '<span class="badge green">진행 중</span>' : '<span class="badge gray">마감됨</span>'}</div>
         <div class="desc">${esc(data.program.title)} · 게시물 ${data.posts.length}개 ${b.isOpen ? '· 마감하면 학생 제출·열람이 즉시 중단됩니다' : '· 결과물은 계속 보관됩니다'}</div>
       </div>
