@@ -1381,7 +1381,7 @@ function withEditFlags(g) {
 // classes: GET /api/classes, boards: GET /api/my-boards 에서 담당·학교 고르기를 거친 것.
 // → { classes: [{ cls, curricula, legacy }], legacy: [{ key, info, label, boards, canEdit, canCreate }], unassigned: { boards, canEdit } | null }
 function groupClassesAndBoards(classes, boards) {
-  const list = [...classes].sort(compareClasses).map((cls) => ({ cls, curricula: [], legacy: [] }));
+  const list = [...classes].sort(compareClasses).map((cls) => ({ cls, curricula: [], legacy: [], inboxBoard: null }));
   const byId = new Map(list.map((g) => [String(g.cls.id), g]));
   const byKey = new Map();
   for (const g of list) { const k = classInfoKey(g.cls); if (k && !byKey.has(k)) byKey.set(k, g); }
@@ -1389,6 +1389,9 @@ function groupClassesAndBoards(classes, boards) {
   for (const b of boards) {
     const cid = b.classInfo && b.classInfo.classId;
     const home = cid ? byId.get(String(cid)) : null;
+    // 반 제출함은 과정이 아니다 — 과정 줄·[반에 넣기] 줄에 섞지 않고 반 카드의 한 줄로만 보인다.
+    // 반 카드가 없으면(다른 선생님 반을 걸러 냈을 때 등) 반별 보기에서는 뺀다. 날짜별 보기에는 '반 제출함'으로 나온다.
+    if (isInboxBoard(b)) { if (home && !home.inboxBoard) home.inboxBoard = b; continue; }
     if (home) { home.curricula.push(b); continue; }
     // 반 개설 전에 연 수업(또는 이 화면에 없는 반의 수업)은 학교|학년|반이 같은 반 아래로
     const match = byKey.get(classGroupKey(b));
@@ -1444,6 +1447,7 @@ function classLandingHtml(code, data) {
   const cls = (data && data.class) || {};
   const curricula = classLandingCurricula(data);
   const tools = classLandingTools(data);
+  const inboxCode = classLandingInboxCode(data);
   const safeCode = String(code || '').toLowerCase();
   const card = (href, mark, title, go, external) => `
         <li><a class="kcl-card${external ? ' is-tool' : ''}" href="${esc(href)}"${external ? ' target="_blank" rel="noopener"' : ''}>
@@ -1461,7 +1465,15 @@ function classLandingHtml(code, data) {
         <h1>${esc(classHeading(cls))}</h1>
         <p>오늘 할 것을 골라 눌러 보세요.</p>
       </header>
-      ${curricula.length || tools.length ? '' : '<p class="kcl-empty" role="status">아직 선생님이 과정을 넣지 않았어요.<br>조금 기다렸다가 다시 들어와 보세요.</p>'}
+      ${inboxCode ? `
+      <div class="kcl-sec">
+        <a class="kcl-card kcl-inbox" href="#/board/${esc(inboxCode)}">
+          <span class="kcl-mark" aria-hidden="true">📷</span>
+          <b class="kcl-title">활동지·사진 올리기</b>
+          <span class="kcl-sub">다 한 활동지를 사진으로 찍어 선생님께 보내요.</span>
+          <span class="kcl-go">올리러 가기 →</span></a>
+      </div>` : ''}
+      ${curricula.length || tools.length || inboxCode ? '' : '<p class="kcl-empty" role="status">아직 선생님이 과정을 넣지 않았어요.<br>조금 기다렸다가 다시 들어와 보세요.</p>'}
       ${curricula.length ? `
       <section class="kcl-sec" aria-labelledby="kcl-cur">
         <h2 id="kcl-cur">배우는 과정</h2>
@@ -1474,6 +1486,58 @@ function classLandingHtml(code, data) {
       </section>` : ''}
       <div class="kcl-foot"><a class="btn btn-soft" href="#/login">다른 코드 넣기</a></div>
     </div>`;
+}
+
+/* 반 제출함 — 원장님 요청: 과정을 열지 않아도 반마다 아이들이 활동지·사진을 올리는 곳.
+ * 서버가 숨은 시스템 프로그램 아래 반마다 보드를 하나 만들고 그 보드의 sb:class 에 inbox: true 를 붙인다.
+ * 올리기·보기·받기·인쇄는 기존 수업 보드(#/board · #/boardview)를 그대로 쓴다. 과정이 아니므로 과정 줄·과정 수에 섞지 않는다. */
+function isInboxBoard(b) { return !!(b && b.classInfo && b.classInfo.inbox === true); }
+// GET /api/classes(/:id) 의 inbox {boardId, code, postCount} — 모양이 맞지 않으면 없는 것으로 본다
+function classInboxOf(c) {
+  const box = c && c.inbox;
+  if (!box || !/^\d+$/.test(String(box.boardId))) return null;
+  const code = String(box.code || '').toLowerCase();
+  return { boardId: Number(box.boardId), code: BOARD_CODE_UI.test(code) ? code : '', postCount: Number(box.postCount) || 0 };
+}
+// 아이들 반 코드 화면의 [활동지·사진 올리기] — 서버가 반도 제출함도 열려 있을 때만 inbox {code} 를 준다
+function classLandingInboxCode(data) {
+  const code = String((data && data.inbox && data.inbox.code) || '').toLowerCase();
+  return BOARD_CODE_UI.test(code) ? code : '';
+}
+// 내 수업 반 카드의 한 줄 '📷 반 제출함 · 제출 n개 [보기]'. 반 목록의 inbox 가 먼저, 없으면 내 수업 목록의 제출함 보드로.
+function classInboxLineHtml(c, inboxBoard) {
+  const box = classInboxOf(c)
+    || (inboxBoard && /^\d+$/.test(String(inboxBoard.id)) ? { boardId: Number(inboxBoard.id), postCount: Number(inboxBoard.postCount) || 0 } : null);
+  if (!box) return '';
+  return `
+      <div class="kc-inboxline">
+        <span class="kc-inbox-t"><span aria-hidden="true">📷</span> 반 제출함 · 제출 ${box.postCount}개</span>
+        <a class="btn btn-soft btn-sm" href="#/boardview/${box.boardId}">보기<span class="mcg-sr"> — ${esc(classHeading(c))} 반 제출함</span></a>
+      </div>`;
+}
+// 반 화면(#/class/:id) 코드판 바로 아래 카드. 제출함을 아직 못 만들었으면 [다시 만들기]를 둔다.
+function classInboxCardHtml(inbox, error = '') {
+  return `
+    <section class="card kc-inbox" aria-labelledby="kc-inbox-h">
+      <div class="kc-inbox-main">
+        <h2 id="kc-inbox-h"><span aria-hidden="true">📷</span> 반 제출함${inbox ? ` <span class="small muted">제출 ${inbox.postCount}개</span>` : ''}</h2>
+        <p class="small muted kc-note">아이들이 반 코드로 들어와 활동지·사진을 올리는 곳이에요. 과정을 열지 않아도 돼요.</p>
+        ${inbox ? '' : `<p class="small kc-closednote" role="status">반 제출함을 아직 만들지 못했어요.${error ? ` (${esc(error)})` : ''}</p>`}
+      </div>
+      ${inbox
+        ? `<a class="btn btn-primary btn-sm" href="#/boardview/${inbox.boardId}">제출물 보기</a>`
+        : '<button type="button" class="btn btn-soft btn-sm" id="kc-inbox-make">다시 만들기</button>'}
+    </section>`;
+}
+// 수업 화면(#/boardview) 머리 단추. 반에 붙은 수업이면 [반 화면 · 도구 추가](도구는 반 화면에서 넣는다), 아니면 [반에 넣기].
+// 수업을 고칠 수 있는 선생님(만든 사람·관리자)만 — 함께 보는 선생님은 반 화면을 열 수 없다(403).
+const CLASS_ID_UI = /^[0-9a-f]{12}$/;
+function boardClassActionHtml(board, manageable) {
+  if (!manageable || !board) return '';
+  const cid = String((board.classInfo && board.classInfo.classId) || '');
+  if (CLASS_ID_UI.test(cid)) return `<a class="btn btn-soft btn-sm" href="#/class/${esc(cid)}">반 화면 · 도구 추가</a>`;
+  if (isInboxBoard(board)) return '';
+  return '<button type="button" class="btn btn-soft btn-sm" id="board-attach">반에 넣기</button>';
 }
 /* ---- 반 먼저 끝 ---- */
 
@@ -1563,7 +1627,11 @@ route(/^#\/myclass$/, async () => {
       : `<span class="badge gray">담당 ${esc(b.teacherName || '알 수 없음')}</span>`);
   const classOwnerBadge = (c) => (c.mine ? '<span class="badge teal">내 반</span>' : `<span class="badge gray">담당 ${esc(c.ownerName || '알 수 없음')}</span>`);
   const statusBadge = (b) => (b.isOpen ? '<span class="badge green">진행 중</span>' : '<span class="badge gray">마감됨</span>');
-  const card = (b) => `
+  // 날짜별 보기의 카드. 반 제출함은 '반 제출함'으로 적고 프로그램·수정·삭제 단추를 두지 않는다
+  // (숨은 시스템 프로그램이라 열 수 없고, 반 이름은 반 화면에서 고친다).
+  const card = (b) => {
+    const inbox = isInboxBoard(b);
+    return `
     <div class="class-card ${b.isOpen ? '' : 'closed'}">
       <div class="cc-top">
         <div class="cc-title">${esc(b.title)}</div>
@@ -1571,16 +1639,17 @@ route(/^#\/myclass$/, async () => {
       </div>
       ${showOwner ? `<div class="cc-owner">${ownerBadge(b)}</div>` : ''}
       ${hasClassInfo(b.classInfo) ? `<div class="mcg-cardclass small">${icon('users')} ${esc(classLabel(b.classInfo))}</div>` : ''}
-      <div class="cc-prog small muted">${esc(b.programTitle)}${b.programPublished ? '' : ' · <span style="color:#c0392b">프로그램 비공개</span>'}</div>
-      ${b.isOpen ? `<div class="cc-code">참여 코드 <b>${esc(b.code)}</b></div>` : ''}
-      <div class="cc-stat small muted">🧑‍🎓 제출 ${b.postCount}개 · 📚 공유 자료 ${b.itemCount}개 ${rosterBadge(b.roster)}</div>
+      <div class="cc-prog small muted">${inbox ? '<span aria-hidden="true">📷</span> 반 제출함 · 아이들이 반 코드로 올린 활동지·사진' : `${esc(b.programTitle)}${b.programPublished ? '' : ' · <span style="color:#c0392b">프로그램 비공개</span>'}`}</div>
+      ${b.isOpen && !inbox ? `<div class="cc-code">참여 코드 <b>${esc(b.code)}</b></div>` : ''}
+      <div class="cc-stat small muted">🧑‍🎓 제출 ${b.postCount}개${inbox ? '' : ` · 📚 공유 자료 ${b.itemCount}개`} ${rosterBadge(b.roster)}</div>
       <div class="cc-actions">
-        <a class="btn btn-primary btn-sm" href="#/boardview/${b.id}">${icon('monitor')} 수업 열기</a>
-        <a class="btn btn-ghost btn-sm" href="#/program/${b.programId}">프로그램</a>
+        <a class="btn btn-primary btn-sm" href="#/boardview/${b.id}">${icon('monitor')} ${inbox ? '제출물 보기' : '수업 열기'}</a>
+        ${inbox ? (CLASS_ID_UI.test(String(b.classInfo.classId || '')) ? `<a class="btn btn-ghost btn-sm" href="#/class/${esc(b.classInfo.classId)}">반 화면</a>` : '') : `<a class="btn btn-ghost btn-sm" href="#/program/${b.programId}">프로그램</a>
         ${b.shared ? '' : `<button class="btn btn-ghost btn-sm" data-edit-board="${b.id}" title="수업 이름·학교·학년·반 고치기">${icon('edit')} 수업 정보 수정</button>
-        <button class="btn btn-ghost btn-sm cc-del" data-del-board="${b.id}" data-title="${esc(b.title)}" title="수업 삭제" aria-label="수업 삭제: ${esc(b.title)}">${icon('trash')}</button>`}
+        <button class="btn btn-ghost btn-sm cc-del" data-del-board="${b.id}" data-title="${esc(b.title)}" title="수업 삭제" aria-label="수업 삭제: ${esc(b.title)}">${icon('trash')}</button>`}`}
       </div>
     </div>`;
+  };
   // 반별 보기의 한 줄 = 한 수업(과정). 큰 글자는 프로그램(커리큘럼) 이름 — 같은 반 안에서는 그게 수업을 가른다.
   // mode: 'in'(반의 과정) · 'legacy'(반 개설 전 수업 — 같은 반에 [반에 넣기]) · 'group'(반으로 개설하지 않은 묶음)
   //       · 'unassigned'(반 미지정 — [반에 넣기]로 내 반 고르기). 함께 보는 수업에는 고치는 단추가 없다.
@@ -1650,6 +1719,7 @@ route(/^#\/myclass$/, async () => {
           <a class="btn btn-primary btn-sm" href="#/class/${esc(c.id)}">${icon('layers')} 반 열기<span class="mcg-sr"> — ${esc(classHeading(c))}</span></a>
         </div>
       </div>
+      ${classInboxLineHtml(c, g.inboxBoard)}
       ${g.curricula.length || g.legacy.length ? '' : '<p class="mcg-hint small muted">아직 넣은 과정이 없어요. [반 열기]에서 과정과 도구를 넣어 주세요.</p>'}
       ${g.curricula.length ? `<ul class="mcg-rows">${g.curricula.map((b) => row(b, 'in', c)).join('')}</ul>` : ''}
       ${g.legacy.length ? `
@@ -1818,8 +1888,10 @@ route(/^#\/myclass$/, async () => {
       count = rows.length;
       list.innerHTML = rows.length ? dateListHtml(rows) : emptyHtml();
     }
+    // 반별 보기는 반 제출함을 수업 수에 세지 않는다(반 카드의 한 줄로만 보인다)
+    const total = view === 'class' ? boards.filter((b) => !isInboxBoard(b)).length : boards.length;
     const countEl = document.getElementById('mc-count');
-    if (countEl) countEl.textContent = count === boards.length ? `${boards.length}개 수업` : `${count} / ${boards.length}개 수업`;
+    if (countEl) countEl.textContent = count === total ? `${total}개 수업` : `${count} / ${total}개 수업`;
     bindCards();
   }
   document.getElementById('mc-new-class').onclick = () => openClassFormModal(null, { schools: knownClassSchools });
@@ -2084,6 +2156,7 @@ function openClassToolPicker(library, currentIds, onSave) {
 
 /* ---------------- 반 화면 (#/class/:id — 반을 만든 교사·관리자) ----------------
  * 반 코드(아이들은 이 코드 하나로 들어온다) · 과정(프로그램마다 연 수업) · 도구(도구함 웹사이트·웹앱) · 반 정보. */
+const classInboxTried = new Set(); // 반 제출함을 이 탭에서 한 번 만들어 본 반 — 실패해도 화면을 되풀이해 그리지 않게
 route(/^#\/class\/([0-9a-f]{12})$/, async (id) => {
   let data;
   try { data = await api('GET', `/api/classes/${id}`); }
@@ -2094,8 +2167,17 @@ route(/^#\/class\/([0-9a-f]{12})$/, async (id) => {
     return;
   }
   const cls = data.class || data;
-  const curricula = data.curricula || cls.curricula || [];
+  // 반 제출함: 반 개설 때 서버가 만든다. 그 전에 연 반은 처음 열 때 한 번 만든다(다시 불러도 있는 것을 돌려준다).
+  const inbox = classInboxOf({ inbox: data.inbox !== undefined ? data.inbox : cls.inbox });
+  // 제출함은 과정이 아니다 — 서버가 빼서 주지만 한 번 더 걸러 과정 줄·[반 삭제] 막힘에 섞이지 않게 한다
+  const curricula = (data.curricula || cls.curricula || []).filter((b) => !inbox || String(b.id) !== String(inbox.boardId));
   const tools = data.tools || cls.tools || [];
+  let inboxError = '';
+  if (!inbox && !classInboxTried.has(id)) {
+    classInboxTried.add(id);
+    try { await api('POST', `/api/classes/${id}/inbox`); navigate(); return; }
+    catch (e) { if (e.handled) return; inboxError = e.message; }
+  }
   const open = cls.isOpen !== false;
   const heading = classHeading(cls);
   const curriculumRow = (b) => `
@@ -2147,6 +2229,7 @@ route(/^#\/class\/([0-9a-f]{12})$/, async (id) => {
         <div class="small muted">첫 화면 [학생 참여]에 이 코드를 넣으면 이 반의 과정·도구 목록이 나와요.</div>
       </div>
     </div>
+    ${classInboxCardHtml(inbox, inboxError)}
     <div class="kc-cards">
       <section class="card kc-sec" aria-labelledby="kc-cur-h">
         <div class="kc-sechead"><h2 id="kc-cur-h">과정 <span class="small muted">${curricula.length}개</span></h2>
@@ -2158,9 +2241,10 @@ route(/^#\/class\/([0-9a-f]{12})$/, async (id) => {
       <section class="card kc-sec" aria-labelledby="kc-tool-h">
         <div class="kc-sechead"><h2 id="kc-tool-h">도구 <span class="small muted">${tools.length}개</span></h2>
           <button type="button" class="btn btn-soft btn-sm" id="kc-add-tool">${icon('plus')} 도구 추가</button></div>
+        <p class="small muted kc-note">도구함의 웹사이트·웹앱을 골라 넣으면 아이들 반 화면에 바로 보여요.</p>
         ${tools.length
           ? `<ul class="kc-tools">${tools.map(toolRow).join('')}</ul>`
-          : '<p class="empty-note">아직 넣은 도구가 없어요. [도구 추가]로 도구함의 웹사이트·웹앱을 넣어 주세요.</p>'}
+          : '<p class="empty-note">아직 넣은 도구가 없어요. [도구 추가]를 눌러 골라 주세요.</p>'}
       </section>
       <section class="card kc-sec" aria-labelledby="kc-info-h">
         <div class="kc-sechead"><h2 id="kc-info-h">반 정보</h2></div>
@@ -2174,6 +2258,12 @@ route(/^#\/class\/([0-9a-f]{12})$/, async (id) => {
       </section>
     </div>`);
   document.getElementById('kc-big').onclick = () => openBigCode(cls.code || '', heading);
+  const inboxMake = document.getElementById('kc-inbox-make');
+  if (inboxMake) inboxMake.onclick = async () => {
+    inboxMake.disabled = true;
+    try { await api('POST', `/api/classes/${id}/inbox`); toast('반 제출함을 만들었어요.'); navigate(); }
+    catch (err) { inboxMake.disabled = false; if (!err.handled) toast(err.message, true); }
+  };
   document.getElementById('kc-add-cur').onclick = async () => {
     let programs;
     try { programs = (await api('GET', '/api/programs')).programs || []; }
@@ -2221,11 +2311,24 @@ route(/^#\/class\/([0-9a-f]{12})$/, async (id) => {
       navigate();
     } catch (e) { if (!e.handled) toast(e.message, true); }
   };
+  // 반 제출함에 아이들 것이 있으면 서버가 force 없이는 409 로 막는다 — 몇 개가 함께 지워지는지 알리고 한 번 더 묻는다.
+  const askInboxDelete = (n) => confirm(`'${heading}' 반을 삭제할까요?\n반 제출함에 아이들이 올린 제출물 ${n}개도 사진·파일 원본까지 함께 지워져요. 반 코드도 더 이상 쓸 수 없어요. 되돌릴 수 없어요.`);
+  const deleteClass = (force) => api('DELETE', `/api/classes/${id}${force ? '?force=true' : ''}`, force ? { force: true } : undefined);
   document.getElementById('kc-del').onclick = async () => {
     if (curricula.length) return;
-    if (!confirm(`'${heading}' 반을 삭제할까요?\n반 코드는 더 이상 쓸 수 없게 됩니다. 되돌릴 수 없어요.`)) return;
+    const n = inbox ? inbox.postCount : 0;
+    if (n ? !askInboxDelete(n) : !confirm(`'${heading}' 반을 삭제할까요?\n반 코드는 더 이상 쓸 수 없게 됩니다. 되돌릴 수 없어요.`)) return;
     try {
-      await api('DELETE', `/api/classes/${id}`);
+      try { await deleteClass(n > 0); }
+      catch (e) {
+        if (e.handled || e.status !== 409 || n > 0) throw e;
+        // 화면을 연 뒤에 아이가 올렸을 수 있다. 다시 읽어 제출함에 남은 것이 있을 때만 한 번 더 묻는다.
+        const fresh = await api('GET', `/api/classes/${id}`).catch(() => null);
+        const box = fresh && classInboxOf({ inbox: fresh.inbox !== undefined ? fresh.inbox : (fresh.class || {}).inbox });
+        if (!box || !box.postCount || (fresh.curricula || []).length) throw e;
+        if (!askInboxDelete(box.postCount)) return;
+        await deleteClass(true);
+      }
       toast('반을 삭제했습니다.');
       location.hash = '#/myclass';
     } catch (e) { if (!e.handled) toast(e.message, true); }
@@ -2235,9 +2338,11 @@ route(/^#\/class\/([0-9a-f]{12})$/, async (id) => {
 // 아이들 반 코드 화면: 반 이름과 과정·도구 카드. 과정으로 들어간 뒤 '← 우리 반 목록'으로 돌아오도록
 // 반 코드와 그 반의 과정 코드를 이 탭(sessionStorage)에만 기억한다 — 공유 태블릿의 다음 아이에게 남지 않게.
 function renderClassLanding(code, data) {
+  // 반 제출함 코드도 함께 — 제출함 화면에서도 '← 우리 반 목록'이 나온다
+  const inboxCode = classLandingInboxCode(data);
   try {
     sessionStorage.setItem('moakit:class-landing', JSON.stringify({
-      code, boards: classLandingCurricula(data).map((c) => String(c.code).toLowerCase()),
+      code, boards: [...classLandingCurricula(data).map((c) => String(c.code).toLowerCase()), ...(inboxCode ? [inboxCode] : [])],
     }));
   } catch {}
   document.title = `${classHeading((data && data.class) || {})} — 모아허브`;
@@ -2381,6 +2486,9 @@ route(/^#\/boardview\/(\d+)$/, async (id) => {
   try { data = await api('GET', `/api/boards/${id}/posts`); }
   catch (e) { if (!e.handled && state.me) { toast(e.message, true); location.hash = '#/'; } return; }
   const b = data.board;
+  // 반 제출함(반마다 하나, 숨은 시스템 프로그램 아래 보드): 보기·받기·인쇄·제출 설정·명단은 그대로 쓰고,
+  // 프로그램 자료 고르기·프로그램 링크·수업 삭제처럼 과정에만 맞는 것은 뺀다.
+  const inbox = isInboxBoard(b);
   // 제출물이 있으면 아이들 것을 먼저 보여 준다. 예전에는 참여 코드·제출 설정·수업자료 카드
   // 아래(한 화면 넘게 내려가야) 있어서, 수업 뒤 결과를 보러 온 선생님이 매번 한참 내려야 했다.
   // 함께 보는 선생님(담임 등)은 보기·받기·인쇄만 한다
@@ -2388,7 +2496,7 @@ route(/^#\/boardview\/(\d+)$/, async (id) => {
   const manageBlock = data.manageable ? `
     <div class="card" id="viewer-card"><div class="small muted">함께 보는 선생님 불러오는 중…</div></div>
     <div class="card" id="submission-settings-card">차시별 제출 설정을 불러오는 중…</div>
-    <div class="card" id="share-card"><div class="small muted">수업자료 불러오는 중…</div></div>` : '';
+    ${inbox ? '' : '<div class="card" id="share-card"><div class="small muted">수업자료 불러오는 중…</div></div>'}` : '';
   const postsBlock = `
     <section class="sb-posts-section" aria-label="학생 제출물">
       <div class="sb-viewbar">
@@ -2407,18 +2515,19 @@ route(/^#\/boardview\/(\d+)$/, async (id) => {
     <div class="page-head">
       <div>
         ${hasClassInfo(b.classInfo) ? `<div class="mcg-where small">${icon('users')} ${esc(classLabel(b.classInfo))}</div>` : ''}
-        <div class="ph-t">${esc(b.title)} ${b.isOpen ? '<span class="badge green">진행 중</span>' : '<span class="badge gray">마감됨</span>'}</div>
-        <div class="desc">${esc(data.program.title)} · 게시물 ${data.posts.length}개 ${b.isOpen ? '· 마감하면 학생 제출·열람이 즉시 중단됩니다' : '· 결과물은 계속 보관됩니다'}</div>
+        <div class="ph-t">${inbox ? '<span aria-hidden="true">📷</span> ' : ''}${esc(b.title)} ${b.isOpen ? '<span class="badge green">진행 중</span>' : '<span class="badge gray">마감됨</span>'}</div>
+        <div class="desc">${inbox ? '반 제출함 — 아이들이 반 코드로 들어와 올린 활동지·사진이에요. 과정을 열지 않아도 돼요.' : esc(data.program.title)} · 게시물 ${data.posts.length}개 ${b.isOpen ? '· 마감하면 학생 제출·열람이 즉시 중단됩니다' : '· 결과물은 계속 보관됩니다'}</div>
       </div>
       <div style="display:flex;gap:8px;flex-wrap:wrap">
+        ${boardClassActionHtml(b, data.manageable)}
         ${canSee && data.hasFiles ? `<button class="btn btn-soft btn-sm" id="board-print">${icon('fileText')} 사진 모아 인쇄</button>` : ''}
         ${canSee && data.hasFiles ? `<button class="btn btn-soft btn-sm" id="board-dlall">${icon('download')} 전체 다운로드</button>` : ''}
         ${data.manageable ? `<button class="btn ${b.isOpen ? 'btn-danger' : 'btn-primary'} btn-sm" id="board-toggle">${b.isOpen ? '마감하기' : '다시 열기'}</button>` : ''}
-        ${data.manageable ? `<button class="btn btn-danger btn-sm" id="board-del">${icon('trash')} 수업 삭제</button>` : ''}
-        <a class="btn btn-ghost btn-sm" href="#/program/${data.program.id}">← 프로그램</a>
+        ${data.manageable && !inbox ? `<button class="btn btn-danger btn-sm" id="board-del">${icon('trash')} 수업 삭제</button>` : ''}
+        ${inbox ? '' : `<a class="btn btn-ghost btn-sm" href="#/program/${data.program.id}">← 프로그램</a>`}
       </div>
     </div>
-    ${data.program.published === false ? `
+    ${data.program.published === false && !inbox ? `
     <div class="card bv-blocked">
       <div>
         <strong>학생이 이 수업에 들어올 수 없습니다</strong>
@@ -2430,10 +2539,12 @@ route(/^#\/boardview\/(\d+)$/, async (id) => {
     ${b.isOpen ? `
     <div class="card sb-code-card">
       <div>
-        <div class="small muted" style="font-weight:700">학생 참여 코드 — 칠판에 띄워 주세요</div>
+        <div class="small muted" style="font-weight:700">${inbox ? '반 제출함 코드' : '학생 참여 코드 — 칠판에 띄워 주세요'}</div>
         <div class="sb-code">${esc(String(b.code).toUpperCase())}</div>
       </div>
-      <div class="small muted" style="line-height:1.8">학생은 사이트 첫 화면의 <b>[학생 참여]</b> 탭에서<br>이 코드를 입력하면 됩니다. 학교 연결 수업은 학생 로그인이 필요합니다.</div>
+      <div class="small muted" style="line-height:1.8">${inbox
+        ? '아이들은 <b>반 코드</b>로 들어와 [활동지·사진 올리기]를 누르면 돼요.<br>이 코드를 넣으면 제출함으로 바로 들어와요.'
+        : '학생은 사이트 첫 화면의 <b>[학생 참여]</b> 탭에서<br>이 코드를 입력하면 됩니다. 학교 연결 수업은 학생 로그인이 필요합니다.'}</div>
     </div>` : ''}
     ${data.viewOnly ? '<div class="card bv-viewonly small">함께 보기로 받은 수업이에요. 아이들이 낸 것을 보고, 받고, 인쇄할 수 있어요. 공개·삭제·설정은 수업을 연 선생님이 해요.</div>' : ''}
     ${data.manageable ? rosterCardHtml(data.roster) : ''}
@@ -2509,6 +2620,19 @@ route(/^#\/boardview\/(\d+)$/, async (id) => {
       toast('수업이 삭제되었습니다.');
       location.hash = '#/myclass';
     } catch (e) { if (!e.handled) toast(e.message, true); }
+  };
+  // 반에 붙지 않은 수업: 내 수업의 [반에 넣기]와 같은 창으로 반을 고른다. 넣고 나면 [반 화면 · 도구 추가]가 나온다.
+  const attachBtn = document.getElementById('board-attach');
+  if (attachBtn) attachBtn.onclick = async () => {
+    let classes;
+    try { classes = (await api('GET', '/api/classes')).classes || []; }
+    catch (e) { if (!e.handled) toast(e.message, true); return; }
+    openPickClassModal({ title: b.title, programTitle: data.program.title, classInfo: b.classInfo },
+      classes.filter((c) => c.mine || isAdmin()), async (classId) => {
+        await api('PATCH', `/api/boards/${id}`, { classId });
+        toast('반에 넣었습니다. [반 화면 · 도구 추가]에서 그 반의 도구를 넣을 수 있어요.');
+        navigate();
+      });
   };
   const dlAllBtn = document.getElementById('board-dlall');
   if (dlAllBtn) dlAllBtn.onclick = () => downloadZip(id, dlAllBtn, data.posts, b.title);

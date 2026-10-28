@@ -1481,6 +1481,19 @@ body { background: var(--bg); }
 .kcl-go { margin-top: auto; font-size: 15px; font-weight: 800; color: var(--blue-600); }
 .kcl-empty { margin: 20px 0 28px; padding: 22px 16px; text-align: center; font-size: 17px; line-height: 1.7; color: var(--text-2); background: var(--card); border: 1px dashed var(--line-strong); border-radius: var(--r-lg); word-break: keep-all; }
 .kcl-foot { display: flex; justify-content: center; }
+/* 반 제출함 — 반 화면 카드 · 내 수업 반 카드 한 줄 · 아이들 화면 첫 카드 */
+.kc-inbox { display: flex; align-items: center; justify-content: space-between; gap: 12px 20px; flex-wrap: wrap; margin-bottom: 18px; }
+.kc-inbox-main { flex: 1 1 240px; min-width: 0; }
+.kc-inbox h2 { font-size: 16px; font-weight: 800; margin: 0 0 6px; word-break: keep-all; }
+.kc-inbox .kc-note { margin: 0; }
+.kc-inboxline {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px 12px; flex-wrap: wrap;
+  margin-bottom: 10px; padding: 10px 12px; background: var(--bg); border: 1px dashed var(--line-strong); border-radius: var(--r-md);
+}
+.kc-inbox-t { font-weight: 800; word-break: keep-all; }
+.kcl-inbox { min-height: 132px; border-color: var(--blue-500); background: var(--blue-50); }
+.kcl-inbox .kcl-title { font-size: 22px; }
+.kcl-sub { font-size: 15px; line-height: 1.6; color: var(--text-2); word-break: keep-all; }
 @media (max-width: 560px) {
   .kc-top { align-items: flex-start; }
   .kc-sum .btn-primary { flex: 1 1 100%; justify-content: center; }
@@ -1489,5 +1502,6 @@ body { background: var(--bg); }
   .kc-codeside .btn { width: 100%; justify-content: center; }
   .kcl-grid { grid-template-columns: 1fr; }
   .kcl-card { min-height: 96px; }
+  .kc-inbox .btn, .kc-inboxline .btn { flex: 1 1 100%; justify-content: center; }
 }
 @media (prefers-reduced-motion: reduce) { .kc-pick, .kcl-card { transition: none; } }
