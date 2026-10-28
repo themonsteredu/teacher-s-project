@@ -176,6 +176,18 @@
 - **반 지우기**: 과정이 남으면 예전처럼 409. 제출함에 제출물이 있으면 409 `code: 'inbox_has_posts', postCount` — **`DELETE /api/classes/:id?force=true`** 로 다시 보내면 지운다(DELETE 는 `server.js` 가 본문을 읽지 않아 주소에 싣는다). 제출물이 없으면 조용히 함께 지운다. 지우기는 수업 삭제와 같은 `removeBoard()`(진로기록 대기 확인·첨부 원본·`purgeBoardSettings`)
 - 시험: `tests/class-inbox.test.mjs`
 
+## 반 자료 — 아이들이 내려받는 파일 (2026-10-28)
+
+원장님 요청: "내가 아이들이 다운받을 자료 올릴 수 있게 해줘". 선생님이 반에 파일(활동지 PDF·한글·PPT·Word·Excel·사진·zip)을 올리면 아이들이 **반 코드로 들어와 로그인 없이 바로 내려받는다.**
+
+- **파일마다 settings 한 줄 `sb:clsfile:<반>:<파일>`**(파일 id = `crypto.randomBytes(6)` 16진수 12자) JSON `{id, name, mime, size, path, createdBy, createdAt}`. 반 줄(`sb:cls:`) 안에 목록을 두지 않는다 — 두 파일을 동시에 올리면 읽고-고쳐-쓰는 사이에 한쪽이 사라진다. 반 목록(`GET /api/classes`)은 `sb:cls:%` 와 `sb:clsfile:%` 를 **한 번에** 읽고 키 앞부분으로 가른다(자료 줄의 id 도 12자라 반 줄로 읽으면 가짜 반이 된다). 반 화면·학생 반 입장·반 지우기는 `classLinks()` 한 번으로 그 반의 수업(`sb:class`)과 자료를 함께 읽는다
+- 저장소 경로 `class-files/<반>/<시각>-<16진수>.<확장자>`. 형식은 프로그램 첨부 `FILE_EXT_RE` 에서 **html/htm 을 뺀** `CLASS_FILE_EXT_RE`(내려받은 html 은 아이들이 헷갈린다), 100MB(`MAX_FILE_SIZE`), **한 반 30개**(`CLASS_FILE_MAX` — 서명·등록 두 곳에서 센다)
+- 교사 경로(반을 연 선생님 또는 관리자 — `ownedClass`): `POST /api/classes/:id/file-sign {name,size}` → `{uploadUrl, path}` → 브라우저 PUT → `POST /api/classes/:id/files {path,name,size,mime}`(경로가 그 반 모양이 아니면 400, **같은 경로를 다시 보내면 새 줄 없이 그것을 준다** — 두 줄이 한 파일을 가리키면 하나를 지울 때 다른 줄이 깨진다), `GET /api/classes/:id/files/:fileId/download`(원래 이름으로 302), `DELETE /api/classes/:id/files/:fileId`(저장소 → 줄 차례). `GET /api/classes/:id` 의 `files`(새것부터), `GET /api/classes` 의 `fileCount`
+- 학생 경로(로그인 없음, `siteClosed` 먼저, `Cache-Control: no-store`): `GET /api/join-class/:code` 의 `files: [{id, name, mime, size}]`, `GET /api/join-class/:code/file/:fileId` — 반이 열려 있어야 하고(닫히면 403 `class_closed`) 키에 반 id 가 들어 있어 다른 반 자료 번호는 404 `file_not_found`. **2분짜리 서명 주소**로 302, `downloadName` = 원래 이름
+- **저장소 경로(`path`)는 어떤 응답에도 싣지 않는다** — 받기는 위 경로로만
+- 반 지우기(`DELETE /api/classes/:id`, `?force=true` 포함)는 반 줄을 지우기 **전에** 자료 파일·줄을 모두 지운다. 과정이 남아 409 이거나 제출함 확인 409 이면 자료도 그대로다
+- 시험: `tests/class-files.test.mjs`
+
 ## 제출물 학생별 보기 (2026-09-15)
 
 수업 중에는 시간순 바둑판이 맞지만, 끝난 뒤 평가할 때는 한 학생 것을 모아 봐야 한다. `#/boardview/:id` 에 **시간순 · 학생별** 전환을 두었다.

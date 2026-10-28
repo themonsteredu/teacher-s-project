@@ -1494,6 +1494,23 @@ body { background: var(--bg); }
 .kcl-inbox { min-height: 132px; border-color: var(--blue-500); background: var(--blue-50); }
 .kcl-inbox .kcl-title { font-size: 22px; }
 .kcl-sub { font-size: 15px; line-height: 1.6; color: var(--text-2); word-break: keep-all; }
+/* 아이들 자료 — 반 화면 카드(선생님이 올리기·받기·삭제) · 아이들 반 코드 화면 '받을 자료' 카드 */
+.kc-files { margin-bottom: 18px; }
+.kc-files h2 { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.kc-files .kc-note { overflow-wrap: anywhere; }
+.kc-filemsg { margin: 0 0 8px; line-height: 1.6; color: var(--text-2); word-break: keep-all; overflow-wrap: anywhere; }
+.kc-filemsg:empty { display: none; }
+.kc-filemsg.is-err { color: var(--red-600); }
+.kc-files-list { list-style: none; display: flex; flex-direction: column; }
+.kc-file { display: flex; align-items: center; gap: 8px 12px; flex-wrap: wrap; padding: 10px 0; border-bottom: 1px solid var(--line); }
+.kc-file:last-child { border-bottom: none; }
+.kc-file-ico { flex: none; font-size: 22px; line-height: 1; }
+.kc-file-main { flex: 1 1 160px; min-width: 0; }
+.kc-file-name { font-weight: 800; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.kcl-file .kcl-sub { font-size: 14px; }
+@media (max-width: 560px) {
+  .kc-file .mcg-actions { flex: 1 1 100%; justify-content: flex-end; }
+}
 @media (max-width: 560px) {
   .kc-top { align-items: flex-start; }
   .kc-sum .btn-primary { flex: 1 1 100%; justify-content: center; }
