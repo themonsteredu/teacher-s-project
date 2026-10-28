@@ -163,6 +163,19 @@
 - 같은 변경에서 #57 리뷰 반영: `sendTool()` 은 302 `Location` 에 `new URL(url).href`(한글 주소를 %인코딩)를 넣는다 — 한글을 머리에 그대로 넣으면 `ERR_INVALID_CHAR` 로 500 이었다. `tool_opened` 기록은 응답 머리를 쓴 뒤에 남긴다
 - 시험: `tests/classes.test.mjs`
 
+## 반 제출함 — 과정 없이 반 코드로 사진 올리기 (2026-10-28)
+
+원장님 요청: "내가 수업(과정)을 안 열어도, 이 반 전용 활동지 제출 공간 — 아이들이 이미지·사진 올리는 공간을 만들어줘." 같은 날 "도구 추가는 어떻게 해?" — 도구는 반 화면(`#/class/:id`)에서 넣는데 과정 보드 화면에서 그리로 가는 길이 없었다(보드 화면의 `반 화면 · 도구 추가` 단추는 `board.classInfo.classId` 로 잇는다).
+
+- **업로드 장치를 새로 만들지 않고 수업 보드를 그대로 쓴다.** 반 제출함은 보드 하나라서 `board_posts`·`sb:post` 메타·저장소·명단 대조·이름별/사진 크게/ZIP/사진 모아 인쇄(`#/boardview`)가 전부 그대로 돈다. 두 번째 업로드 길을 만들면 삭제·인쇄·내려받기를 두 벌 맞춰야 한다
+- **보드는 프로그램이 있어야 하므로 학원마다 숨은 시스템 프로그램 `반 제출함` 하나**를 처음 쓸 때(`ensureInboxProgram()`) 만들고 id 를 `settings` 의 **`sys:inbox-program`** 에 적는다. 잠금(`pg_advisory_xact_lock`) 안에서 다시 확인해 하나만 생긴다. 넣는 칸은 화면과 같은 `title·category·grade·description`, 공개는 뒤의 `UPDATE`(전환 모드 hub 뷰 규칙), 차시 하나 `활동지·사진`. 학생 관문 `openBoardByCode` 가 공개를 요구하므로 **공개**다
+- **숨김·보호**: `GET /api/programs` 는 같은 조회 안의 `NOT EXISTS (… s.key = 'sys:inbox-program' AND s.value = p.id::text)`(`NOT_INBOX_PROGRAM`)로 관리자·교사 모두에게서 거른다 — 프로그램 관리·카탈로그·커리큘럼 트리·검색·과정 고르기가 전부 이 목록을 쓴다. 프로그램 고치기·지우기 경로(`PATCH/DELETE /api/programs/:id`, 차시·차시 순서·링크·파일 올리기·수업 구성, `PATCH/DELETE /api/lessons/:id`)와 이 프로그램으로 보드 만들기(`POST /api/programs/:id/boards`, 반 과정 더하기)는 `refuseInboxProgram()` 이 403. 지우면 모든 반의 제출물이 한꺼번에 사라지기 때문이다
+- **반마다 보드 하나**: 이름 `<반 이름표> · 반 제출함`, 명단 = 반 명단, 자동 코드, 주인 = 반을 연 선생님(`classBoardOwner`). `sb:class` = `{school, grade, room, classId, inbox: true}`, `sb:config` = 차시 하나 + 사진·파일·글 받기 + 선생님만 보기 + 학교 연결 없음(학생 계정 불필요). `POST /api/classes` 가 함께 만들고(실패해도 반은 열고 `inbox: null`), 예전 반은 `POST /api/classes/:id/inbox`(멱등, `{created, inbox}`)
+- **과정이 아니다**: `classBoardRows()` 가 `{id, inbox}` 로 나누고 `classBoardIds()` 는 과정만 준다. 반 목록 과정 수·반 화면 과정 목록·`과정이 남은 반` 확인·학생 반 입장 과정 목록에서 빠지고, 반의 학교·학년·반·명단·이름표를 고치면 제출함도 따라간다(`saveBoardClassInfo` 가 `inbox` 를 지킨다). `PATCH /api/boards/:id` 로 다른 반에 옮기거나 떼는 것은 400
+- 응답: `GET /api/classes`·`GET /api/classes/:id` 의 `inbox: {boardId, code, postCount, isOpen, title} | null`, `GET /api/join-class/:code` 의 `inbox: {code} | null`(제출함이 열려 있을 때만), `GET /api/my-boards` 의 `classInfo.inbox`, `GET /api/boards/:id/posts` 의 `board.classInfo`(classId·inbox) + `board.inbox`
+- **반 지우기**: 과정이 남으면 예전처럼 409. 제출함에 제출물이 있으면 409 `code: 'inbox_has_posts', postCount` — **`DELETE /api/classes/:id?force=true`** 로 다시 보내면 지운다(DELETE 는 `server.js` 가 본문을 읽지 않아 주소에 싣는다). 제출물이 없으면 조용히 함께 지운다. 지우기는 수업 삭제와 같은 `removeBoard()`(진로기록 대기 확인·첨부 원본·`purgeBoardSettings`)
+- 시험: `tests/class-inbox.test.mjs`
+
 ## 제출물 학생별 보기 (2026-09-15)
 
 수업 중에는 시간순 바둑판이 맞지만, 끝난 뒤 평가할 때는 한 학생 것을 모아 봐야 한다. `#/boardview/:id` 에 **시간순 · 학생별** 전환을 두었다.
