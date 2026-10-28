@@ -138,6 +138,30 @@
 - **묶음 열쇠는 `학교|학년|반`** — 학교가 들어가야 다른 학교의 2학년 3반과 섞이지 않는다. 차례는 학교(가나다, 학교 미지정은 뒤) → 학년 → 반(둘 다 숫자면 숫자 차례), 반 미지정은 맨 뒤. 한 반 안에서는 진행 중 → 프로그램 이름 → 최근 날짜. 학교가 둘 이상이면 학교 칩이 나온다. 묶기는 전부 브라우저에서 한다(`public/app.js` 의 `/* ---- 반별로 묶기 */` 구간 — 시험이 이 구간을 떼어 쓴다)
 - 기본 보기는 **반별**이고 `날짜별`은 예전 날짜 묶음 그대로다. 고른 보기는 `localStorage['moakit:myclass']`, 새 수업의 학교 기본값은 `localStorage['moakit:lastSchool']`(지난번에 고른 학교)
 - 반 미지정 줄에는 `[수업 정보 수정]` 자리에 `[반 정하기]` 가 나온다(같은 창을 반 칸부터 연다). 함께 보는 수업에는 수정·삭제·반 정하기가 없다. 자동 이름을 그대로 쓰던 수업은 반을 바꾸면 이름 칸도 따라 바뀐다
+- **반 개설(아래 절) 이후 `sb:class` 에 `classId` 가 붙을 수 있다** — `{school, grade, room, classId}`. `parseClassInfo()` 는 `classId` 가 있을 때만 싣고(옛 수업의 모양은 그대로), 세 칸이 비어도 `classId` 가 있으면 줄을 지우지 않는다. `PATCH /api/boards/:id` 의 반 칸 고치기는 `classId` 를 지키고, `classId` 를 보내면 반에 붙이거나(null·'' 이면 뗀다) — 붙일 때는 반의 학교·학년·반을 그대로 받는다. `GET /api/my-boards`·`GET /api/boards/:id/posts` 의 `classInfo` 에도 `classId` 가 실린다
+- 묶음 열쇠는 그대로 `학교|학년|반` 이다. 반 개설 화면에서 학교·학년·반을 고치면 서버가 그 반 과정들의 `sb:class` 를 함께 고쳐 묶음이 갈라지지 않는다
+
+## 반 개설 — 반 먼저, 과정·도구는 나중에 (2026-10-28)
+
+원장님 결정: `수업 열기` 를 프로그램 고르기로 시작하지 않는다. 선생님이 **반을 먼저 연다**(학교·학년·반), 그 뒤에 그 반이 쓸 **과정(프로그램)** 과 **도구함 도구(웹사이트·웹앱)** 를 더한다. 반마다 참여 코드는 **하나** — 아이들은 반 코드를 넣고 그 반의 과정·도구 목록에서 고른다. 예전 과정별(수업별) 코드는 그대로 산다.
+
+- **전부 `settings` 줄이다**(전환 모드에서 `lib/db.js` DDL 이 안 돌므로 표·칸을 새로 만들지 않는다). 쓰기는 `saveSbRow()` — 전환 모드는 평범한 INSERT, 아니면 `ON CONFLICT`
+  - 반: `sb:cls:<id>` (id = `crypto.randomBytes(6)` 16진수 12자) JSON `{id, school, grade, room, name, code, roster, tools: [도구 id…], isOpen, createdBy, createdAt}`. 학교·학년·반은 `normClassInfo()`. 이름표는 `classLabel()` = `name` 이 있으면 그것, 없으면 `2학년 3반`(학교는 따로 보인다)
+  - 코드 색인: `sb:clscode:<코드>` → 반 id. `classByCode()` 는 색인이 가리키는 반이 있고 그 반의 `code` 가 같을 때만 믿는다 — 반 줄 쓰기가 끊겨 색인만 남아도 코드가 영영 막히지 않는다. 만들 때는 색인 → 반 줄(반 줄 실패 시 색인 거둠), 코드 바꿀 때는 새 색인 → 반 줄 → 옛 색인 지우기, 반을 지우면 색인도 지운다(자기 반을 가리킬 때만)
+  - **반의 과정은 따로 적지 않는다.** 보드의 `sb:class` 에 `classId` 가 붙은 수업이 그 반의 과정이다(`classBoardIds()`). 수업을 지우면 `purgeBoardSettings` 가 `sb:class` 를 지우므로 반 쪽은 손댈 것이 없다
+- **코드는 수업 코드와 반 코드를 통틀어 하나뿐이다.** 같은 규칙(`BOARD_CODE_RE`, 영문 소문자·숫자 4~10자)이고, 반을 만들·고칠 때는 `boards.code` 와 색인을, 수업을 만들 때(`createBoard()` — 예전 `POST /api/programs/:id/boards` 와 반 과정 더하기가 함께 쓴다)는 직접 넣은 코드든 자동 6자리든 반 코드도 피한다(`codeTaken()`)
+- 교사 경로(반을 연 사람 또는 관리자 — `canManageClass`): `GET/POST /api/classes`(관리자는 전체 + `ownerName`), `GET/PATCH/DELETE /api/classes/:id`, `POST /api/classes/:id/curricula {programId}`, `PUT /api/classes/:id/tools {toolIds}`, 피커용 `GET /api/tool-library`(교사도 봄, 저장소 경로 없음 — `GET /api/tools` 는 관리자 전용 그대로)
+  - 반을 만들려면 학년·반·반 이름 중 하나는 있어야 한다(이름표가 비지 않게). 고칠 때도 같다
+  - 반의 학교·학년·반을 고치면 그 반 과정들의 `sb:class` 를 다시 쓰고, **반 명단을 고치면 과정들의 `boards.roster` 도 함께 바꾼다**(반 명단이 그 반 아이들 명단이다)
+  - 과정이 남은 반은 지울 수 없다(409 `과정을 먼저 지우거나 다른 반으로 옮기세요`) — 과정에는 제출물이 있다
+  - 과정 더하기는 `createBoard()` 로 보드를 만든다: 이름 `<반 이름표> · <프로그램>`(100자), 명단 = 반 명단, 자동 코드, `sb:class` = 반의 학교·학년·반 + `classId`. 교사는 비공개 프로그램을 못 넣는다(예전과 같은 규칙). 수업 주인(`created_by`)은 **반을 연 선생님** — 관리자가 대신 넣어도 그 선생님의 [내 수업]에 나온다
+  - 도구: 숫자만, 같은 것은 한 번, 30개까지, 도구함에 있는 것만. 고른 차례가 학생 목록 차례다. 도구함에서 지운 도구는 목록에서 빠진다
+- **학생 경로**(로그인 없음, `siteClosed` 먼저, `Cache-Control: no-store`)
+  - `GET /api/join-class/:code` — 없는 코드 404 `class_not_found`, 닫힌 반(`isOpen=false`) 403 `class_closed`. 응답은 `{class: {label, school, grade, room}, curricula: [{title: 프로그램 이름, code: 수업 코드}], tools: [{id, title, kind, url(웹사이트만)}]}` — **열린 수업 + 공개 프로그램만**(`openBoardByCode` 기준과 같다). 이름·명단·선생님·내부 번호(도구 번호 말고)는 싣지 않는다. 과정을 누르면 예전 수업 화면 `#/board/<수업 코드>` 로 가서 기존 관문(학교 연결 수업의 학생 계정 등)을 그대로 탄다
+  - `GET /api/join-class/:code/tool/:id/open` — 반이 열려 있고 그 도구가 반의 `tools` 에 있어야 연다(아니면 403 `not_shared`). 응답은 교사·수업 경로와 같은 `sendTool()`
+  - 반을 닫아도(`isOpen=false`) 과정별 수업 코드는 각 수업의 마감 상태를 따른다 — 반 코드 입구만 닫힌다
+- 같은 변경에서 #57 리뷰 반영: `sendTool()` 은 302 `Location` 에 `new URL(url).href`(한글 주소를 %인코딩)를 넣는다 — 한글을 머리에 그대로 넣으면 `ERR_INVALID_CHAR` 로 500 이었다. `tool_opened` 기록은 응답 머리를 쓴 뒤에 남긴다
+- 시험: `tests/classes.test.mjs`
 
 ## 제출물 학생별 보기 (2026-09-15)
 
