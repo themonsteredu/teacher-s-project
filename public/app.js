@@ -1458,6 +1458,14 @@ function classLandingHtml(code, data) {
   const toolCards = tools.map((t) => (t.kind === 'site'
     ? card(t.url, '🔗', t.title || '웹사이트', '열기 ↗', true)
     : card(`/api/join-class/${safeCode}/tool/${t.id}/open`, '🧩', t.title || '웹앱', '열기 ↗', true))).join('');
+  // 받을 자료: 보통 <a download> — 서버가 반 코드·파일을 확인하고 짧게 사는 서명 주소로 넘긴다(태블릿에서도 그냥 받아진다)
+  const files = BOARD_CODE_UI.test(safeCode) ? classFilesOf(data) : [];
+  const fileCards = files.map((f) => `
+        <li><a class="kcl-card kcl-file" href="/api/join-class/${esc(safeCode)}/file/${esc(f.id)}" download>
+          <span class="kcl-mark" aria-hidden="true">${classFileEmoji(f.name)}</span>
+          <b class="kcl-title">${esc(f.name)}</b>
+          <span class="kcl-sub">${fileSizeLabel(f.size)}</span>
+          <span class="kcl-go">받기 ↓</span></a></li>`).join('');
   return `
     <div class="kcl">
       <header class="kcl-head">
@@ -1473,11 +1481,16 @@ function classLandingHtml(code, data) {
           <span class="kcl-sub">다 한 활동지를 사진으로 찍어 선생님께 보내요.</span>
           <span class="kcl-go">올리러 가기 →</span></a>
       </div>` : ''}
-      ${curricula.length || tools.length || inboxCode ? '' : '<p class="kcl-empty" role="status">아직 선생님이 과정을 넣지 않았어요.<br>조금 기다렸다가 다시 들어와 보세요.</p>'}
+      ${curricula.length || tools.length || inboxCode || files.length ? '' : '<p class="kcl-empty" role="status">아직 선생님이 과정을 넣지 않았어요.<br>조금 기다렸다가 다시 들어와 보세요.</p>'}
       ${curricula.length ? `
       <section class="kcl-sec" aria-labelledby="kcl-cur">
         <h2 id="kcl-cur">배우는 과정</h2>
         <ul class="kcl-grid">${curriculumCards}</ul>
+      </section>` : ''}
+      ${files.length ? `
+      <section class="kcl-sec" aria-labelledby="kcl-file">
+        <h2 id="kcl-file">받을 자료</h2>
+        <ul class="kcl-grid">${fileCards}</ul>
       </section>` : ''}
       ${tools.length ? `
       <section class="kcl-sec" aria-labelledby="kcl-tool">
@@ -1538,6 +1551,89 @@ function boardClassActionHtml(board, manageable) {
   if (CLASS_ID_UI.test(cid)) return `<a class="btn btn-soft btn-sm" href="#/class/${esc(cid)}">반 화면 · 도구 추가</a>`;
   if (isInboxBoard(board)) return '';
   return '<button type="button" class="btn btn-soft btn-sm" id="board-attach">반에 넣기</button>';
+}
+
+/* 아이들 자료 — 원장님 요청: "내가 아이들이 다운받을 자료 올릴 수 있게 해줘".
+ * 선생님이 반 화면에서 활동지 PDF·그림·한글·PPT·워드·엑셀·zip 을 올리면, 아이들은 반 코드로 들어와 로그인 없이 바로 받는다.
+ * 서버는 파일마다 settings 의 sb:clsfile:<반>:<파일> 한 줄을 쓴다. 저장소 경로는 화면에 오지 않는다 — 받기는 늘 서버 경로를 거친다.
+ * 형식은 프로그램 첨부(FILE_EXT_RE)에서 html/htm 만 뺀 것 — 아이들이 받은 HTML 파일은 열어도 헷갈리기만 한다. 서버와 같은 규칙이어야 한다. */
+const CLASS_FILE_EXT_UI = /\.(pdf|ppt|pptx|doc|docx|xls|xlsx|hwp|hwpx|zip|png|jpg|jpeg|webp|gif)$/i;
+const CLASS_FILE_ACCEPT = '.pdf,.ppt,.pptx,.doc,.docx,.xls,.xlsx,.hwp,.hwpx,.zip,.png,.jpg,.jpeg,.webp,.gif';
+const CLASS_FILE_MAX_BYTES = 100 * 1024 * 1024; // 서버 MAX_FILE_SIZE 와 같다
+const CLASS_FILE_LIMIT = 30; // 한 반에 이만큼까지 — 서버와 같다
+const CLASS_FILE_ID_UI = /^[0-9a-f]{12}$/;
+// 올리기 전에 브라우저에서 먼저 거른다. 괜찮으면 '' — 서버가 같은 규칙으로 한 번 더 막는다.
+function classFileProblem(file) {
+  const name = String((file && file.name) || '').trim();
+  if (!name || !CLASS_FILE_EXT_UI.test(name)) return '올릴 수 없는 파일 형식이에요. (PDF·그림·한글·PPT·워드·엑셀·zip)';
+  const size = Number(file.size) || 0;
+  if (size <= 0) return '빈 파일이에요.';
+  if (size > CLASS_FILE_MAX_BYTES) return '파일은 100MB 이하여야 해요.';
+  return '';
+}
+// 512KB · 1.5MB · 23MB
+function fileSizeLabel(bytes) {
+  const n = Number(bytes) || 0;
+  if (n < 1000 * 1024) return `${Math.max(1, Math.round(n / 1024))}KB`;
+  const mb = n / 1024 / 1024;
+  return `${mb < 10 ? mb.toFixed(1) : Math.round(mb)}MB`;
+}
+function classFileEmoji(name) {
+  const ext = (String(name || '').split('.').pop() || '').toLowerCase();
+  if (/^(png|jpe?g|webp|gif)$/.test(ext)) return '🖼️';
+  if (/^pptx?$/.test(ext)) return '📊';
+  if (/^xlsx?$/.test(ext)) return '📈';
+  if (/^(hwpx?|docx?)$/.test(ext)) return '📝';
+  if (ext === 'zip') return '🗜️';
+  return '📄';
+}
+// 올린 날 '2026. 10. 28' — 서버가 ISO 글자든 밀리초든 받는다. 못 읽으면 빈칸.
+function classFileDate(v) {
+  if (v === null || v === undefined || v === '') return '';
+  const d = new Date(/^\d+$/.test(String(v)) ? Number(v) : v);
+  return Number.isNaN(d.getTime()) ? '' : `${d.getFullYear()}. ${d.getMonth() + 1}. ${d.getDate()}`;
+}
+// GET /api/classes/:id · GET /api/join-class/:code 의 files — 번호 모양이 맞고 이름이 있는 것만(링크 주소에 들어간다)
+function classFilesOf(data) {
+  return ((data && data.files) || [])
+    .filter((f) => f && CLASS_FILE_ID_UI.test(String(f.id)) && String(f.name || '').trim())
+    .map((f) => ({ id: String(f.id), name: String(f.name).trim(), size: Number(f.size) || 0, mime: String(f.mime || ''), createdAt: f.createdAt ?? null }));
+}
+// 반 화면 한 줄: 종류 그림 · 이름(길면 말줄임) · 크기 · 날짜 · [받기](선생님 경로) · [삭제]
+function classFileRowHtml(classId, f) {
+  const date = classFileDate(f.createdAt);
+  return `
+      <li class="kc-file">
+        <span class="kc-file-ico" aria-hidden="true">${classFileEmoji(f.name)}</span>
+        <div class="kc-file-main">
+          <div class="kc-file-name" title="${esc(f.name)}">${esc(f.name)}</div>
+          <div class="small muted">${fileSizeLabel(f.size)}${date ? ` · ${esc(date)}` : ''}</div>
+        </div>
+        <div class="mcg-actions">
+          <a class="btn btn-ghost btn-sm" href="/api/classes/${esc(classId)}/files/${esc(f.id)}/download" download>받기<span class="mcg-sr"> — ${esc(f.name)}</span></a>
+          <button type="button" class="btn btn-ghost btn-sm cc-del" data-kc-fdel="${esc(f.id)}">삭제<span class="mcg-sr"> — ${esc(f.name)}</span></button>
+        </div>
+      </li>`;
+}
+// 반 화면(#/class/:id) 반 제출함 카드 바로 아래. notice: 다시 그린 뒤에도 남기는 실패 안내(파일마다 한 줄).
+function classFilesCardHtml(classId, files, notice = []) {
+  const full = files.length >= CLASS_FILE_LIMIT;
+  return `
+    <section class="card kc-sec kc-files" aria-labelledby="kc-files-h">
+      <div class="kc-sechead"><h2 id="kc-files-h"><span aria-hidden="true">📥</span> 아이들 자료 <span class="small muted">${files.length}개</span></h2>
+        <button type="button" class="btn btn-soft btn-sm" id="kc-file-add"${full ? ' disabled' : ''}>자료 올리기</button></div>
+      <p class="small muted kc-note">여기 올린 파일은 아이들이 반 코드로 들어와 바로 내려받을 수 있어요.<br>PDF·그림·한글·PPT·워드·엑셀·zip · 하나에 100MB까지 · 한 반에 ${CLASS_FILE_LIMIT}개까지${full ? ' — 다 찼어요. 안 쓰는 자료를 지우면 더 올릴 수 있어요.' : ''}</p>
+      <input type="file" id="kc-file-input" multiple accept="${CLASS_FILE_ACCEPT}" hidden>
+      <p class="small kc-filemsg${notice.length ? ' is-err' : ''}" id="kc-file-msg" role="status" aria-live="polite">${notice.map(esc).join('<br>')}</p>
+      ${files.length
+        ? `<ul class="kc-files-list">${files.map((f) => classFileRowHtml(classId, f)).join('')}</ul>`
+        : '<p class="empty-note">아직 올린 자료가 없어요. [자료 올리기]로 활동지·그림 파일을 올려 주세요.</p>'}
+    </section>`;
+}
+// 내 수업 반 카드 머리 '과정 2 · 도구 1 · 자료 3' — 자료는 있을 때만
+function classSumText(c, curriculaCount) {
+  const n = Number(c && c.fileCount) || 0;
+  return `과정 ${typeof (c && c.curriculumCount) === 'number' ? c.curriculumCount : curriculaCount} · 도구 ${((c && c.tools) || []).length}${n > 0 ? ` · 자료 ${n}` : ''}`;
 }
 /* ---- 반 먼저 끝 ---- */
 
@@ -1714,7 +1810,7 @@ route(/^#\/myclass$/, async () => {
         <h2 class="kc-head" id="kc-h-${i}">${icon('users')} <span>${esc(classHeading(c))}</span>${c.isOpen === false ? ' <span class="badge gray">마감됨</span>' : ''}</h2>
         <div class="kc-sum">
           <span class="mcg-code">반 코드 <b>${esc(String(c.code || '').toUpperCase())}</b></span>
-          <span class="small muted">과정 ${typeof c.curriculumCount === 'number' ? c.curriculumCount : g.curricula.length} · 도구 ${(c.tools || []).length}</span>
+          <span class="small muted">${esc(classSumText(c, g.curricula.length))}</span>
           ${showOwner ? classOwnerBadge(c) : ''}
           <a class="btn btn-primary btn-sm" href="#/class/${esc(c.id)}">${icon('layers')} 반 열기<span class="mcg-sr"> — ${esc(classHeading(c))}</span></a>
         </div>
