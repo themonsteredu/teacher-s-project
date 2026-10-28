@@ -1334,3 +1334,22 @@ body { background: var(--bg); }
 .sb-students .sb-grid { grid-template-columns: 1fr; }
 /* hidden 속성이 붙은 단추는 .btn 의 display 보다 앞서 숨긴다 */
 .btn[hidden] { display: none !important; }
+
+/* 도구함: 웹사이트 주소 */
+.tool-copy, .tool-note, .tool-desc { word-break: keep-all; }
+.tool-note { margin-top: 12px; line-height: 1.6; }
+.tool-desc { margin-top: 2px; line-height: 1.5; overflow-wrap: anywhere; }
+.tool-site { border-bottom: 1px solid var(--line); }
+.tool-site:last-child { border-bottom: none; }
+.tool-site > .deck-line { border-bottom: none; }
+.tool-site-form .btn { width: 100%; justify-content: center; }
+.tool-edit { padding: 2px 6px 14px; }
+/* .form-grid 의 display:grid 가 hidden 속성을 이기므로 따로 숨긴다 */
+.tool-edit[hidden] { display: none; }
+.tool-edit .msg { grid-column: 1 / -1; margin-top: 0; min-height: 0; }
+.tool-edit-actions { display: flex; gap: 6px; }
+@media (max-width: 560px) {
+  .tool-line { flex-wrap: wrap; }
+  .tool-line .dl-left { flex-basis: 100%; }
+  .tool-line .dl-actions { width: 100%; justify-content: flex-end; }
+}

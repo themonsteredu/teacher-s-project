@@ -961,27 +961,46 @@ function openSlidePresent(fileIdOrUrl, name) {
   document.body.appendChild(overlay);
 }
 
-/* ---------------- 도구함 피커 (수업 편집에서 웹앱 골라 붙이기) ---------------- */
+/* ---------------- 도구함 피커 (수업 편집에서 웹앱·웹사이트 골라 붙이기) ---------------- */
+// 웹사이트 항목은 주소 전체 대신 사이트 이름(호스트)만 보인다. 전체 주소는 title 로.
+function siteHost(url) {
+  try { return new URL(String(url || '')).hostname || String(url || ''); } catch { return String(url || ''); }
+}
+// 도구 한 줄의 종류 표시 — 도구함 화면과 피커가 같이 쓴다.
+function toolKindBadge(t) {
+  return t.kind === 'site' ? '<span class="badge teal plain">웹사이트</span>' : '<span class="badge gray plain">웹앱</span>';
+}
+function toolIcon(t) {
+  return t.kind === 'site' ? `<span class="dl-ico" aria-hidden="true">${icon('link')}</span>` : '<span class="dl-ico" aria-hidden="true">🧩</span>';
+}
+// 피커에서 고른 도구 → 수업 링크 한 줄.
+// 웹사이트는 주소를 그대로 복사한 보통 링크라 링크 저장(PUT /links)의 https 검사를 그대로 타고,
+// 학생 화면에서도 보통 링크로 바로 열린다. 웹앱은 예전대로 /api/tools/:id/open 으로 붙인다.
+function toolLink(t, lessonId = null) {
+  return t.kind === 'site'
+    ? { kind: 'link', label: t.title, url: t.url, lesson_id: lessonId }
+    : { kind: 'aiapp', label: t.title, url: `/api/tools/${t.id}/open`, lesson_id: lessonId };
+}
 function openToolPicker(tools, onPick) {
   const overlay = document.createElement('div');
   overlay.className = 'img-lightbox';
   const rows = tools.length
     ? tools.map((t) => `
-        <button class="deck-line pick-row" data-pick="${t.id}" style="width:100%;text-align:left;background:#fff;border:1px solid var(--line, #e3e9e2);cursor:pointer">
-          <div class="dl-left"><span class="dl-ico">🧩</span>
+        <button type="button" class="deck-line pick-row" data-pick="${t.id}" style="width:100%;text-align:left;background:#fff;border:1px solid var(--line, #e3e9e2);cursor:pointer">
+          <div class="dl-left">${toolIcon(t)}
             <div class="dl-body"><div class="dl-title">${esc(t.title)}</div>
-              <div class="dl-meta small muted">${(t.size / 1024 / 1024).toFixed(2)}MB${t.mine === false ? ` · ${esc(t.owner_name || '올린 사람 없음')}` : ''}</div></div></div>
+              <div class="dl-meta small muted">${toolKindBadge(t)} ${t.kind === 'site' ? `<span title="${esc(t.url)}">${esc(siteHost(t.url))}</span>` : `${(t.size / 1024 / 1024).toFixed(2)}MB`}${t.mine === false ? ` · ${esc(t.owner_name || '올린 사람 없음')}` : ''}</div></div></div>
           <span class="btn btn-primary btn-sm" style="pointer-events:none">${icon('plus')} 붙이기</span>
         </button>`).join('')
-    : `<p class="empty-note">도구함이 비어 있습니다. <b>도구함</b>에서 웹앱을 먼저 올리세요.</p>`;
+    : `<p class="empty-note">도구함이 비어 있습니다. <b>도구함</b>에서 웹앱을 올리거나 웹사이트 주소를 먼저 추가하세요.</p>`;
   overlay.innerHTML = `
-    <div class="modal-card" style="max-width:560px;width:92%;background:var(--paper,#fff);border-radius:16px;padding:18px;max-height:80vh;overflow:auto" role="dialog">
+    <div class="modal-card" style="max-width:560px;width:92%;background:var(--paper,#fff);border-radius:16px;padding:18px;max-height:80vh;overflow:auto" role="dialog" aria-label="도구함에서 추가">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
         <h2 style="margin:0">도구함에서 추가</h2>
         <button class="btn btn-ghost btn-sm" data-pick-close>${icon('x')} 닫기</button>
       </div>
       <div class="deck-list" style="display:flex;flex-direction:column;gap:8px">${rows}</div>
-      <div class="small muted" style="margin-top:12px">고른 웹앱은 링크 목록에 들어갑니다. 아래 <b>“링크 저장”</b>을 눌러야 반영돼요.</div>
+      <div class="small muted tool-note">고른 항목은 링크 목록에 들어갑니다. 웹사이트는 주소가 그대로 복사돼 학생 화면에서도 바로 열려요. 아래 <b>“링크 저장”</b>을 눌러야 반영돼요.</div>
     </div>`;
   const close = () => { overlay.remove(); document.removeEventListener('keydown', onKey); };
   const onKey = (e) => { if (e.key === 'Escape') close(); };
@@ -1122,6 +1141,10 @@ function boardPostsHtml(data, mode) {
 
 function careerMaterialUrl(link, code, studentId, sessionId = '') {
   const original = String(link.url || '');
+  // 도구함 웹앱(/api/tools/:id/open)은 교사 로그인이 있어야 열려 학생 태블릿에서는 401 이 난다.
+  // 보드 코드로 확인하는 학생 경로로 바꾼다 — 서버가 이 보드에 그 링크가 공유됐는지 다시 본다.
+  const tool = /^\/api\/tools\/(\d+)\/open$/.exec(original);
+  if (tool) return /^[a-z0-9]{4,10}$/i.test(code || '') ? `/api/join-board/${code}/tool/${tool[1]}/open` : original;
   if (link.kind !== 'aiapp' || !/^[a-z0-9]{4,10}$/i.test(code || '')) return original;
   try {
     const target = new URL(original, location.origin);
@@ -1145,8 +1168,10 @@ function studentMaterialsHtml(materials, code, studentId = '', sessionId = '') {
     if (l.kind === 'video') {
       return `<div class="mat-video">${videoEmbed(l.url)}<div class="mat-cap">${esc(l.label || '영상')}</div></div>`;
     }
-    const tag = l.kind === 'aiapp' ? '🖥 웹앱' : '🔗 링크';
-    const label = l.label || (l.kind === 'aiapp' ? '웹앱 열기' : '링크 열기');
+    // 도구함 웹앱은 링크 종류를 바꿔 저장했어도 웹앱이다(주소가 학생 경로로 바뀌어 열린다).
+    const app = l.kind === 'aiapp' || /^\/api\/tools\/\d+\/open$/.test(String(l.url || ''));
+    const tag = app ? '🖥 웹앱' : '🔗 링크';
+    const label = l.label || (app ? '웹앱 열기' : '링크 열기');
     return `<a class="mat-link" href="${esc(careerMaterialUrl(l, code, studentId, sessionId))}" target="_blank" rel="noopener">${tag} <b>${esc(label)}</b><span class="mat-go">열기 →</span></a>`;
   };
   const fileItem = (f) => {
@@ -2373,7 +2398,7 @@ route(/^#\/resources\/(\d+)$/, async (id) => {
     links.push({ kind: 'link', label: '', url: '' });
     redrawLinks();
   };
-  // 도구함에서 웹앱 골라 링크로 붙이기 (현재 선택된 차시에 배정)
+  // 도구함에서 웹앱·웹사이트 골라 링크로 붙이기 (현재 선택된 차시에 배정)
   document.getElementById('pick-tool').onclick = async () => {
     let tools;
     try { tools = (await api('GET', '/api/tools')).tools || []; }
@@ -2381,7 +2406,7 @@ route(/^#\/resources\/(\d+)$/, async (id) => {
     const curLesson = document.getElementById('up-lesson')?.value; // 파일 업로드용 차시 선택값 재사용
     openToolPicker(tools, (t) => {
       collectLinks();
-      links.push({ kind: 'aiapp', label: t.title, url: `/api/tools/${t.id}/open`, lesson_id: curLesson ? Number(curLesson) : null });
+      links.push(toolLink(t, curLesson ? Number(curLesson) : null));
       redrawLinks();
       toast(`"${t.title}" 추가됨 — 아래 “링크 저장”을 눌러 반영하세요.`);
     });
@@ -2448,30 +2473,85 @@ route(/^#\/resources\/(\d+)$/, async (id) => {
 });
 
 /* ---------------- 도구함 (#/tools, admin — 관리자끼리 공용) ---------------- */
-// 수업과 별개로 보관하는 재사용 웹앱. 여기서 올려두고, 수업 편집에서 골라 붙인다.
+// 수업과 별개로 보관하는 재사용 웹앱과 웹사이트 주소. 여기서 모아 두고, 수업 편집에서 골라 붙인다.
+// 입력한 웹사이트 주소 확인 — 서버(siteUrl)와 같은 https 규칙. 주소창에서 "padlet.com" 처럼
+// 앞부분 없이 옮겨 적는 일이 많아, 앞부분이 아예 없을 때만 https:// 를 붙여 준다. http:// 는 받지 않는다.
+function siteAddress(value) {
+  let url = String(value ?? '').trim();
+  if (!url) return { error: '웹사이트 주소를 입력하세요.' };
+  if (/\s/.test(url)) return { error: '주소 안에 빈칸이 있습니다. 주소만 정확히 붙여 넣어 주세요.' };
+  if (!/^[a-z][a-z0-9+.-]*:/i.test(url) && /^[^/:]+\.[^/:]+/.test(url)) url = `https://${url}`;
+  if (!/^https:\/\/[^\s<>"']+$/.test(url)) return { error: '주소는 https:// 로 시작해야 합니다. 사이트 주소창의 주소를 그대로 복사해 붙여 넣어 주세요.' };
+  if (url.length > 2000) return { error: '주소가 너무 깁니다. 2000자 이하로 넣어 주세요.' };
+  return { url };
+}
 route(/^#\/tools$/, async () => {
   if (!isAdmin()) { location.hash = '#/'; return; }
   const data = await api('GET', '/api/tools');
   const tools = data.tools || [];
+  const sites = tools.filter((t) => t.kind === 'site');
+  const apps = tools.filter((t) => t.kind !== 'site');
+  const whenWho = (t) => `${esc(String(t.created_at).slice(0, 10))}${t.mine ? '' : ` · 올린 사람 ${esc(t.owner_name || '(계정 삭제됨)')}`}`;
+  // 지우기는 올린 사람만(또는 올린 계정이 지워진 항목). 서버 DELETE 와 같은 규칙.
+  const canDelete = (t) => t.mine || !t.owner_name;
   const row = (t) => `
-    <div class="deck-line">
+    <div class="deck-line tool-line">
       <div class="dl-left">
-        <span class="dl-ico">🧩</span>
+        ${toolIcon(t)}
         <div class="dl-body">
           <div class="dl-title" data-ttitle="${t.id}">${esc(t.title)}</div>
-          <div class="dl-meta small muted">${(t.size / 1024 / 1024).toFixed(2)}MB · ${esc(String(t.created_at).slice(0, 10))}${t.mine ? '' : ` · 올린 사람 ${esc(t.owner_name || '(계정 삭제됨)')}`}</div>
+          <div class="dl-meta small muted">${(t.size / 1024 / 1024).toFixed(2)}MB · ${whenWho(t)}</div>
         </div>
       </div>
       <div class="dl-actions">
         <button class="btn btn-primary btn-sm" data-trun="${t.id}" data-tname="${esc(t.title)}">${icon('play')} 실행</button>
         <button class="btn btn-ghost btn-sm" data-tren="${t.id}">이름 수정</button>
-        ${t.mine || !t.owner_name ? `<button class="btn btn-danger btn-sm" data-tdel="${t.id}" data-tname="${esc(t.title)}">${icon('trash')}</button>` : ''}
+        ${canDelete(t) ? `<button class="btn btn-danger btn-sm" data-tdel="${t.id}" data-tname="${esc(t.title)}" aria-label="${esc(t.title)} 삭제">${icon('trash')}</button>` : ''}
       </div>
+    </div>`;
+  // 웹사이트 한 줄: 열기(새 탭) · 수정(이름·주소·설명, 줄 아래에 펼침) · 삭제
+  const siteRow = (t) => `
+    <div class="tool-site">
+      <div class="deck-line tool-line">
+        <div class="dl-left">
+          ${toolIcon(t)}
+          <div class="dl-body">
+            <div class="dl-title">${esc(t.title)}</div>
+            <div class="dl-meta small muted"><span title="${esc(t.url)}">${esc(siteHost(t.url))}</span> · ${whenWho(t)}</div>
+            ${t.description ? `<div class="tool-desc small muted">${esc(t.description)}</div>` : ''}
+          </div>
+        </div>
+        <div class="dl-actions">
+          <a class="btn btn-primary btn-sm" href="${esc(t.url)}" target="_blank" rel="noopener">${icon('link')} 열기</a>
+          <button class="btn btn-ghost btn-sm" type="button" data-tsedit="${t.id}" aria-expanded="false" aria-controls="tsedit-${t.id}">수정</button>
+          ${canDelete(t) ? `<button class="btn btn-danger btn-sm" type="button" data-tsdel="${t.id}" aria-label="${esc(t.title)} 삭제">${icon('trash')}</button>` : ''}
+        </div>
+      </div>
+      <form class="form-grid tool-edit" id="tsedit-${t.id}" data-tsform="${t.id}" novalidate hidden>
+        <div><label for="tse-title-${t.id}">이름</label><input id="tse-title-${t.id}" name="title" maxlength="120" value="${esc(t.title)}"></div>
+        <div><label for="tse-url-${t.id}">주소</label><input id="tse-url-${t.id}" name="url" type="url" inputmode="url" maxlength="2000" autocomplete="off" autocapitalize="off" spellcheck="false" value="${esc(t.url)}" placeholder="https://…"></div>
+        <div><label for="tse-desc-${t.id}">설명 (선택)</label><input id="tse-desc-${t.id}" name="description" maxlength="500" value="${esc(t.description || '')}"></div>
+        <div class="tool-edit-actions">
+          <button class="btn btn-primary btn-sm" type="submit">저장</button>
+          <button class="btn btn-ghost btn-sm" type="button" data-tscancel="${t.id}">취소</button>
+        </div>
+        <div class="msg tool-edit-msg" role="status" aria-live="polite"></div>
+      </form>
     </div>`;
 
   shell('도구함', `
     <div class="page-head">
-      <div><div class="ph-t">도구함</div><div class="desc">관리자가 함께 쓰는, 수업과 <b>별개로</b> 보관하는 재사용 웹앱입니다. 여기 올려두고, <b>수업(프로그램) 편집 → 링크</b>에서 <b>“도구함에서 추가”</b>로 골라 붙이세요.</div></div>
+      <div><div class="ph-t">도구함</div><div class="desc tool-copy">관리자가 함께 쓰는, 수업과 <b>별개로</b> 보관하는 <b>웹앱</b>과 <b>웹사이트 주소</b>입니다. 여기 모아 두고, <b>수업(프로그램) 편집 → 링크</b>에서 <b>“도구함에서 추가”</b>로 골라 붙이세요. 수업 보드에서 학생에게 보이기로 하면 학생 화면에서 바로 열립니다.</div></div>
+    </div>
+    <div class="card" style="margin-bottom:18px">
+      <h2>웹사이트 주소 추가 <span class="sub tool-copy">패들렛·캔바·오토드로우처럼 자주 쓰는 사이트 — 수업에 붙이면 주소가 그대로 복사됩니다</span></h2>
+      <form id="tsite-form" class="form-grid tool-site-form mt" novalidate>
+        <div><label for="tsite-title">이름</label><input id="tsite-title" name="title" maxlength="120" placeholder="예: 오토드로우"></div>
+        <div><label for="tsite-url">주소</label><input id="tsite-url" name="url" type="url" inputmode="url" maxlength="2000" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="https://…"></div>
+        <div><label for="tsite-desc">설명 (선택)</label><input id="tsite-desc" name="description" maxlength="500" placeholder="예: 그림을 그리면 AI가 다듬어 줘요"></div>
+        <div><button class="btn btn-primary" type="submit">${icon('plus')} 추가</button></div>
+      </form>
+      <div class="msg" id="tsite-msg" role="status" aria-live="polite"></div>
     </div>
     <div class="card" style="margin-bottom:18px">
       <h2>웹앱 올리기 <span class="sub">HTML 웹앱(.html) · 100MB 이하 — 실행하면 교안 발표처럼 전체화면으로 열립니다</span></h2>
@@ -2481,10 +2561,30 @@ route(/^#\/tools$/, async () => {
       </div>
       <div class="msg" id="tool-msg"></div>
     </div>
+    <div class="card" style="margin-bottom:18px">
+      <h2>보관된 웹사이트 <span class="sub">${sites.length}개</span></h2>
+      <div id="tool-site-rows" class="deck-list">${sites.map(siteRow).join('') || '<p class="empty-note">아직 추가한 웹사이트 주소가 없습니다.</p>'}</div>
+    </div>
     <div class="card">
-      <h2>보관된 웹앱 <span class="sub">${tools.length}개</span></h2>
-      <div id="tool-rows" class="deck-list">${tools.map(row).join('') || '<p class="empty-note">아직 올린 웹앱이 없습니다.</p>'}</div>
+      <h2>보관된 웹앱 <span class="sub">${apps.length}개</span></h2>
+      <div id="tool-rows" class="deck-list">${apps.map(row).join('') || '<p class="empty-note">아직 올린 웹앱이 없습니다.</p>'}</div>
     </div>`);
+
+  // 웹사이트 주소 추가
+  document.getElementById('tsite-form').onsubmit = async (e) => {
+    e.preventDefault();
+    const f = new FormData(e.target);
+    const msg = document.getElementById('tsite-msg');
+    const site = siteAddress(f.get('url'));
+    if (site.error) { msg.textContent = site.error; msg.className = 'msg err'; document.getElementById('tsite-url').focus(); return; }
+    const button = e.target.querySelector('[type="submit"]');
+    button.disabled = true;
+    try {
+      await api('POST', '/api/tools/site', { title: String(f.get('title') || '').trim(), url: site.url, description: String(f.get('description') || '').trim() });
+      toast('도구함에 추가되었습니다.');
+      navigate();
+    } catch (err) { msg.textContent = err.message; msg.className = 'msg err'; button.disabled = false; }
+  };
 
   // 업로드 (sign → Supabase PUT → confirm)
   document.getElementById('tup-btn').onclick = () => document.getElementById('tup-file').click();
@@ -2505,6 +2605,48 @@ route(/^#\/tools$/, async () => {
     } catch (err) { msg.textContent = err.message; msg.className = 'msg err'; }
     e.target.value = '';
   };
+
+  // 웹사이트 수정 — 줄 아래 입력칸을 펼치고 접는다
+  const setEditing = (id, open) => {
+    const form = document.getElementById(`tsedit-${id}`);
+    const toggle = document.querySelector(`[data-tsedit="${id}"]`);
+    if (!form || !toggle) return;
+    form.hidden = !open;
+    toggle.setAttribute('aria-expanded', String(open));
+    if (open) form.querySelector('input').focus();
+  };
+  document.querySelectorAll('[data-tsedit]').forEach((b) => {
+    b.onclick = () => setEditing(b.dataset.tsedit, b.getAttribute('aria-expanded') !== 'true');
+  });
+  document.querySelectorAll('[data-tscancel]').forEach((b) => {
+    b.onclick = () => setEditing(b.dataset.tscancel, false);
+  });
+  document.querySelectorAll('[data-tsform]').forEach((form) => {
+    form.onsubmit = async (e) => {
+      e.preventDefault();
+      const f = new FormData(form);
+      const msg = form.querySelector('.tool-edit-msg');
+      const title = String(f.get('title') || '').trim();
+      if (!title) { msg.textContent = '이름을 입력하세요.'; msg.className = 'msg err tool-edit-msg'; return; }
+      const site = siteAddress(f.get('url'));
+      if (site.error) { msg.textContent = site.error; msg.className = 'msg err tool-edit-msg'; return; }
+      try {
+        await api('PATCH', `/api/tools/${form.dataset.tsform}`, { title, url: site.url, description: String(f.get('description') || '').trim() });
+        // 수업에 붙일 때 주소를 복사해 두므로, 주소를 바꿔도 이미 붙인 수업 링크는 예전 주소 그대로다.
+        const before = sites.find((t) => t.id === Number(form.dataset.tsform));
+        toast(before && before.url !== site.url ? '수정되었습니다. 이미 수업에 붙여 둔 링크는 예전 주소 그대로예요.' : '수정되었습니다.');
+        navigate();
+      } catch (err) { msg.textContent = err.message; msg.className = 'msg err tool-edit-msg'; }
+    };
+  });
+  document.querySelectorAll('[data-tsdel]').forEach((b) => {
+    b.onclick = async () => {
+      // 웹사이트는 고를 때 주소를 수업 링크로 복사하므로, 지워도 이미 붙인 수업은 그대로 열린다.
+      if (!confirm('이 웹사이트를 도구함에서 삭제할까요?\n이미 이 주소를 붙여 둔 수업은 주소가 복사돼 있어 그대로 열립니다.')) return;
+      try { await api('DELETE', `/api/tools/${b.dataset.tsdel}`); toast('삭제되었습니다.'); navigate(); }
+      catch (err) { toast(err.message, true); }
+    };
+  });
 
   document.querySelectorAll('[data-trun]').forEach((b) => {
     b.onclick = () => openSlidePresent(`/api/tools/${b.dataset.trun}/open`, b.dataset.tname);
