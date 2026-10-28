@@ -2253,6 +2253,7 @@ function openClassToolPicker(library, currentIds, onSave) {
 /* ---------------- 반 화면 (#/class/:id — 반을 만든 교사·관리자) ----------------
  * 반 코드(아이들은 이 코드 하나로 들어온다) · 과정(프로그램마다 연 수업) · 도구(도구함 웹사이트·웹앱) · 반 정보. */
 const classInboxTried = new Set(); // 반 제출함을 이 탭에서 한 번 만들어 본 반 — 실패해도 화면을 되풀이해 그리지 않게
+const classFileNotice = new Map(); // 반 id → 못 올린 파일 안내. 다 올린 뒤 화면을 다시 그려도 안내가 사라지지 않게 한 번만 보인다
 route(/^#\/class\/([0-9a-f]{12})$/, async (id) => {
   let data;
   try { data = await api('GET', `/api/classes/${id}`); }
@@ -2268,6 +2269,9 @@ route(/^#\/class\/([0-9a-f]{12})$/, async (id) => {
   // 제출함은 과정이 아니다 — 서버가 빼서 주지만 한 번 더 걸러 과정 줄·[반 삭제] 막힘에 섞이지 않게 한다
   const curricula = (data.curricula || cls.curricula || []).filter((b) => !inbox || String(b.id) !== String(inbox.boardId));
   const tools = data.tools || cls.tools || [];
+  const files = classFilesOf({ files: data.files || cls.files });
+  const fileNotice = classFileNotice.get(id) || [];
+  classFileNotice.delete(id);
   let inboxError = '';
   if (!inbox && !classInboxTried.has(id)) {
     classInboxTried.add(id);
@@ -2326,6 +2330,7 @@ route(/^#\/class\/([0-9a-f]{12})$/, async (id) => {
       </div>
     </div>
     ${classInboxCardHtml(inbox, inboxError)}
+    ${classFilesCardHtml(id, files, fileNotice)}
     <div class="kc-cards">
       <section class="card kc-sec" aria-labelledby="kc-cur-h">
         <div class="kc-sechead"><h2 id="kc-cur-h">과정 <span class="small muted">${curricula.length}개</span></h2>
@@ -2360,6 +2365,57 @@ route(/^#\/class\/([0-9a-f]{12})$/, async (id) => {
     try { await api('POST', `/api/classes/${id}/inbox`); toast('반 제출함을 만들었어요.'); navigate(); }
     catch (err) { inboxMake.disabled = false; if (!err.handled) toast(err.message, true); }
   };
+  // 아이들 자료 올리기: 파일마다 서명 3단계(file-sign → 저장소에 직접 PUT → 등록). 한 파일이 실패해도 나머지는 계속 올린다.
+  const fileInput = document.getElementById('kc-file-input');
+  const fileAdd = document.getElementById('kc-file-add');
+  fileAdd.onclick = () => fileInput.click();
+  fileInput.onchange = async () => {
+    const picked = [...(fileInput.files || [])];
+    fileInput.value = '';
+    if (!picked.length) return;
+    const msg = document.getElementById('kc-file-msg');
+    const errors = [];
+    let done = 0;
+    let room = CLASS_FILE_LIMIT - files.length;
+    fileAdd.disabled = true;
+    for (let i = 0; i < picked.length; i++) {
+      const f = picked[i];
+      msg.className = 'small kc-filemsg';
+      msg.textContent = `올리는 중 (${i + 1}/${picked.length})… ${f.name}`;
+      const bad = classFileProblem(f);
+      if (bad) { errors.push(`${f.name}: ${bad}`); continue; }
+      if (room <= 0) { errors.push(`${f.name}: 한 반에는 자료를 ${CLASS_FILE_LIMIT}개까지 올릴 수 있어요.`); continue; }
+      try {
+        const mime = guessMime(f.name, f.type);
+        const sign = await api('POST', `/api/classes/${id}/file-sign`, { name: f.name, size: f.size });
+        const put = await fetch(sign.uploadUrl, { method: 'PUT', headers: { 'Content-Type': mime, 'x-upsert': 'true' }, body: f });
+        if (!put.ok) throw new Error('저장소에 올리지 못했어요. 다시 해 보세요.');
+        await api('POST', `/api/classes/${id}/files`, { path: sign.path, name: f.name, size: f.size, mime });
+        done++; room--;
+      } catch (e) {
+        if (e.handled || e.status === 401) return; // 폐쇄 화면·로그인 화면으로 이미 넘어갔다
+        errors.push(`${f.name}: ${e.message}`);
+      }
+    }
+    if (done) {
+      if (errors.length) classFileNotice.set(id, errors);
+      toast(`자료 ${done}개를 올렸어요.`);
+      if (location.hash === `#/class/${id}`) navigate();
+      return;
+    }
+    fileAdd.disabled = files.length >= CLASS_FILE_LIMIT;
+    msg.className = 'small kc-filemsg is-err';
+    msg.innerHTML = errors.map(esc).join('<br>');
+  };
+  document.querySelectorAll('[data-kc-fdel]').forEach((b) => {
+    b.onclick = async () => {
+      const f = files.find((x) => x.id === b.dataset.kcFdel);
+      if (!confirm(`'${f ? f.name : '이 자료'}'을(를) 지울까요?\n아이들 화면에서도 사라져요. 되돌릴 수 없어요.`)) return;
+      b.disabled = true;
+      try { await api('DELETE', `/api/classes/${id}/files/${b.dataset.kcFdel}`); toast('자료를 지웠어요.'); navigate(); }
+      catch (e) { b.disabled = false; if (!e.handled) toast(e.message, true); }
+    };
+  });
   document.getElementById('kc-add-cur').onclick = async () => {
     let programs;
     try { programs = (await api('GET', '/api/programs')).programs || []; }
@@ -2408,12 +2464,14 @@ route(/^#\/class\/([0-9a-f]{12})$/, async (id) => {
     } catch (e) { if (!e.handled) toast(e.message, true); }
   };
   // 반 제출함에 아이들 것이 있으면 서버가 force 없이는 409 로 막는다 — 몇 개가 함께 지워지는지 알리고 한 번 더 묻는다.
-  const askInboxDelete = (n) => confirm(`'${heading}' 반을 삭제할까요?\n반 제출함에 아이들이 올린 제출물 ${n}개도 사진·파일 원본까지 함께 지워져요. 반 코드도 더 이상 쓸 수 없어요. 되돌릴 수 없어요.`);
+  // 반을 지우면 서버가 아이들 자료(파일 원본까지)도 함께 지운다 — 있으면 확인 문구에 적는다
+  const filesGone = files.length ? `\n선생님이 올린 아이들 자료 ${files.length}개도 함께 지워져요.` : '';
+  const askInboxDelete = (n) => confirm(`'${heading}' 반을 삭제할까요?\n반 제출함에 아이들이 올린 제출물 ${n}개도 사진·파일 원본까지 함께 지워져요.${filesGone} 반 코드도 더 이상 쓸 수 없어요. 되돌릴 수 없어요.`);
   const deleteClass = (force) => api('DELETE', `/api/classes/${id}${force ? '?force=true' : ''}`, force ? { force: true } : undefined);
   document.getElementById('kc-del').onclick = async () => {
     if (curricula.length) return;
     const n = inbox ? inbox.postCount : 0;
-    if (n ? !askInboxDelete(n) : !confirm(`'${heading}' 반을 삭제할까요?\n반 코드는 더 이상 쓸 수 없게 됩니다. 되돌릴 수 없어요.`)) return;
+    if (n ? !askInboxDelete(n) : !confirm(`'${heading}' 반을 삭제할까요?${filesGone}\n반 코드는 더 이상 쓸 수 없게 됩니다. 되돌릴 수 없어요.`)) return;
     try {
       try { await deleteClass(n > 0); }
       catch (e) {
