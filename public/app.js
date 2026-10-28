@@ -722,7 +722,7 @@ route(/^#\/program\/(\d+)$/, async (id) => {
       <div class="m-sub">학년·반마다 하나씩 만들어 쓰면 좋아요. 반을 고르면 [내 수업]에서 그 반 아래에 모입니다. 참여 코드는 학생이 입력하는 값입니다.</div>
       <div class="form-grid" style="grid-template-columns:1fr 1fr">
         ${classFieldsHtml('nb')}
-        <div style="grid-column:1/-1"><label for="nb-title">보드 이름 (선택)</label><input id="nb-title" maxlength="100" autocomplete="off"></div>
+        ${classTitleFieldHtml('nb', '보드 이름 (선택)')}
         <div><label>수업 날짜</label><input id="nb-date" type="date"><div class="small muted" style="margin-top:5px">날짜별로 정리돼요. 비워도 됩니다.</div></div>
         <div><label>참여 코드 (영문·숫자 4~10자)</label>
           <input id="nb-code" maxlength="10" placeholder="예: bs2622" autocomplete="off" style="text-transform:uppercase;letter-spacing:2px;font-weight:700">
@@ -738,7 +738,7 @@ route(/^#\/program\/(\d+)$/, async (id) => {
       <div class="msg" id="nb-msg"></div>`);
     // 새 수업 열기(#/myclass)와 같은 학교·학년·반 칸 — 학교는 지난번에 고른 학교로 채워 둔다
     fillClassFields(back, 'nb', { school: lastClassSchool() });
-    bindAutoTitleHint(back, 'nb', back.querySelector('#nb-title'), () => p.title, '학년·반을 고르면 비워 둬도 이름이 자동으로 붙어요');
+    bindAutoTitleHint(back, 'nb', () => p.title, '학년·반을 고르면 이름은 비워 둬도 돼요.');
     back.querySelector('#nb-cancel').onclick = () => back.remove();
     back.querySelector('#nb-save').onclick = async () => {
       const info = readClassFields(back, 'nb');
@@ -1367,11 +1367,19 @@ function readClassFields(root, prefix) {
     room: root.querySelector(`#${prefix}-room`).value,
   });
 }
+// 수업 이름 칸 + 그 아래 자동 이름 안내 줄(자리표시자는 글자를 치면 사라지고 잘려서 안내를 따로 둔다)
+function classTitleFieldHtml(prefix, label) {
+  return `
+      <div class="mcg-full"><label for="${prefix}-title">${label}</label>
+        <input id="${prefix}-title" maxlength="100" placeholder="예: 분수의 덧셈" autocomplete="off" aria-describedby="${prefix}-title-hint">
+        <div class="small muted mcg-titlehint" id="${prefix}-title-hint"></div></div>`;
+}
 // 이름 칸을 비우면 어떤 이름이 붙는지 미리 보여 준다(학년·반·프로그램을 바꿀 때마다)
-function bindAutoTitleHint(root, prefix, titleInput, programTitle, fallback) {
+function bindAutoTitleHint(root, prefix, programTitle, emptyText = '') {
+  const hint = root.querySelector(`#${prefix}-title-hint`);
   const update = () => {
     const info = readClassFields(root, prefix);
-    titleInput.placeholder = info.grade || info.room ? `비워 두면 '${autoClassTitle(info, programTitle())}'` : fallback;
+    hint.textContent = info.grade || info.room ? `이름을 비워 두면 이렇게 붙어요: ${autoClassTitle(info, programTitle())}` : emptyText;
   };
   root.querySelectorAll(`#${prefix}-grade, #${prefix}-room`).forEach((el) => {
     el.addEventListener('input', update);
@@ -1496,8 +1504,8 @@ route(/^#\/myclass$/, async () => {
         <div class="desc">${adminView
           ? '관리자에게는 모든 선생님의 수업이 보입니다. 어느 수업이든 열어서 그대로 진행할 수 있습니다.'
           : hasShared
-            ? '날짜·주제별로 수업을 여러 개 열고, 반마다 자료를 고르고 학생 활동을 모읍니다. 함께 보기로 받은 수업은 아이들이 낸 것을 보고, 받고, 인쇄할 수 있어요.'
-            : '날짜·주제별로 수업을 여러 개 열고, 반마다 자료를 고르고 학생 활동을 모읍니다.'}</div>
+            ? '반마다 프로그램별로 수업을 열고, 자료를 고르고 학생 활동을 모읍니다. 함께 보기로 받은 수업은 아이들이 낸 것을 보고, 받고, 인쇄할 수 있어요.'
+            : '반마다 프로그램별로 수업을 열고, 자료를 고르고 학생 활동을 모읍니다.'}</div>
       </div>
       <div><button class="btn btn-primary btn-sm" id="mc-new">${icon('plus')} 새 수업 열기</button></div>
     </div>
@@ -1600,8 +1608,7 @@ function openRenameClassModal(id, current, opts = {}) {
     <h3>수업 정보 수정</h3>
     <div class="m-sub">반을 정하면 [내 수업]의 반별 보기에서 그 반 아래에 모입니다. 참여 코드와 제출된 결과물은 그대로입니다.</div>
     <div class="form-grid">
-      <div class="mcg-full"><label for="rc-title">수업 이름</label>
-        <input id="rc-title" maxlength="100" autocomplete="off"></div>
+      ${classTitleFieldHtml('rc', '수업 이름')}
       ${classFieldsHtml('rc', opts.schools || [])}
     </div>
     <div class="m-actions">
@@ -1614,18 +1621,24 @@ function openRenameClassModal(id, current, opts = {}) {
   const saveBtn = back.querySelector('#rc-save');
   input.value = current || '';
   fillClassFields(back, 'rc', before);
-  bindAutoTitleHint(back, 'rc', input, () => programTitle, '예: 2학년 2반 · 분수의 덧셈');
+  bindAutoTitleHint(back, 'rc', () => programTitle);
+  // 자동 이름(2학년 3반 · 프로그램)을 그대로 쓰던 수업이면 반을 바꾸는 대로 이름 칸도 따라 바꾼다 —
+  // 저장한 뒤 이름은 3반인데 4반 아래에 있는 어긋남을 막는다. 이름을 직접 고치면 더는 따라가지 않는다.
+  let followAuto = !!(before.grade || before.room) && input.value.trim() === autoClassTitle(before, programTitle);
+  input.addEventListener('input', () => { followAuto = input.value.trim() === autoClassTitle(readClassFields(back, 'rc'), programTitle); });
+  back.querySelectorAll('#rc-grade, #rc-room').forEach((el) => ['input', 'change'].forEach((type) => el.addEventListener(type, () => {
+    const info = readClassFields(back, 'rc');
+    if (followAuto && (info.grade || info.room)) input.value = autoClassTitle(info, programTitle);
+  })));
   if (opts.focus === 'class') back.querySelector(before.school ? '#rc-grade' : '#rc-school').focus();
   else { input.focus(); input.select(); }
   back.querySelector('#rc-cancel').onclick = () => back.remove();
   const save = async () => {
     const info = readClassFields(back, 'rc');
     const changed = ['school', 'grade', 'room'].filter((k) => info[k] !== before[k]);
-    const hasRoom = !!(info.grade || info.room);
     let title = input.value.trim();
-    // 이름을 비웠거나, 예전 자동 이름을 그대로 둔 채 반만 바꿨으면 새 반에 맞춰 이름도 다시 붙인다
-    const wasAuto = !!(before.grade || before.room) && title === autoClassTitle(before, programTitle);
-    if (hasRoom && (!title || (changed.length && wasAuto))) title = autoClassTitle(info, programTitle);
+    // 이름을 비웠으면 새 수업과 같은 규칙으로 붙인다
+    if (!title && (info.grade || info.room)) title = autoClassTitle(info, programTitle);
     if (!title) { msg.textContent = '수업 이름을 적거나 학년·반을 골라 주세요.'; msg.className = 'msg err'; input.focus(); return; }
     const body = {};
     if (title !== current) body.title = title;
@@ -1666,7 +1679,7 @@ async function openNewClassModal(options = {}) {
     <div class="form-grid" style="grid-template-columns:1fr 1fr">
       <div style="grid-column:1/-1"><label>프로그램</label><select id="nc-prog">${opts}</select></div>
       ${classFieldsHtml('nc', options.schools || [])}
-      <div style="grid-column:1/-1"><label for="nc-title">수업 이름 (선택)</label><input id="nc-title" maxlength="100" autocomplete="off"></div>
+      ${classTitleFieldHtml('nc', '수업 이름 (선택)')}
       <div><label>수업 날짜</label><input id="nc-date" type="date"></div>
       <div><label>참여 코드 (영문·숫자 4~10자)</label>
         <input id="nc-code" maxlength="10" placeholder="비워두면 자동" autocomplete="off" style="text-transform:uppercase;letter-spacing:2px;font-weight:700"></div>
@@ -1683,13 +1696,14 @@ async function openNewClassModal(options = {}) {
   // 학교는 지난번에 고른 학교로 채워 둔다(한 선생님은 대개 한 학교에서 여러 반을 맡는다)
   fillClassFields(back, 'nc', { school: options.school ?? lastClassSchool() });
   const titleInput = back.querySelector('#nc-title');
-  const hint = bindAutoTitleHint(back, 'nc', titleInput, () => (pickedProgram() || {}).title || '', '학년·반을 고르면 비워 둬도 이름이 자동으로 붙어요');
+  const hint = bindAutoTitleHint(back, 'nc', () => (pickedProgram() || {}).title || '', '학년·반을 고르면 이름은 비워 둬도 돼요.');
   const ncWarn = () => {
     const picked = pickedProgram();
     back.querySelector('#nc-msg').textContent = picked && picked.published === false
       ? '이 프로그램은 비공개라 참여 코드를 띄워도 학생이 들어오지 못합니다. 프로그램을 먼저 공개하세요.' : '';
   };
-  back.querySelector('#nc-prog').addEventListener('change', () => { ncWarn(); hint(); });
+  back.querySelector('#nc-prog').addEventListener('change', ncWarn);
+  back.querySelector('#nc-prog').addEventListener('change', hint); // 자동 이름에 프로그램 이름이 들어간다
   ncWarn();
   back.querySelector('#nc-cancel').onclick = () => back.remove();
   back.querySelector('#nc-save').onclick = async () => {

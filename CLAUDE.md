@@ -127,6 +127,18 @@
 - **피커에서 웹사이트를 고르면 `/api/tools/:id/open` 이 아니라 주소를 그대로 복사한 보통 링크(`kind: 'link'`)가 붙는다**(`toolLink()`). 그래서 링크 저장 검사를 그대로 타고, 학생 화면에서도 보통 링크로 열리며, 도구함에서 지우거나 주소를 고쳐도 이미 붙인 수업은 예전 주소 그대로다 — 삭제 확인 문구가 이것을 알린다. 웹앱은 예전대로 `/api/tools/:id/open`
 - **도구함 웹앱의 학생 경로** `GET /api/join-board/:code/tool/:id/open`: 교사 경로는 로그인이 있어야 해서 학생 태블릿에서는 401 이었다. 학생 파일 경로와 같은 관문(`siteClosed` → `authorizeAccess` → 열린 보드·공개 프로그램)을 거친 뒤, 그 보드의 `board_items`(`item_type='link'`)에 **주소가 글자 그대로 `/api/tools/<id>/open` 인 링크**가 있어야 연다(없으면 403 `not_shared`). 응답은 교사 경로와 같은 `sendTool()`. 화면은 `careerMaterialUrl()` 이 그 주소를 학생 경로로 바꾸므로 `studentMaterialsHtml` 과 학생 수업 화면(`student-board.js` 활동 링크)이 함께 고쳐진다
 
+## 내 수업 — 반별로 묶기 (2026-10-28)
+
+한 반(보성초 2학년 3반)이 커리큘럼(프로그램)을 여러 개 하면 프로그램마다 수업을 따로 열고 참여 코드도 따로다. 수업 이름에 반을 적어 두는 것만으로는 [내 수업]에서 같은 반 수업이 날짜마다 흩어졌다.
+
+- **반 정보는 `settings` 의 `sb:class:<보드>`** (JSON `{school, grade, room}`)다. `boards` 에 칸을 늘리지 않은 이유는 전환 모드(`ACADEMY_ID`)에서 `boards` 가 뷰라 `lib/db.js` 의 DDL 이 돌지 않기 때문이다. 쓰기는 `saveBoardViewerIds()` 와 같은 방식(전환 모드는 평범한 INSERT, 아니면 `ON CONFLICT`)이고, 수업을 지우면 `purgeBoardSettings` 가 함께 지운다
+- 정리는 `normClassInfo()` 한 곳: 학교 40자(빈칸 정리), 학년은 1~6 정수(`'2'`·`2`·`'2학년'`·`'초2'` 모두 받음, 그 밖은 `null`), 반은 끝의 `반`을 떼고 10자. 세 칸이 모두 비면 줄을 지운다(반 미지정). 화면의 `normClassFields()` 가 같은 규칙이고 `tests/class-groups.test.mjs` 가 두 쪽의 답을 맞춰 본다
+- 새 수업(`POST /api/programs/:id/boards`)은 학교·학년·반을 받는다. 이름을 비우고 학년·반을 고르면 `2학년 3반 · <프로그램>` 이 붙는다(`autoBoardTitle` ↔ 화면 `autoClassTitle`, 학교는 넣지 않는다 — 묶음 제목에 이미 나온다). 반 저장만 실패하면 수업은 그대로 열고 `classSaved: false` 로 알린다 — 오류를 내면 선생님이 같은 수업을 또 만든다. `PATCH /api/boards/:id` 는 보낸 반 칸만 바꾼다
+- `GET /api/my-boards` 는 줄마다 `classInfo`(없으면 `null`)를 settings 조회 **한 번**(`key=ANY`)으로 붙인다. `GET /api/boards/:id/posts` 의 `board.classInfo` 로 수업 화면 머리에 `보성초 · 2학년 3반` 이 나온다
+- **묶음 열쇠는 `학교|학년|반`** — 학교가 들어가야 다른 학교의 2학년 3반과 섞이지 않는다. 차례는 학교(가나다, 학교 미지정은 뒤) → 학년 → 반(둘 다 숫자면 숫자 차례), 반 미지정은 맨 뒤. 한 반 안에서는 진행 중 → 프로그램 이름 → 최근 날짜. 학교가 둘 이상이면 학교 칩이 나온다. 묶기는 전부 브라우저에서 한다(`public/app.js` 의 `/* ---- 반별로 묶기 */` 구간 — 시험이 이 구간을 떼어 쓴다)
+- 기본 보기는 **반별**이고 `날짜별`은 예전 날짜 묶음 그대로다. 고른 보기는 `localStorage['moakit:myclass']`, 새 수업의 학교 기본값은 `localStorage['moakit:lastSchool']`(지난번에 고른 학교)
+- 반 미지정 줄에는 `[수업 정보 수정]` 자리에 `[반 정하기]` 가 나온다(같은 창을 반 칸부터 연다). 함께 보는 수업에는 수정·삭제·반 정하기가 없다. 자동 이름을 그대로 쓰던 수업은 반을 바꾸면 이름 칸도 따라 바뀐다
+
 ## 제출물 학생별 보기 (2026-09-15)
 
 수업 중에는 시간순 바둑판이 맞지만, 끝난 뒤 평가할 때는 한 학생 것을 모아 봐야 한다. `#/boardview/:id` 에 **시간순 · 학생별** 전환을 두었다.
