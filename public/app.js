@@ -1044,10 +1044,9 @@ function postCardHtml(p, { forTeacher = false, manageable = false } = {}) {
       ${fileChip}
       ${forTeacher ? `
         <div class="pc-actions">
-          ${p.hidden ? `<span class="badge gray">${p.submission?'선생님만 열람':'숨김'}</span>` : p.submission?'<span class="badge green">우리 반 공개</span>':''}
+          <span class="badge gray">선생님만 열람</span>
           ${files.map((f, i) => `<a class="btn btn-primary btn-sm" href="/api/posts/${p.id}/download/${f.index}" target="_blank" rel="noopener" title="${esc(f.name)}">${icon('download')} ${files.length > 1 ? `${i + 1}번째` : '받기'}</a>`).join('')}
           ${manageable ? `
-            <button class="btn btn-ghost btn-sm" data-phide="${p.id}" data-val="${p.hidden ? 0 : 1}">${p.submission ? (p.hidden?'우리 반에 공개':'공개 취소') : (p.hidden?'보이기':'숨김')}</button>
             <button class="btn btn-danger btn-sm" data-pdel="${p.id}">${icon('trash')}</button>` : ''}
         </div>` : ''}
     </div>`;
@@ -1548,7 +1547,7 @@ const CLASS_ID_UI = /^[0-9a-f]{12}$/;
 function boardClassActionHtml(board, manageable) {
   if (!manageable || !board) return '';
   const cid = String((board.classInfo && board.classInfo.classId) || '');
-  if (CLASS_ID_UI.test(cid)) return `<a class="btn btn-soft btn-sm" href="#/class/${esc(cid)}">반 화면 · 도구 추가</a>`;
+  if (CLASS_ID_UI.test(cid)) return `<a class="btn btn-soft btn-sm" href="#/class/${esc(cid)}">반 자료 올리기 · 반 화면</a>`;
   if (isInboxBoard(board)) return '';
   return '<button type="button" class="btn btn-soft btn-sm" id="board-attach">반에 넣기</button>';
 }

@@ -27,9 +27,9 @@ test('twelve lessons render one editor with full titles and separate today selec
 });
 test('switching lessons preserves edits and saves the entire config with revision and today selection',async()=>{
  const u=ui();await u.open();u.change('#sbt-enabled',false);u.change('[data-sbt-type="photo"]',false);
- u.change('#sbt-lesson','s12');u.change('#sbt-sharing','class');await u.click('#sbt-use-today');
+ u.change('#sbt-lesson','s12');await u.click('#sbt-use-today');
  u.change('#sbt-lesson','s1');assert.equal(u.node('#sbt-enabled').checked,false);assert.equal(u.node('[data-sbt-type="photo"]').checked,false);
- await u.click('#sbt-save');const body=u.requests[0];assert.equal(body.sessions.length,12);assert.equal(body.sessions[0].submissions.enabled,false);assert.equal(body.sessions[11].submissions.sharing,'class');assert.equal(body.activeSession,'s12');assert.equal(body.revision,'r1');assert.equal(body.shareStudentMaterials,false);assert.equal(body.career.enabled,false);
+ await u.click('#sbt-save');const body=u.requests[0];assert.equal(body.sessions.length,12);assert.equal(body.sessions[0].submissions.enabled,false);assert.equal(body.sessions[11].submissions.sharing,'teacher');assert.equal(body.activeSession,'s12');assert.equal(body.revision,'r1');assert.equal(body.shareStudentMaterials,false);assert.equal(body.career.enabled,false);
  assert.match(u.node('#sbt-message').textContent,/저장되었습니다/);assert.equal(u.node('#sbt-career').disabled,true);
 });
 test('failed save retains drafts and disabled capabilities; retry excludes duplicate in-flight writes',async()=>{
@@ -38,8 +38,8 @@ test('failed save retains drafts and disabled capabilities; retry excludes dupli
 });
 test('invalid hidden lesson is revealed without losing settings for another lesson',async()=>{
  const u=ui();await u.open();for(const type of ['photo','document','text'])u.change(`[data-sbt-type="${type}"]`,false);
- u.change('#sbt-lesson','s12');u.change('#sbt-sharing','class');await u.click('#sbt-save');assert.equal(u.requests.length,0);assert.equal(u.node('#sbt-lesson').value,'s1');assert.match(u.node('#sbt-message').textContent,/하나 이상/);
- u.change('[data-sbt-type="text"]',true);await u.click('#sbt-save');assert.equal(u.requests[0].sessions[11].submissions.sharing,'class');
+ u.change('#sbt-lesson','s12');await u.click('#sbt-save');assert.equal(u.requests.length,0);assert.equal(u.node('#sbt-lesson').value,'s1');assert.match(u.node('#sbt-message').textContent,/하나 이상/);
+ u.change('[data-sbt-type="text"]',true);await u.click('#sbt-save');assert.equal(u.requests[0].sessions[11].submissions.sharing,'teacher');
 });
 test('a school-bound class says so up front and can be disconnected on purpose',async()=>{
  const school='33333333-3333-4333-8333-333333333333';
