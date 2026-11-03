@@ -90,7 +90,7 @@ test('아이들 반 코드 화면: [활동지·사진 올리기]가 첫 카드 �
 test('수업 화면 머리: [반 화면 · 도구 추가]는 반에 붙은 수업을 고칠 수 있는 선생님에게만', () => {
   const board = { classInfo: { school: '보성초', grade: 3, room: '1', classId: CID } };
   const btn = ui.boardClassActionHtml(board, true);
-  assert.ok(btn.includes(`href="#/class/${CID}"`) && btn.includes('반 화면 · 도구 추가'));
+  assert.ok(btn.includes(`href="#/class/${CID}"`) && btn.includes('반 자료 올리기 · 반 화면'));
   assert.equal(ui.boardClassActionHtml(board, false), '', '함께 보는 선생님(보기 전용)에게는 없다');
   assert.equal(ui.boardClassActionHtml(board, undefined), '');
   const loose = ui.boardClassActionHtml({ classInfo: { school: '보성초', grade: 3, room: '1' } }, true);
