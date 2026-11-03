@@ -56,7 +56,7 @@ test('목록 정리: 번호 모양이 맞고 이름이 있는 것만, 저장소 
     { id: 'bbbbbbbbbbbb', name: '   ', size: 1 },
     null,
   ] });
-  assert.deepEqual(plain(list), [{ id: FID, name: '활동지.pdf', size: 2048, mime: 'application/pdf', createdAt: '2026-10-28T03:00:00Z' }]);
+  assert.deepEqual(plain(list), [{ id: FID, name: '활동지.pdf', title: '활동지.pdf', size: 2048, mime: 'application/pdf', createdAt: '2026-10-28T03:00:00Z' }]);
   assert.deepEqual(plain(ui.classFilesOf({})), []);
   assert.deepEqual(plain(ui.classFilesOf(null)), []);
   // 날짜: ISO 글자·밀리초 모두, 못 읽으면 빈칸
@@ -140,4 +140,15 @@ test('화면 연결: 반 화면은 제출함 카드 바로 다음에 자료 카�
   assert.ok(app.includes('classSumText(c, g.curricula.length)'), '내 수업 반 카드 머리');
   assert.match(css, /\.kc-file-name\s*\{[^}]*text-overflow:\s*ellipsis/);
   assert.match(css, /\.kc-files\s*\{/);
+});
+
+
+test('사진 자료는 교사와 학생에게 미리보기와 제목을 표시한다', () => {
+  const f = { id:FID, name:'photo.jpg', title:'오늘의 탐구', size:100, createdAt:'2026-10-28T02:00:00.000Z' };
+  const teacher = ui.classFileRowHtml(CID, f);
+  assert.ok(teacher.includes(`/api/classes/${CID}/files/${FID}/preview`));
+  assert.ok(teacher.includes('오늘의 탐구') && teacher.includes('올림'));
+  const student = ui.classLandingHtml('BS31', { class:{}, files:[f] });
+  assert.ok(student.includes(`/api/join-class/bs31/file/${FID}/preview`));
+  assert.ok(student.includes('오늘의 탐구') && student.includes('2026. 10. 28'));
 });

@@ -1461,9 +1461,9 @@ function classLandingHtml(code, data) {
   const files = BOARD_CODE_UI.test(safeCode) ? classFilesOf(data) : [];
   const fileCards = files.map((f) => `
         <li><a class="kcl-card kcl-file" href="/api/join-class/${esc(safeCode)}/file/${esc(f.id)}" download>
-          <span class="kcl-mark" aria-hidden="true">${classFileEmoji(f.name)}</span>
-          <b class="kcl-title">${esc(f.name)}</b>
-          <span class="kcl-sub">${fileSizeLabel(f.size)}</span>
+          ${/\.(png|jpe?g|webp|gif)$/i.test(f.name) ? `<img class="kcl-file-preview" src="/api/join-class/${esc(safeCode)}/file/${esc(f.id)}/preview" alt="${esc(f.title)} 미리보기" loading="lazy">` : `<span class="kcl-mark" aria-hidden="true">${classFileEmoji(f.name)}</span>`}
+          <b class="kcl-title">${esc(f.title)}</b>
+          <span class="kcl-sub">${classFileDate(f.createdAt) ? `${esc(classFileDate(f.createdAt))} · ` : ''}${fileSizeLabel(f.size)}</span>
           <span class="kcl-go">받기 ↓</span></a></li>`).join('');
   return `
     <div class="kcl">
@@ -1596,17 +1596,17 @@ function classFileDate(v) {
 function classFilesOf(data) {
   return ((data && data.files) || [])
     .filter((f) => f && CLASS_FILE_ID_UI.test(String(f.id)) && String(f.name || '').trim())
-    .map((f) => ({ id: String(f.id), name: String(f.name).trim(), size: Number(f.size) || 0, mime: String(f.mime || ''), createdAt: f.createdAt ?? null }));
+    .map((f) => ({ id: String(f.id), name: String(f.name).trim(), title: String(f.title || f.name).trim(), size: Number(f.size) || 0, mime: String(f.mime || ''), createdAt: f.createdAt ?? null }));
 }
 // 반 화면 한 줄: 종류 그림 · 이름(길면 말줄임) · 크기 · 날짜 · [받기](선생님 경로) · [삭제]
 function classFileRowHtml(classId, f) {
   const date = classFileDate(f.createdAt);
   return `
       <li class="kc-file">
-        <span class="kc-file-ico" aria-hidden="true">${classFileEmoji(f.name)}</span>
+        ${/\.(png|jpe?g|webp|gif)$/i.test(f.name) ? `<a href="/api/classes/${esc(classId)}/files/${esc(f.id)}/preview" target="_blank" rel="noopener"><img class="kc-file-preview" src="/api/classes/${esc(classId)}/files/${esc(f.id)}/preview" alt="${esc(f.title || f.name)} 미리보기" loading="lazy"></a>` : `<span class="kc-file-ico" aria-hidden="true">${classFileEmoji(f.name)}</span>`}
         <div class="kc-file-main">
-          <div class="kc-file-name" title="${esc(f.name)}">${esc(f.name)}</div>
-          <div class="small muted">${fileSizeLabel(f.size)}${date ? ` · ${esc(date)}` : ''}</div>
+          <div class="kc-file-name" title="${esc(f.title || f.name)}">${esc(f.title || f.name)}</div>
+          <div class="small muted">${esc(f.name)} · ${fileSizeLabel(f.size)}${date ? ` · ${esc(date)} 올림` : ''}</div>
         </div>
         <div class="mcg-actions">
           <a class="btn btn-ghost btn-sm" href="/api/classes/${esc(classId)}/files/${esc(f.id)}/download" download>받기<span class="mcg-sr"> — ${esc(f.name)}</span></a>
@@ -2372,6 +2372,18 @@ route(/^#\/class\/([0-9a-f]{12})$/, async (id) => {
     const picked = [...(fileInput.files || [])];
     fileInput.value = '';
     if (!picked.length) return;
+    const modal = openModal(`<h3>자료 제목을 적어 주세요</h3><p class="small muted">아이들에게 제목과 오늘 올린 날짜가 함께 보여요.</p><div class="kc-upload-titles">${picked.map((f,i)=>`<label>자료 제목 <span class="small muted">${esc(f.name)}</span><input data-file-title="${i}" maxlength="120" value="${esc(f.name.replace(/\.[^.]+$/, ''))}" required></label>`).join('')}</div><p class="msg err" id="kc-title-msg" role="status"></p><div class="m-actions"><button type="button" class="btn btn-soft" id="kc-title-cancel">취소</button><button type="button" class="btn btn-primary" id="kc-title-submit">올리기</button></div>`);
+    const titles = await new Promise((resolve) => {
+      modal.querySelector('#kc-title-cancel').onclick = () => { modal.remove(); resolve(null); };
+      modal.addEventListener('mousedown', (e) => { if (e.target === modal) resolve(null); });
+      modal.querySelector('#kc-title-submit').onclick = () => {
+        const values = [...modal.querySelectorAll('[data-file-title]')].map(el => el.value.trim());
+        if (values.some(v => !v)) { modal.querySelector('#kc-title-msg').textContent = '자료마다 제목을 적어 주세요.'; return; }
+        modal.remove(); resolve(values);
+      };
+      modal.querySelector('[data-file-title]')?.focus();
+    });
+    if (!titles) return;
     const msg = document.getElementById('kc-file-msg');
     const errors = [];
     let done = 0;
@@ -2389,7 +2401,7 @@ route(/^#\/class\/([0-9a-f]{12})$/, async (id) => {
         const sign = await api('POST', `/api/classes/${id}/file-sign`, { name: f.name, size: f.size });
         const put = await fetch(sign.uploadUrl, { method: 'PUT', headers: { 'Content-Type': mime, 'x-upsert': 'true' }, body: f });
         if (!put.ok) throw new Error('저장소에 올리지 못했어요. 다시 해 보세요.');
-        await api('POST', `/api/classes/${id}/files`, { path: sign.path, name: f.name, size: f.size, mime });
+        await api('POST', `/api/classes/${id}/files`, { path: sign.path, name: f.name, title: titles[i], size: f.size, mime });
         done++; room--;
       } catch (e) {
         if (e.handled || e.status === 401) return; // 폐쇄 화면·로그인 화면으로 이미 넘어갔다

@@ -209,10 +209,10 @@ test('등록(files): 반 접두사 밖 경로는 거부, 맞으면 파일마다 
   assert.equal(r.result.ok, true);
   const { id } = r.result.file;
   assert.match(id, /^[0-9a-f]{12}$/);
-  assert.deepEqual(Object.keys(r.result.file).sort(), ['createdAt', 'id', 'mime', 'name', 'size']);
+  assert.deepEqual(Object.keys(r.result.file).sort(), ['createdAt', 'id', 'mime', 'name', 'size', 'title']);
   assert.equal(r.result.file.name, '3차시 활동지.pdf');
   const row = JSON.parse(h.settings.get(`sb:clsfile:${CID}:${id}`));
-  assert.deepEqual({ ...row, createdAt: 'x' }, { id, name: '3차시 활동지.pdf', mime: 'application/pdf', size: 2048, path: PATH, createdBy: OWNER, createdAt: 'x' });
+  assert.deepEqual({ ...row, createdAt: 'x' }, { id, name: '3차시 활동지.pdf', title: '3차시 활동지.pdf', mime: 'application/pdf', size: 2048, path: PATH, createdBy: OWNER, createdAt: 'x' });
   assert.ok(h.seen.logs.some((l) => l.startsWith('class_file_added ') && l.includes(id)));
   // 응답이 끊겨 같은 경로로 다시 보내면 새 줄을 만들지 않는다
   const again = await h.call('POST', `/api/classes/${CID}/files`, { path: PATH, name: '3차시 활동지.pdf', size: 2048, mime: 'application/pdf' });
@@ -237,7 +237,7 @@ test('전환 모드(ACADEMY_ID): 자료 줄도 ON CONFLICT 없이 넣는다', as
 });
 
 test('반 목록 fileCount, 반 화면 files(새것부터) — 저장소 경로는 어디에도 없다', async () => {
-  const h = withClass({ settings: { [`sb:clsfile:${CID}:${FID2}`]: fileRow({ id: FID2, name: '새 자료.hwp', mime: 'application/x-hwp', size: 99, createdAt: '2026-10-28T03:00:00.000Z', path: `class-files/${CID}/1761600000002-aaaaaaaaaaaaaaaa.hwp` }) } });
+  const h = withClass({ settings: { [`sb:clsfile:${CID}:${FID2}`]: fileRow({ id: FID2, name: '새 자료.hwp', title: '새 자료.hwp', mime: 'application/x-hwp', size: 99, createdAt: '2026-10-28T03:00:00.000Z', path: `class-files/${CID}/1761600000002-aaaaaaaaaaaaaaaa.hwp` }) } });
   const list = await h.call('GET', '/api/classes');
   assert.equal(list.status, 200);
   assert.equal(list.result.classes.length, 1, '자료 줄을 반으로 읽지 않는다(남의 반도 안 보인다)');
@@ -248,8 +248,8 @@ test('반 목록 fileCount, 반 화면 files(새것부터) — 저장소 경로�
   const detail = await h.call('GET', `/api/classes/${CID}`);
   assert.equal(detail.status, 200);
   assert.deepEqual(detail.result.files, [
-    { id: FID2, name: '새 자료.hwp', mime: 'application/x-hwp', size: 99, createdAt: '2026-10-28T03:00:00.000Z' },
-    { id: FID, name: '3차시 활동지.pdf', mime: 'application/pdf', size: 2048, createdAt: '2026-10-28T02:00:00.000Z' },
+    { id: FID2, name: '새 자료.hwp', title: '새 자료.hwp', mime: 'application/x-hwp', size: 99, createdAt: '2026-10-28T03:00:00.000Z' },
+    { id: FID, name: '3차시 활동지.pdf', title: '3차시 활동지.pdf', mime: 'application/pdf', size: 2048, createdAt: '2026-10-28T02:00:00.000Z' },
   ]);
   assert.doesNotMatch(detail.raw, /class-files\//);
   assert.deepEqual((await withClass().call('GET', `/api/classes/${CID2}`)).status, 403);
@@ -272,7 +272,7 @@ test('학생 반 입장: files 에 id·이름·형식·크기만, 받기는 2분
   const h = withClass();
   const join = await h.call('GET', '/api/join-class/BS23');
   assert.equal(join.status, 200);
-  assert.deepEqual(join.result.files, [{ id: FID, name: '3차시 활동지.pdf', mime: 'application/pdf', size: 2048 }]);
+  assert.deepEqual(join.result.files, [{ id: FID, name: '3차시 활동지.pdf', title: '3차시 활동지.pdf', mime: 'application/pdf', size: 2048, createdAt: '2026-10-28T02:00:00.000Z' }]);
   assert.doesNotMatch(join.raw, /class-files\//);
   const r = await h.call('GET', `/api/join-class/bs23/file/${FID}`);
   assert.equal(r.status, 302);
@@ -358,4 +358,23 @@ test('반 지우기: 반 자료 파일·줄을 모두 지운다(제출함 없는
   assert.equal((await blocked.call('DELETE', `/api/classes/${CID}`)).status, 409);
   assert.equal(blocked.fileKeys().length, 1);
   assert.deepEqual(blocked.seen.removed, []);
+});
+
+
+test('자료 제목 저장과 사진 미리보기는 반의 권한을 지킨다', async () => {
+  const photo = `class-files/${CID}/1761600000000-0123456789abcdef.jpg`;
+  const h = withClass({settings:{[`sb:clsfile:${CID}:${FID}`]:fileRow({name:'photo.jpg',mime:'image/jpeg',path:photo,title:'봄꽃 관찰'})}});
+  const join = await h.call('GET','/api/join-class/bs23');
+  assert.equal(join.result.files[0].title,'봄꽃 관찰');
+  assert.equal(join.result.files[0].createdAt,'2026-10-28T02:00:00.000Z');
+  assert.equal((await h.call('GET',`/api/join-class/bs23/file/${FID}/preview`)).status,302);
+  assert.equal((await h.call('GET',`/api/classes/${CID}/files/${FID}/preview`)).status,302);
+  assert.equal((await h.call('GET',`/api/join-class/zz99/file/${FID}/preview`)).status,404);
+  assert.equal((await withClass({userId:OTHER}).call('GET',`/api/classes/${CID}/files/${FID}/preview`)).status,403);
+  const closed = withClass({settings:{[`sb:cls:${CID}`]:classRow({isOpen:false}),[`sb:clsfile:${CID}:${FID}`]:fileRow({name:'photo.jpg',path:photo})}});
+  assert.equal((await closed.call('GET',`/api/join-class/bs23/file/${FID}/preview`)).status,403);
+  assert.equal((await withClass().call('GET',`/api/join-class/bs23/file/${FID}/preview`)).status,404);
+  const n = await h.call('POST',`/api/classes/${CID}/files`,{path:`class-files/${CID}/1761600000001-abcdefabcdefabcd.png`,name:'새사진.png',title:'우리 반 작품',size:42,mime:'image/png'});
+  assert.equal(n.status,200); assert.equal(n.result.file.title,'우리 반 작품');
+  assert.equal(JSON.parse(h.settings.get(`sb:clsfile:${CID}:${n.result.file.id}`)).title,'우리 반 작품');
 });
