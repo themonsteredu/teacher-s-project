@@ -1522,3 +1522,10 @@ body { background: var(--bg); }
   .kc-inbox .btn, .kc-inboxline .btn { flex: 1 1 100%; justify-content: center; }
 }
 @media (prefers-reduced-motion: reduce) { .kc-pick, .kcl-card { transition: none; } }
+
+/* 반 자료 이미지 미리보기 및 제목 입력 */
+.kc-file-preview { display:block; width:96px; height:72px; object-fit:cover; border-radius:8px; background:var(--bg); }
+.kcl-file-preview { display:block; width:100%; height:150px; object-fit:cover; border-radius:8px; background:var(--bg); }
+.kc-upload-titles { display:grid; gap:14px; max-height:50vh; overflow:auto; margin:16px 0; }
+.kc-upload-titles label { display:grid; gap:6px; font-weight:700; }
+.kc-upload-titles input { width:100%; min-height:44px; padding:10px; border:1px solid var(--line-strong); border-radius:8px; font:inherit; }
