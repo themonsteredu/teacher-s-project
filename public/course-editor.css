@@ -153,3 +153,7 @@
 .course-lesson-description[hidden]{display:none}
 .course-lesson-description p{margin:0 0 8px}
 @media(max-width:760px){.course-lesson-line{flex-wrap:wrap;gap:0}.course-lesson-toggle{flex-basis:100%;gap:12px}.course-lesson-actions{max-width:100%;padding:0 8px 12px 8px;justify-content:flex-start;flex-shrink:1}.course-lesson-description{padding:4px 8px 18px}.course-lesson-actions .btn{padding:10px 14px}}
+
+/* 수업 전체를 차시와 자료로 살펴보는 트리 */
+.ce-tree{margin:22px 0;padding:20px 22px;border:1px solid var(--line,#dce5df);border-radius:12px;background:var(--card,#fff);word-break:keep-all}
+.ce-tree-head{display:flex;align-items:baseline;justify-content:space-between;gap:12px}.ce-tree h2{margin:0;font-size:18px}.ce-tree p{margin:8px 0 14px}.ce-tree summary{cursor:pointer;font-weight:700;line-height:1.6}.ce-tree ol,.ce-tree ul{list-style:none;margin:0;padding-left:18px;border-left:1px solid var(--line,#dce5df)}.ce-tree li{margin:10px 0}.ce-tree li button{border:0;background:transparent;color:inherit;font:inherit;text-align:left;cursor:pointer;padding:6px 0}.ce-tree ul li{display:flex;gap:12px;flex-wrap:wrap;font-size:14px}.ce-tree ul span{min-width:80px;color:var(--muted,#61716b)}.ce-tree ul strong{font-weight:500;overflow-wrap:anywhere}.ce-tree button:focus-visible{outline:3px solid #0a6f61;outline-offset:3px}@media(max-width:760px){.ce-tree{padding:16px}.ce-tree ol,.ce-tree ul{padding-left:12px}.ce-tree li button{min-height:44px}}

@@ -134,3 +134,10 @@ test('school change corrects out-of-range grade; duplicate connections normalize
   const u=ui();await u.open();u.change('[data-curriculum-link="0"][data-field="school"]','middle');assert.equal(u.node('[data-curriculum-link="0"][data-field="grade"]').value,'1');u.input('[data-curriculum-link="0"][data-field="subject"]',' 국어 ');
   u.click('#ce-add-link');u.input('[data-curriculum-link="1"][data-field="subject"]','국어');await u.click('#ce-quick-save');assert.equal(u.saved.plan.curriculum.links.length,1);assert.equal(u.saved.plan.curriculum.links[0].subject,'국어');
 });
+
+
+test('전체 과정 트리에서 차시와 자료를 확인하고 선택한 차시를 편집한다',async()=>{
+ const u=ui({lessons});await u.open();u.click('[data-step="1"]');
+ assert.match(u.html,/수업 구성 트리/);assert.match(u.html,/2차시 · 증거 조사/);assert.match(u.html,/학생 웹앱/);
+ const btn=u.node('[data-tree-lesson="1"]');btn.onclick({preventDefault(){}});assert.equal(u.node(title(1)).value,'증거 조사');
+});
