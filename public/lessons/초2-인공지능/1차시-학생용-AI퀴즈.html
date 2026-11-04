@@ -142,17 +142,68 @@
   </div>
 
 <script>
+/* BEGIN GENERATED QUIZ SCRIPT: npm run lesson:build */
 const QUIZ = [
-  { emoji:"🔊", name:"AI 스피커",            ai:true,  why:"사람 말을 알아듣고 대답해요. 그래서 AI예요!" },
-  { emoji:"✏️", name:"연필",                 ai:false, why:"글씨를 쓰지만 스스로 생각하진 못해요." },
-  { emoji:"🤖", name:"AI 로봇",              ai:true,  why:"보고 듣고 스스로 움직여요. AI 친구예요!" },
-  { emoji:"☂️", name:"우산",                 ai:false, why:"비를 막아주지만 스스로 생각하진 않아요." },
-  { emoji:"📱", name:"휴대폰 음성 비서",      ai:true,  why:"물어보면 똑똑하게 답을 찾아줘요. AI예요!" },
-  { emoji:"⚽", name:"축구공",                ai:false, why:"차면 굴러가지만 스스로 생각하진 못해요." },
-  { emoji:"📷", name:"얼굴을 알아보는 카메라", ai:true,  why:"누구 얼굴인지 척척 알아봐요. AI예요!" },
-  { emoji:"🪑", name:"의자",                 ai:false, why:"앉는 의자예요. 스스로 생각하진 않아요." },
-  { emoji:"🗺️", name:"길 찾기 내비게이션",    ai:true,  why:"길을 똑똑하게 찾아줘요. AI예요!" },
-  { emoji:"✂️", name:"가위",                 ai:false, why:"자르는 도구예요. 스스로 생각하진 못해요." },
+  {
+    "emoji": "🔊",
+    "name": "AI 스피커",
+    "ai": true,
+    "why": "사람 말을 알아듣고 대답해요. 그래서 AI예요!"
+  },
+  {
+    "emoji": "✏️",
+    "name": "연필",
+    "ai": false,
+    "why": "글씨를 쓰지만 스스로 생각하진 못해요."
+  },
+  {
+    "emoji": "🤖",
+    "name": "AI 로봇",
+    "ai": true,
+    "why": "보고 듣고 스스로 움직여요. AI 친구예요!"
+  },
+  {
+    "emoji": "☂️",
+    "name": "우산",
+    "ai": false,
+    "why": "비를 막아주지만 스스로 생각하진 않아요."
+  },
+  {
+    "emoji": "📱",
+    "name": "휴대폰 음성 비서",
+    "ai": true,
+    "why": "물어보면 똑똑하게 답을 찾아줘요. AI예요!"
+  },
+  {
+    "emoji": "⚽",
+    "name": "축구공",
+    "ai": false,
+    "why": "차면 굴러가지만 스스로 생각하진 못해요."
+  },
+  {
+    "emoji": "📷",
+    "name": "얼굴을 알아보는 카메라",
+    "ai": true,
+    "why": "누구 얼굴인지 척척 알아봐요. AI예요!"
+  },
+  {
+    "emoji": "🪑",
+    "name": "의자",
+    "ai": false,
+    "why": "앉는 의자예요. 스스로 생각하진 않아요."
+  },
+  {
+    "emoji": "🗺️",
+    "name": "길 찾기 내비게이션",
+    "ai": true,
+    "why": "길을 똑똑하게 찾아줘요. AI예요!"
+  },
+  {
+    "emoji": "✂️",
+    "name": "가위",
+    "ai": false,
+    "why": "자르는 도구예요. 스스로 생각하진 못해요."
+  }
 ];
 const V={ start:document.getElementById('startView'), quiz:document.getElementById('quizView'),
          answer:document.getElementById('answerView'), end:document.getElementById('endView'),
@@ -242,6 +293,7 @@ document.getElementById('againBtn').onclick=start;
 document.getElementById('nextBtn').onclick=next;
 document.querySelectorAll('.btn').forEach(b=>b.onclick=()=>answer(b.dataset.ans));
 document.getElementById('soundBtn').onclick=function(){ soundOn=!soundOn; this.textContent=soundOn?'🔊':'🔇'; if(!soundOn) speechSynthesis.cancel(); };
+/* END GENERATED QUIZ SCRIPT */
 </script>
 </body>
 </html>

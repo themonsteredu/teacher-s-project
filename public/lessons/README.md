@@ -70,3 +70,10 @@ public/lessons/
               "student": "초2-인공지능/1차시-학생용-AI퀴즈.html",
               "teacher": "초2-인공지능/1차시-선생님용-인공지능과의첫만남.html" }] }
 ```
+
+## 초2 AI 1차시 학생 퀴즈: 모듈화 시범
+
+이 차시만 문항과 퀴즈 기능을 `lessons-src/`에 따로 보관한다.
+문항이나 기능을 바꾼 뒤 `npm run lesson:build`로 기존 실행 HTML을 다시 만들고 `npm run check`로 검증한다.
+주소와 단일 파일 사용 방식은 유지된다. HTML을 허브에 별도로 업로드한 복사본은 재배포만으로 바뀌지 않는다.
+자세한 기준과 파일 위치는 저장소 루트의 `lessons-src/README.md`를 참고한다.
