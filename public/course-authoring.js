@@ -24,7 +24,16 @@
     }
     return count;
   }
-  const api = {outline, variant, commonApp};
+  // Filename hints are suggestions only; the teacher reviews all assignments before upload.
+  function fileHint(name) {
+    const text = String(name || '').replace(/\.[^.]+$/, '').replace(/[_-]+/g, ' ').trim();
+    const match = text.match(/(?:^|\s)([1-9]\d?)\s*차시(?:\s|$|[·.:])/);
+    const number = match ? Number(match[1]) : null;
+    const slot = /활동지|워크시트|학습지/.test(text) ? 'worksheet' : /교안|지도안|선생님용|교사용/.test(text) ? 'guide' : /ppt|슬라이드|발표자료/i.test(text) ? 'ppt' : /학생용|학생앱|웹앱/i.test(text) ? 'app' : '';
+    const title = text.replace(/(?:^|\s)[1-9]\d?\s*차시(?:\s|$|[·.:])/,' ').replace(/학생용|학생앱|웹앱|선생님용|교사용|지도안|교안|활동지|워크시트|학습지|ppt|슬라이드|발표자료/gi,' ').replace(/\s+/g,' ').trim();
+    return {number:number && number <= 50 ? number : null, slot, title};
+  }
+  const api = {outline, variant, commonApp, fileHint};
   if (typeof module !== 'undefined') module.exports = api;
   else root.CourseAuthoring = api;
 })(globalThis);

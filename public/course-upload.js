@@ -1,18 +1,38 @@
 'use strict';
 function openCourseFileBatch({programId, variant, files, changed, redraw}) {
   let selected=[],busy=false;
-  const modal=openModal('<h3>자료 여러 개 등록</h3><p>파일을 고른 뒤 차시와 자료 종류를 지정하세요. 지정한 칸의 기존 연결만 교체됩니다.</p><input type="file" id="cb-files" multiple accept=".pdf,.ppt,.pptx,.doc,.docx,.hwp,.hwpx,.html,.htm,.zip,.png,.jpg,.jpeg,.webp"><div id="cb-rows"></div><div class="m-actions"><button class="btn btn-ghost" id="cb-close">닫기</button><button class="btn btn-primary" id="cb-upload">선택한 자료 업로드</button></div><p id="cb-message" role="status"></p>');
+  const hint = name => CourseAuthoring.fileHint(name);
+  const modal=openModal('<h3>수업 파일 올리기</h3><p>HTML 웹앱과 수업 자료를 고르세요. 파일명에 차시와 학생용·교사용이 있으면 연결 위치를 제안합니다. 올리기 전에 확인하고 바꿀 수 있습니다.</p><input type="file" id="cb-files" multiple accept=".pdf,.ppt,.pptx,.doc,.docx,.hwp,.hwpx,.html,.htm,.zip,.png,.jpg,.jpeg,.webp"><button type="button" class="btn btn-soft btn-sm" id="cb-create-lessons">파일명으로 차시 만들기</button><p class="small muted">차시가 비어 있을 때만 만들 수 있습니다. 파일 이름에 1차시, 2차시처럼 적어 주세요.</p><div id="cb-rows"></div><div class="m-actions"><button class="btn btn-ghost" id="cb-close">닫기</button><button class="btn btn-primary" id="cb-upload">선택한 자료 업로드</button></div><p id="cb-message" role="status"></p>');
   modal.querySelector('#cb-close').onclick=()=>{if(!busy){modal.remove();redraw();}};
+  function drawRows() {
+    modal.querySelector('#cb-rows').innerHTML=selected.map((x,i)=>{
+      const h=hint(x.file.name), index=h.number && h.number<=variant.sessions.length ? h.number-1 : -1;
+      return `<div class="ce-bulk-row"><strong>${esc(x.file.name)}</strong><label>차시<select data-cb-session="${i}"><option value="">직접 선택</option>${variant.sessions.map((s,j)=>`<option value="${j}" ${j===index?'selected':''}>${j+1}차시 · ${esc(s.title||'제목 미입력')}</option>`).join('')}</select></label><label>자료 종류<select data-cb-slot="${i}"><option value="">직접 선택</option>${Object.entries(COURSE_SLOTS).map(([k,n])=>`<option value="${k}" ${h.slot===k?'selected':''}>${n}</option>`).join('')}</select></label><span data-cb-status="${i}" role="status">${index<0||!h.slot?'확인 필요':'제안 · 확인 필요'}</span></div>`;
+    }).join('');
+  }
   modal.querySelector('#cb-files').onchange=e=>{
     selected=Array.from(e.target.files).map(file=>({file,done:false}));
-    modal.querySelector('#cb-rows').innerHTML=selected.map((x,i)=>`<div class="ce-bulk-row"><strong>${esc(x.file.name)}</strong><label>차시<select data-cb-session="${i}">${variant.sessions.map((s,j)=>`<option value="${j}">${j+1}차시 · ${esc(s.title)}</option>`).join('')}</select></label><label>자료 종류<select data-cb-slot="${i}">${Object.entries(COURSE_SLOTS).map(([k,n])=>`<option value="${k}">${n}</option>`).join('')}</select></label><span data-cb-status="${i}" role="status">대기</span></div>`).join('');
+    drawRows();
+  };
+  modal.querySelector('#cb-create-lessons').onclick=()=>{
+    const msg=modal.querySelector('#cb-message');
+    if(!selected.length){msg.textContent='먼저 파일을 선택하세요.';return;}
+    const empty=variant.sessions.length===1 && !variant.sessions[0].title.trim() && Object.values(variant.sessions[0].assets).every(a=>!a.url&&!a.fileId);
+    if(!empty){msg.textContent='기존 차시가 있어 자동으로 만들지 않았습니다. 기존 차시를 선택해 주세요.';return;}
+    const hints=selected.map(x=>hint(x.file.name)), nums=hints.map(h=>h.number).filter(Boolean);
+    if(!nums.length){msg.textContent='파일 이름에서 차시 번호를 찾지 못했습니다. 직접 차시를 추가해 주세요.';return;}
+    const count=Math.max(...nums);
+    variant.sessions=Array.from({length:count},(_,i)=>{const h=hints.find(x=>x.number===i+1);const s=blankCourseSession();s.title=h?.title||`${i+1}차시`;return s;});
+    changed();drawRows();msg.textContent=`${count}개 차시를 임시로 만들었습니다. 제목과 파일 연결을 확인한 뒤 저장해 주세요.`;
   };
   modal.querySelector('#cb-upload').onclick=async()=>{
     if(busy)return;
     const msg=modal.querySelector('#cb-message');
     if(!selected.length||selected.length>50){msg.textContent='파일을 1~50개 선택하세요.';return;}
-    const targets=selected.map((x,i)=>({index:Number(modal.querySelector(`[data-cb-session="${i}"]`).value),slot:modal.querySelector(`[data-cb-slot="${i}"]`).value}));
+    const targets=selected.map((x,i)=>{const raw=modal.querySelector(`[data-cb-session="${i}"]`).value;return {index:raw===''?-1:Number(raw),slot:modal.querySelector(`[data-cb-slot="${i}"]`).value};});
+    if(targets.some(t=>!Number.isInteger(t.index)||t.index<0||!variant.sessions[t.index]||!Object.hasOwn(COURSE_SLOTS,t.slot))){msg.textContent='각 파일의 차시와 자료 종류를 선택해 주세요.';return;}
     if(new Set(targets.map(t=>`${t.index}:${t.slot}`)).size!==targets.length){msg.textContent='같은 차시·자료 종류에 파일이 겹칩니다. 각 파일의 배치를 확인하세요.';return;}
+    if(targets.some((t,i)=>!selected[i].done && (variant.sessions[t.index].assets[t.slot]?.url || variant.sessions[t.index].assets[t.slot]?.fileId)) && !confirm('이미 연결된 자료가 있습니다. 선택한 칸의 연결을 바꿀까요? 기존 파일은 공통 자료에 남습니다.'))return;
     if(selected.some(x=>!x.file.size||x.file.size>100*1024*1024)){msg.textContent='각 파일은 0MB 초과 100MB 이하여야 합니다.';return;}
     busy=true;modal.querySelectorAll('button,input,select').forEach(el=>el.disabled=true);
     try {
