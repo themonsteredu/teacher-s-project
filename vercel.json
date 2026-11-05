@@ -16,6 +16,10 @@
     {
       "destination": "/app.html",
       "source": "/app/:path*"
+    },
+    {
+      "source": "/voice-synthesis",
+      "destination": "https://aitool-green-ten.vercel.app/api/tts"
     }
   ]
 }

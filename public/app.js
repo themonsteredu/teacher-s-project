@@ -1041,6 +1041,7 @@ function postCardHtml(p, { forTeacher = false, manageable = false } = {}) {
       ${gallery}
       ${p.submission ? `<div class="pc-body"><small>${esc(p.sessionTitle)}</small><h3>${esc(p.title)}</h3><span class="badge green">제출 완료</span> <span class="small muted">활동 기록 미연결</span></div>` : ''}
       ${p.content ? `<div class="pc-body">${esc(p.content)}</div>` : ''}
+      ${forTeacher ? files.filter(f=>String(f.mime).startsWith('audio/')).map(f=>`<label>${esc(f.name)}<audio controls preload="none" src="/api/posts/${p.id}/download/${f.index}?play=1"></audio></label>`).join('') : ''}
       ${fileChip}
       ${forTeacher ? `
         <div class="pc-actions">
@@ -2688,7 +2689,7 @@ route(/^#\/boardview\/(\d+)$/, async (id) => {
         ${canSee && data.hasFiles ? `<button class="btn btn-soft btn-sm" id="board-print">${icon('fileText')} 사진 모아 인쇄</button>` : ''}
         ${canSee && data.hasFiles ? `<button class="btn btn-soft btn-sm" id="board-dlall">${icon('download')} 전체 다운로드</button>` : ''}
         ${data.manageable ? `<button class="btn ${b.isOpen ? 'btn-danger' : 'btn-primary'} btn-sm" id="board-toggle">${b.isOpen ? '마감하기' : '다시 열기'}</button>` : ''}
-        ${data.manageable && !inbox ? `<button class="btn btn-danger btn-sm" id="board-del">${icon('trash')} 수업 삭제</button>` : ''}
+        ${data.manageable && !inbox ? `<button class="btn btn-primary btn-sm" id="jump-share">학생에게 도구 보이기</button><button class="btn btn-danger btn-sm" id="board-del">${icon('trash')} 수업 삭제</button>` : ''}
         ${inbox ? '' : `<a class="btn btn-ghost btn-sm" href="#/program/${data.program.id}">← 프로그램</a>`}
       </div>
     </div>
@@ -2830,7 +2831,7 @@ route(/^#\/boardview\/(\d+)$/, async (id) => {
   const viewerCard = document.getElementById('viewer-card');
   if (viewerCard) loadViewerCard(viewerCard, id);
   const shareCard = document.getElementById('share-card');
-  if (shareCard) loadShareCard(shareCard, id);
+  if (shareCard) { loadShareCard(shareCard, id); document.getElementById('jump-share')?.addEventListener('click',()=>shareCard.scrollIntoView({block:'start'})); }
   const submissionSettings = document.getElementById('submission-settings-card');
   if (submissionSettings) loadSubmissionSettings(submissionSettings, id);
 });

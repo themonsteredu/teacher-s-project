@@ -427,3 +427,12 @@ test('one broken settings row never takes down the submission list',async()=>{
  const after=await f.api.list({...req,url:'/api/join-board/abcd12/submissions?scope=mine'},f.response(),'abcd12');
  assert.deepEqual(after.posts.map(p=>String(p.id)),[String(second.id)]);
 });
+
+test('학생 녹음과 AI 음성은 대사 한 건의 첨부로 저장된다',async()=>{
+ const f=fixture(), student=await f.join();
+ const ids=[await upload(f,student,'내 목소리.webm',20,'audio/webm'),await upload(f,student,'AI 목소리.mp3',25,'audio/mpeg')];
+ const result=await f.api.submit(student,f.response(),'abcd12',f.body({content:'나는 작은 나무야.',uploadIds:ids}));
+ const meta=JSON.parse(f.settings.get('sb:post:'+result.id));
+ assert.deepEqual(meta.attachments.map(a=>a.mime),['audio/webm','audio/mpeg']);
+ assert.equal(f.posts[0].content,'나는 작은 나무야.');
+});
