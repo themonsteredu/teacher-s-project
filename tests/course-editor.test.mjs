@@ -43,7 +43,7 @@ function ui({lessons=[{id:1,title:'원본 활동'}],initialPlan=null}={}){
   let html='',saved={revision:initialPlan?'initial':null,plan:initialPlan},fail=false,root=element(),modal=null;const routes=[],calls=[],toasts=[];
   const program={id:71,title:'수업 제목',description:'소개',grade:'초5'};
   const node=selector=>{const found=root.querySelector(selector);assert.ok(found,`rendered control ${selector}`);return found;};
-  const ctx={Map,Object,Array,String,Number,crypto:{randomUUID},window:{addEventListener(){}},location:{hash:'#/manage/71'},GRADES:['초5'],isAdmin:()=>true,esc:s=>String(s??'').replaceAll('&','&amp;').replaceAll('"','&quot;').replaceAll('<','&lt;'),route:(pattern,fn)=>routes.push({pattern,fn}),confirm:()=>true,toast:(...args)=>toasts.push(args),document:{getElementById:id=>root.querySelector('#'+id),querySelector:s=>s==='.course-editor'?root:root.querySelector(s),querySelectorAll:s=>root.querySelectorAll(s)},shell:(title,content)=>{html=content;root=element();root.innerHTML=content;},openModal:content=>{modal=element();modal.innerHTML=content;return modal;},api:async(method,path,body)=>{calls.push({method,path,body});if(path.endsWith('/course-plan')){if(method==='PUT'){if(fail)throw new Error('검증용 네트워크 오류');saved={revision:randomUUID(),plan:structuredClone(body.plan)};}return structuredClone(saved);}if(method==='PATCH')Object.assign(program,body);return{program:{...program},lessons,files:[],links:[]};}};
+  const ctx={Map,Object,Array,String,Number,URL,crypto:{randomUUID},window:{addEventListener(){}},location:{hash:'#/manage/71'},GRADES:['초5'],isAdmin:()=>true,esc:s=>String(s??'').replaceAll('&','&amp;').replaceAll('"','&quot;').replaceAll('<','&lt;'),route:(pattern,fn)=>routes.push({pattern,fn}),confirm:()=>true,toast:(...args)=>toasts.push(args),document:{getElementById:id=>root.querySelector('#'+id),querySelector:s=>s==='.course-editor'?root:root.querySelector(s),querySelectorAll:s=>root.querySelectorAll(s)},shell:(title,content)=>{html=content;root=element();root.innerHTML=content;},openModal:content=>{modal=element();modal.innerHTML=content;return modal;},api:async(method,path,body)=>{calls.push({method,path,body});if(path.endsWith('/course-plan')){if(method==='PUT'){if(fail)throw new Error('검증용 네트워크 오류');saved={revision:randomUUID(),plan:structuredClone(body.plan)};}return structuredClone(saved);}if(method==='PATCH')Object.assign(program,body);return{program:{...program},lessons,files:[],links:[]};}};
   vm.createContext(ctx);vm.runInContext(curriculum,ctx);vm.runInContext(authoring,ctx);vm.runInContext(source,ctx);
   return{open:()=>routes[0].fn('71'),node,all:s=>root.querySelectorAll(s),get html(){return html;},get saved(){return saved;},get modal(){return modal;},calls,toasts,fail(value=true){fail=value;},click(s){const n=node(s);assert.equal(n.disabled,false,`${s} must be enabled`);assert.equal(typeof n.onclick,'function',`${s} click handler`);return n.onclick({target:n});},input(s,value){const n=node(s);n.value=value;assert.equal(typeof n.oninput,'function',`${s} input handler`);return n.oninput({target:n});},change(s,value){const n=node(s);if(typeof value==='boolean')n.checked=value;else n.value=value;assert.equal(typeof n.onchange,'function',`${s} change handler`);return n.onchange({target:n});}};
 }
@@ -140,4 +140,24 @@ test('전체 과정 트리에서 차시와 자료를 확인하고 선택한 차�
  const u=ui({lessons});await u.open();u.click('[data-step="1"]');
  assert.match(u.html,/수업 구성 트리/);assert.match(u.html,/2차시 · 증거 조사/);assert.match(u.html,/학생 웹앱/);
  const btn=u.node('[data-tree-lesson="1"]');btn.onclick({preventDefault(){}});assert.equal(u.node(title(1)).value,'증거 조사');
+});
+
+
+test('배포된 조선 웹교재를 미리 보고 6차시를 추가하고 저장한다',async()=>{
+ const u=ui({lessons:[]});await u.open();u.click('[data-step="1"]');u.click('#ce-web-course');
+ const m=u.modal;assert.equal(m.querySelector('#cw-add').disabled,true);
+ m.querySelector('#cw-check').onclick();assert.equal(m.querySelector('#cw-add').disabled,false);
+ assert.match(m.querySelector('#cw-preview').innerHTML,/6차시/);assert.match(m.querySelector('#cw-preview').innerHTML,/joseon\/course\/6\?view=activity/);
+ m.querySelector('#cw-add').onclick();assert.equal(u.all('[data-lesson]').length,6);assert.match(u.html,/조선 유산 AR 전시 준비하기/);
+ await u.click('#ce-quick-save');const sessions=u.saved.plan.variants[0].sessions;assert.equal(sessions.length,6);
+ assert.equal(sessions[0].assets.app.url,'https://ai-history-ar.vercel.app/joseon/course/1?view=activity');
+ assert.equal(sessions[5].assets.worksheet.url,'https://ai-history-ar.vercel.app/downloads/joseon/course/lesson-6-student.pdf');
+ assert.match(sessions[0].assets.guide.url,/teacher\/joseon/);
+ u.click('#ce-web-course');u.modal.querySelector('#cw-check').onclick();u.modal.querySelector('#cw-add').onclick();assert.match(u.modal.querySelector('#cw-error').textContent,/중복/);
+});
+
+test('지원되지 않은 웹교재는 자동으로 읽었다고 표시하지 않는다',async()=>{
+ const u=ui({lessons:[]});await u.open();u.click('[data-step="1"]');u.click('#ce-web-course');
+ const m=u.modal;m.querySelector('#cw-url').value='https://other.example/joseon';m.querySelector('#cw-check').onclick();
+ assert.equal(m.querySelector('#cw-add').disabled,true);assert.match(m.querySelector('#cw-error').textContent,/조선 6차시만/);
 });
