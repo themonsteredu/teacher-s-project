@@ -185,6 +185,11 @@ async function renderStudentClass(code, join, careerStudentId) {
   }
   function bind() {
     const root=document.querySelector('.student-class');
+    for(const link of root.querySelectorAll('.sc-app-links a')){
+      if(link.href.split('?')[0]==='https://aitool-green-ten.vercel.app/story-voice/'){
+        link.onclick=e=>{e.preventDefault();openVoiceActivity()};
+      }
+    }
     root.querySelectorAll('[data-sc-tab]').forEach(b=>b.onclick=()=>{if(busy)return;tab=b.dataset.scTab;render();if(tab==='board')feed();});
     root.querySelectorAll('[data-sc-page]').forEach(b=>b.onclick=()=>move(()=>{page=b.dataset.scPage;}));
     root.querySelectorAll('[data-sc-lesson]').forEach(b=>b.onclick=()=>{if(pending)return toast('먼저 확인 중인 제출을 완료해 주세요.',true);if(dirty())return toast('작성 중인 결과물을 먼저 제출해 주세요.',true);move(()=>{current=b.dataset.scLesson;});});
@@ -213,6 +218,32 @@ async function renderStudentClass(code, join, careerStudentId) {
       if(!confirm(dirty()?'작성 중인 내용이 있습니다. 수업에서 나갈까요?':data.studentSession?.accountLinked?'로그아웃하고 수업에서 나갈까요? 공유기기의 다음 학생은 본인 계정으로 로그인해야 합니다.':'수업에서 나갈까요? 공유기기의 다음 학생은 새 제출 세션으로 입장합니다.'))return;
       try{await sbRequest('POST',`${base}/leave`,{});sbWrite(keys.draft,null);sbWrite(keys.name,null);pending=null;draft={};clearFiles();location.hash='#/login';}catch(e){toast(e.message,true);}
     };
+  }
+  function openVoiceActivity(){
+    if(!onPage()||screenLocked||busy||pending)return;
+    if(!lesson().submissions.enabled||!lesson().submissions.types.includes('document')){toast('선생님이 이 차시의 파일 제출을 열어 주세요.',true);return}
+    const sid=current, owner=data.studentSession?.draftScope, dialog=document.createElement('dialog');
+    dialog.style.cssText='width:min(1000px,96vw);height:92vh;padding:12px;border:0;border-radius:14px';
+    const label=document.createElement('label');label.textContent='제출할 학생 이름 ';
+    const roster=join.board.roster||[],name=document.createElement(roster.length?'select':'input');
+    if(roster.length){name.add(new Option('내 이름 선택',''));for(const n of roster)name.add(new Option(n,n))}
+    name.maxLength=20;name.value=draft.student_name||'';label.append(name);
+    const close=document.createElement('button');close.textContent='닫기';close.onclick=()=>dialog.close();
+    const frame=document.createElement('iframe');frame.title='이야기 목소리 비교';frame.allow='microphone';frame.style.cssText='width:100%;height:90%;border:0';frame.src='/lessons/story-voice.html';
+    dialog.append(label,close,frame);document.body.append(dialog);dialog.showModal();
+    const transfer=async(source,result)=>{
+      if(source!==frame.contentWindow || !dialog.open || !onPage() || screenLocked || current!==sid || owner!==data.studentSession?.draftScope)throw Error('수업에 다시 입장해 주세요.');
+      const student=name.value.trim();
+      if(!student || (roster.length&&!roster.includes(student)))throw Error('위에서 내 이름을 선택해 주세요.');
+      const ext={'audio/webm':'webm','audio/mp4':'m4a','audio/ogg':'ogg'};
+      const suffix=ext[result.student.type.split(';')[0]];
+      if(!suffix||!result.student.size||!result.ai.size||Math.max(result.student.size,result.ai.size)>20*1024*1024)throw Error('녹음을 20MB 이내로 다시 만들어 주세요.');
+      clearFiles();files=[new File([result.student],'내 목소리.'+suffix),new File([result.ai],'AI 목소리.mp3')];previews=['',''];
+      draft={student_name:student,title:result.title||'이야기 목소리 비교',content:result.text};
+      tab='board';dialog.close();await send();
+    };
+    window.submitStoryVoice=transfer;
+    dialog.addEventListener('close',()=>{if(window.submitStoryVoice===transfer)delete window.submitStoryVoice;dialog.remove()},{once:true});
   }
   async function send() {
     if(busy||feedBusy||screenLocked)return;
