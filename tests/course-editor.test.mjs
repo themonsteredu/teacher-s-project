@@ -39,13 +39,13 @@ function parse(html){
     const node=element(tag,attrs);stack.at(-1).children.push(node);if(!['input','br','hr','img','meta','link'].includes(tag))stack.push(node);
   }return root.children;
 }
-function ui({lessons=[{id:1,title:'원본 활동'}],initialPlan=null}={}){
-  let html='',saved={revision:initialPlan?'initial':null,plan:initialPlan},fail=false,root=element(),modal=null;const routes=[],calls=[],toasts=[];
+function ui({lessons=[{id:1,title:'원본 활동'}],initialPlan=null,files=[]}={}){
+  let html='',saved={revision:initialPlan?'initial':null,plan:initialPlan},fail=false,root=element(),modal=null;const routes=[],calls=[],toasts=[],views=[];
   const program={id:71,title:'수업 제목',description:'소개',grade:'초5'};
   const node=selector=>{const found=root.querySelector(selector);assert.ok(found,`rendered control ${selector}`);return found;};
-  const ctx={Map,Object,Array,String,Number,URL,crypto:{randomUUID},window:{addEventListener(){}},location:{hash:'#/manage/71'},GRADES:['초5'],isAdmin:()=>true,esc:s=>String(s??'').replaceAll('&','&amp;').replaceAll('"','&quot;').replaceAll('<','&lt;'),route:(pattern,fn)=>routes.push({pattern,fn}),confirm:()=>true,toast:(...args)=>toasts.push(args),document:{getElementById:id=>root.querySelector('#'+id),querySelector:s=>s==='.course-editor'?root:root.querySelector(s),querySelectorAll:s=>root.querySelectorAll(s)},shell:(title,content)=>{html=content;root=element();root.innerHTML=content;},openModal:content=>{modal=element();modal.innerHTML=content;return modal;},api:async(method,path,body)=>{calls.push({method,path,body});if(path.endsWith('/course-plan')){if(method==='PUT'){if(fail)throw new Error('검증용 네트워크 오류');saved={revision:randomUUID(),plan:structuredClone(body.plan)};}return structuredClone(saved);}if(method==='PATCH')Object.assign(program,body);return{program:{...program},lessons,files:[],links:[]};}};
+  const ctx={Map,Object,Array,String,Number,URL,crypto:{randomUUID},window:{addEventListener(){}},location:{hash:'#/manage/71'},GRADES:['초5'],isAdmin:()=>true,esc:s=>String(s??'').replaceAll('&','&amp;').replaceAll('"','&quot;').replaceAll('<','&lt;'),route:(pattern,fn)=>routes.push({pattern,fn}),confirm:()=>true,toast:(...args)=>toasts.push(args),document:{getElementById:id=>root.querySelector('#'+id),querySelector:s=>s==='.course-editor'?root:root.querySelector(s),querySelectorAll:s=>root.querySelectorAll(s)},shell:(title,content)=>{html=content;root=element();root.innerHTML=content;},openModal:content=>{modal=element();modal.innerHTML=content;return modal;},openFileViewer:id=>views.push(['file',id]),openSlidePresent:(url,name)=>views.push(['slide',url,name]),api:async(method,path,body)=>{calls.push({method,path,body});if(path.endsWith('/course-plan')){if(method==='PUT'){if(fail)throw new Error('검증용 네트워크 오류');saved={revision:randomUUID(),plan:structuredClone(body.plan)};}return structuredClone(saved);}if(method==='PATCH')Object.assign(program,body);return{program:{...program},lessons,files,links:[]};}};
   vm.createContext(ctx);vm.runInContext(curriculum,ctx);vm.runInContext(authoring,ctx);vm.runInContext(source,ctx);
-  return{open:()=>routes[0].fn('71'),node,all:s=>root.querySelectorAll(s),get html(){return html;},get saved(){return saved;},get modal(){return modal;},calls,toasts,fail(value=true){fail=value;},click(s){const n=node(s);assert.equal(n.disabled,false,`${s} must be enabled`);assert.equal(typeof n.onclick,'function',`${s} click handler`);return n.onclick({target:n});},input(s,value){const n=node(s);n.value=value;assert.equal(typeof n.oninput,'function',`${s} input handler`);return n.oninput({target:n});},change(s,value){const n=node(s);if(typeof value==='boolean')n.checked=value;else n.value=value;assert.equal(typeof n.onchange,'function',`${s} change handler`);return n.onchange({target:n});}};
+  return{open:()=>routes[0].fn('71'),node,all:s=>root.querySelectorAll(s),get html(){return html;},get saved(){return saved;},get modal(){return modal;},calls,toasts,views,fail(value=true){fail=value;},click(s){const n=node(s);assert.equal(n.disabled,false,`${s} must be enabled`);assert.equal(typeof n.onclick,'function',`${s} click handler`);return n.onclick({target:n});},input(s,value){const n=node(s);n.value=value;assert.equal(typeof n.oninput,'function',`${s} input handler`);return n.oninput({target:n});},change(s,value){const n=node(s);if(typeof value==='boolean')n.checked=value;else n.value=value;assert.equal(typeof n.onchange,'function',`${s} change handler`);return n.onchange({target:n});}};
 }
 const lessons=[{id:1,title:'문제 발견'},{id:2,title:'증거 조사'},{id:3,title:'결과 발표'}];
 const title=i=>`[data-session="${i}"][data-field="title"]`;
@@ -66,15 +66,15 @@ test('lesson and step navigation preserve all edits; quick save stays in the cur
   u.input(record(0,'mode'),'submission');u.input(record(0,'completion'),'활동지 사진과 설명 제출');u.input(record(0,'original'),'학생이 작성한 관찰 내용');u.input(record(0,'process'),'식물의 특징을 관찰하고 기록함');
   u.change('[data-sub-type="0:document"]',false);u.change('[data-sub-sharing="0"]','class');
   u.click('[data-asset="0:worksheet"]');u.modal.querySelector('#ca-url').value='https://example.test/observation.pdf';u.modal.querySelector('#ca-apply').onclick();
-  u.click('[data-lesson="1"]');u.input(title(1),'학생 비교');u.change('#ce-lesson-select','0');assert.equal(u.node(title(0)).value,'학생 관찰');assert.equal(u.node(record(0,'process')).value,'식물의 특징을 관찰하고 기록함');
+  u.click('[data-lesson="1"]');u.input(title(1),'학생 비교');u.click('[data-lesson="0"]');assert.equal(u.node(title(0)).value,'학생 관찰');assert.equal(u.node(record(0,'process')).value,'식물의 특징을 관찰하고 기록함');
   u.click('[data-step="0"]');assert.equal(u.node('#ce-title').value,'한 번 입력한 수업명');u.click('[data-step="1"]');await u.click('#ce-quick-save');
   assert.equal(u.node('#ce-step-1').hidden,false);assert.match(u.node('#ce-message').textContent,/저장했습니다/);const s=u.saved.plan.variants[0].sessions[0];assert.equal(s.minutes,45);assert.equal(s.bridge,'제공된 관찰 사진부터 시작');assert.equal(s.assets.worksheet.url,'https://example.test/observation.pdf');assert.deepEqual(s.submissions.types,['photo','text']);assert.equal(s.submissions.sharing,'class');assert.equal(s.record.process,'식물의 특징을 관찰하고 기록함');assert.equal(u.saved.plan.variants[0].sessions[1].title,'학생 비교');
   await u.open();u.click('[data-step="1"]');assert.equal(u.node(title(0)).value,'학생 관찰');
 });
 
-test('mobile add, reorder and remove keep the intended lesson active with focus on its editor',async()=>{
+test('the shared lesson list adds, reorders and removes the intended lesson with focus on its editor',async()=>{
   const u=ui({lessons});await u.open();u.click('[data-step="1"]');u.click('[data-lesson="1"]');assert.equal(u.node(title(1)).focused,true);u.input(title(1),'선택한 조사 활동');u.click('[data-move="1"][data-direction="-1"]');assert.equal(u.node(title(0)).value,'선택한 조사 활동');assert.equal(u.node(title(0)).focused,true);
-  u.click('#ce-add-session-mobile');assert.equal(u.node(title(3)).value,'');u.input(title(3),'추가 실험');u.click('[data-move="3"][data-direction="-1"]');assert.equal(u.node(title(2)).value,'추가 실험');assert.equal(u.node(title(2)).focused,true);u.click('[data-remove="2"]');assert.equal(u.all('[data-session][data-field="title"]').length,1);assert.equal(u.all('[data-lesson]').length,3);await u.click('#ce-quick-save');assert.deepEqual(u.saved.plan.variants[0].sessions.map(s=>s.title),['선택한 조사 활동','문제 발견','결과 발표']);
+  u.click('#ce-add-session');assert.equal(u.node(title(3)).value,'');u.input(title(3),'추가 실험');u.click('[data-move="3"][data-direction="-1"]');assert.equal(u.node(title(2)).value,'추가 실험');assert.equal(u.node(title(2)).focused,true);u.click('[data-remove="2"]');assert.equal(u.all('[data-session][data-field="title"]').length,1);assert.equal(u.all('[data-lesson]').length,3);await u.click('#ce-quick-save');assert.deepEqual(u.saved.plan.variants[0].sessions.map(s=>s.title),['선택한 조사 활동','문제 발견','결과 발표']);
 });
 
 test('copying selected original lessons creates an independently editable alternative and preserves source',async()=>{
@@ -136,10 +136,22 @@ test('school change corrects out-of-range grade; duplicate connections normalize
 });
 
 
-test('전체 과정 트리에서 차시와 자료를 확인하고 선택한 차시를 편집한다',async()=>{
+test('one curriculum tree selects lessons and shows only the selected lesson’s connected materials',async()=>{
  const u=ui({lessons});await u.open();u.click('[data-step="1"]');
- assert.match(u.html,/수업 구성 트리/);assert.match(u.html,/2차시 · 증거 조사/);assert.match(u.html,/학생 웹앱/);
- const btn=u.node('[data-tree-lesson="1"]');btn.onclick({preventDefault(){}});assert.equal(u.node(title(1)).value,'증거 조사');
+ assert.equal(u.all('.ce-tree').length,1);assert.equal(u.all('[data-lesson]').length,3);
+ assert.equal(u.all('.ce-tree-assets').length,0);assert.equal(u.node('.ce-more-settings').getAttribute('open'),null);
+ u.click('[data-asset="0:app"]');u.modal.querySelector('#ca-url').value='https://example.test/activity';u.modal.querySelector('#ca-apply').onclick();
+ let assets=u.node('.ce-tree-assets');assert.equal(assets.children.length,1);assert.equal(assets.querySelector('a').textContent,'학생 활동');assert.equal(assets.querySelector('a').getAttribute('href'),'https://example.test/activity');
+ u.click('[data-lesson="1"]');assert.equal(u.node(title(1)).value,'증거 조사');assert.equal(u.all('.ce-tree-assets').length,0);
+ u.input(title(1),'새 조사');assert.equal(u.node('[data-lesson="1"]').getAttribute('aria-label'),'2차시 · 새 조사');
+ u.click('[data-lesson="0"]');assets=u.node('.ce-tree-assets');assert.equal(assets.children.length,1);assert.equal(u.node(title(0)).value,'문제 발견');
+});
+
+test('connected tree files open the existing image/PDF viewer and HTML presentation',async()=>{
+ const u=ui({lessons,files:[{id:7,name:'사진.png',mime:'image/png'},{id:8,name:'수업.html',mime:'text/html'}]});await u.open();u.click('[data-step="1"]');
+ for(const [slot,id] of [['worksheet','7'],['ppt','8']]){u.click(`[data-asset="0:${slot}"]`);u.modal.querySelector('#ca-file').value=id;u.modal.querySelector('#ca-apply').onclick();}
+ u.click('[data-tree-file="7"]');u.click('[data-tree-slide="8"]');
+ assert.deepEqual(u.views,[['file','7'],['slide','/api/files/8/open','수업 자료']]);
 });
 
 
@@ -147,7 +159,7 @@ test('배포된 조선 웹교재를 미리 보고 6차시를 추가하고 저장
  const u=ui({lessons:[]});await u.open();u.click('[data-step="1"]');u.click('#ce-web-course');
  const m=u.modal;assert.equal(m.querySelector('#cw-add').disabled,true);
  m.querySelector('#cw-check').onclick();assert.equal(m.querySelector('#cw-add').disabled,false);
- assert.match(m.querySelector('#cw-preview').innerHTML,/6차시/);assert.match(m.querySelector('#cw-preview').innerHTML,/joseon\/course\/6\?view=activity/);
+ assert.equal(m.querySelector('#cw-preview').querySelectorAll('details').length,6);assert.equal(m.querySelector('#cw-preview').querySelectorAll('details[open]').length,0);assert.match(m.querySelector('#cw-preview').innerHTML,/6차시/);assert.match(m.querySelector('#cw-preview').innerHTML,/joseon\/course\/6\?view=activity/);
  m.querySelector('#cw-add').onclick();assert.equal(u.all('[data-lesson]').length,6);assert.match(u.html,/조선 유산 AR 전시 준비하기/);
  await u.click('#ce-quick-save');const sessions=u.saved.plan.variants[0].sessions;assert.equal(sessions.length,6);
  assert.equal(sessions[0].assets.app.url,'https://ai-history-ar.vercel.app/joseon/course/1?view=activity');

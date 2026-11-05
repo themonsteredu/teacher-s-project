@@ -44,26 +44,23 @@
 .ce-library-link{color:#0a6f61;font-size:12px;padding:10px 0}
 .ce-lesson-layout{display:grid;grid-template-columns:250px minmax(0,1fr);align-items:start;border:1px solid #dce5e0;border-radius:12px;background:#fff}
 .ce-lesson-rail{min-width:0;padding:20px 12px;position:sticky;top:90px}
-.ce-lesson-rail .ce-panel-heading{padding:0 10px 18px}
-.ce-lesson-rail h3 span{font-size:12px;color:#536c64;font-weight:400;margin-left:6px}
-.ce-lesson-list{display:flex;flex-direction:column;gap:6px;max-height:calc(100dvh - 255px);overflow-y:auto;padding:4px;margin:-4px -4px 16px}
-.ce-lesson-list>button{display:flex;align-items:flex-start;gap:10px;text-align:left;border:1px solid transparent;border-radius:8px;background:transparent;padding:12px 10px;cursor:pointer;line-height:1.7;color:#172d2a}
-.ce-lesson-list>button[aria-pressed=true]{background:#edf6f1;border-color:#8cb6a2;color:#0a6f61}
-.ce-lesson-list>button>span:last-child{min-width:0}
+.ce-lesson-list{display:flex;flex-direction:column;gap:6px;max-height:calc(100dvh - 330px);overflow-y:auto;list-style:none;padding:4px;margin:-4px -4px 16px}
+.ce-lesson-list>li>button{display:flex;align-items:flex-start;gap:10px;text-align:left;width:100%;min-height:44px;border:1px solid transparent;border-radius:8px;background:transparent;padding:12px 10px;cursor:pointer;line-height:1.7;color:#172d2a}
+.ce-lesson-list>li>button[aria-pressed=true]{background:#edf6f1;border-color:#8cb6a2;color:#0a6f61}
 .ce-lesson-list strong{display:block;font-size:13px;font-weight:400;overflow-wrap:anywhere}
-.ce-lesson-list>button[aria-pressed=true] strong{font-weight:700}
-.ce-lesson-list small{display:block;font-size:11px;line-height:1.8;color:#5b7167;margin-top:4px}
-.ce-lesson-number{font-size:11px;display:grid;place-items:center;background:#f2f5f3;min-width:25px;height:25px;border-radius:6px}
+.ce-lesson-list>li>button[aria-pressed=true] strong{font-weight:700}
+.ce-lesson-number{font-size:11px;display:grid;place-items:center;background:#f2f5f3;min-width:42px;height:25px;border-radius:6px;flex-shrink:0}
 .ce-lesson-rail>.btn{width:100%;justify-content:center}
 .ce-lesson-detail{border-left:1px solid #e1e9e5;min-width:0;padding:26px 28px}
-.course-editor .ce-mobile-lessons{display:none}
-.course-editor .ce-mobile-add{display:none}
 .ce-detail-heading{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:20px}
 .ce-detail-heading .ce-kicker{margin:0}
 .ce-order-actions{display:flex;gap:6px}
 .ce-order-actions button{border:1px solid #d6e2da;background:#fff;border-radius:6px;min-height:36px;min-width:36px;padding:7px 9px;cursor:pointer;font-size:12px;color:#526b60}
 .ce-lesson-basics{display:grid;grid-template-columns:minmax(0,1fr) 115px;gap:18px}
 .ce-detail-section{border-top:1px solid #e1e9e5;margin-top:16px;padding-top:24px;padding-bottom:8px}
+.ce-more-settings{border-top:1px solid #e1e9e5;margin-top:16px}
+.ce-more-settings>summary{padding:16px 0;min-height:44px;box-sizing:border-box;cursor:pointer;font-size:13px;color:#536c64}
+.ce-more-settings>.ce-detail-section:first-of-type{border-top:0;margin-top:0;padding-top:8px}
 .ce-detail-section>.muted{font-size:12px}
 .ce-materials{display:grid;grid-template-columns:1fr 1fr;border:1px solid #dce5e0;border-radius:8px;overflow:hidden}
 .ce-material{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:16px;min-width:0}
@@ -111,9 +108,8 @@
   .ce-head h1{font-size:25px}.ce-head p{font-size:13px}.ce-head{margin-bottom:20px}
   .ce-steps{gap:3px;padding:4px;margin-bottom:24px}.ce-steps button{flex-direction:column;gap:7px;font-size:11px;padding:10px 2px;min-width:0}.ce-steps b{width:23px;height:23px}
   .ce-section{padding:20px 16px}.course-editor h2{font-size:19px}.ce-basic{grid-template-columns:1fr;gap:0}
-  .ce-lesson-layout{display:block}.ce-lesson-rail{display:none}.ce-lesson-detail{border-left:0;padding:18px 16px}
-  .course-editor .ce-mobile-lessons{display:flex;padding-bottom:16px;border-bottom:1px solid #e1e9e5}
-  .course-editor .ce-mobile-add{display:flex;margin-bottom:18px}
+  .ce-lesson-layout{display:block}.ce-lesson-rail{position:static;padding:18px 16px;border-bottom:1px solid #e1e9e5}.ce-lesson-detail{border-left:0;padding:18px 16px}
+  .ce-lesson-list{max-height:300px}
   .ce-lesson-basics{grid-template-columns:minmax(0,1fr) 90px;gap:10px}.ce-detail-heading{flex-wrap:wrap;gap:10px}
   .course-editor input,.course-editor select,.course-editor textarea{font-size:16px}
   .ce-detail-section{padding-top:20px}.ce-workspace-tools{gap:14px}.ce-workspace-tools>.ce-panel-heading{max-width:none;flex-basis:100%}
@@ -154,6 +150,17 @@
 .course-lesson-description p{margin:0 0 8px}
 @media(max-width:760px){.course-lesson-line{flex-wrap:wrap;gap:0}.course-lesson-toggle{flex-basis:100%;gap:12px}.course-lesson-actions{max-width:100%;padding:0 8px 12px 8px;justify-content:flex-start;flex-shrink:1}.course-lesson-description{padding:4px 8px 18px}.course-lesson-actions .btn{padding:10px 14px}}
 
-/* 수업 전체를 차시와 자료로 살펴보는 트리 */
-.ce-tree{margin:22px 0;padding:20px 22px;border:1px solid var(--line,#dce5df);border-radius:12px;background:var(--card,#fff);word-break:keep-all}
-.ce-tree-head{display:flex;align-items:baseline;justify-content:space-between;gap:12px}.ce-tree h2{margin:0;font-size:18px}.ce-tree p{margin:8px 0 14px}.ce-tree summary{cursor:pointer;font-weight:700;line-height:1.6}.ce-tree ol,.ce-tree ul{list-style:none;margin:0;padding-left:18px;border-left:1px solid var(--line,#dce5df)}.ce-tree li{margin:10px 0}.ce-tree li button{border:0;background:transparent;color:inherit;font:inherit;text-align:left;cursor:pointer;padding:6px 0}.ce-tree ul li{display:flex;gap:12px;flex-wrap:wrap;font-size:14px}.ce-tree ul span{min-width:80px;color:var(--muted,#61716b)}.ce-tree ul strong{font-weight:500;overflow-wrap:anywhere}.ce-tree button:focus-visible{outline:3px solid #0a6f61;outline-offset:3px}@media(max-width:760px){.ce-tree{padding:16px}.ce-tree ol,.ce-tree ul{padding-left:12px}.ce-tree li button{min-height:44px}}
+/* One curriculum tree also serves as the lesson selector. */
+.ce-tree-root{padding:0 10px 18px;overflow-wrap:anywhere}
+.ce-tree-root .ce-kicker{margin:0 0 6px;color:#536c64}
+.ce-tree-root h3{margin:0;font-size:15px}
+.ce-tree-assets{list-style:none;margin:4px 0 8px 30px;padding:0 0 0 14px;border-left:1px solid #c8dbd0}
+.ce-tree-assets a,.ce-tree-assets button{display:flex;align-items:center;min-height:44px;box-sizing:border-box;padding:10px 6px;border:0;background:transparent;text-align:left;color:#0a6f61;font:inherit;font-size:13px;text-decoration:none;cursor:pointer;width:100%}
+.ce-tree-assets a:hover,.ce-tree-assets button:hover{background:#f0f7f3;border-radius:6px;text-decoration:underline}
+.ce-import-preview{margin:20px 0}
+.ce-import-preview h4{margin:0 0 12px;font-size:15px}
+.ce-import-preview ol{list-style:none;margin:0;padding:0;border-top:1px solid #dce5e0}
+.ce-import-preview li{border-bottom:1px solid #dce5e0}
+.ce-import-preview summary{padding:14px 0;cursor:pointer;font-size:14px;line-height:1.7;word-break:keep-all}
+.ce-import-links{display:flex;flex-wrap:wrap;gap:4px 16px;padding:0 0 12px 16px}
+.ce-import-links a{display:flex;align-items:center;min-height:44px;font-size:13px;color:#0a6f61}
